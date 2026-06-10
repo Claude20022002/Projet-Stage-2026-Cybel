@@ -433,6 +433,14 @@ FRONTEND_PORT=3000
 
 ---
 
+## Documentation interface opérateur
+
+Guide complet du fonctionnement de l'interface web (panneaux, workflows, API, WebSocket, mode simulation) :
+
+**[docs/INTERFACE.md](docs/INTERFACE.md)**
+
+---
+
 ## Commandes de démarrage rapide
 
 ```bash
