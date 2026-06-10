@@ -1,5 +1,5 @@
 import { icons } from "../icons";
-import type { RobotStatus } from "../types";
+import type { RobotStatus, SpeechStatus } from "../types";
 
 function localizationClass(percent: number): string {
   if (percent < 60) return "loc-low";
@@ -13,7 +13,11 @@ function batteryClass(level: number): string {
   return "battery-good";
 }
 
-export function renderStatusBar(status: RobotStatus | null, wsConnected: boolean): string {
+export function renderStatusBar(
+  status: RobotStatus | null,
+  wsConnected: boolean,
+  speech: SpeechStatus | null = null
+): string {
   if (!status) {
     return `
       <header class="status-bar">
@@ -74,6 +78,11 @@ export function renderStatusBar(status: RobotStatus | null, wsConnected: boolean
         ${
           status.charger
             ? `<span class="badge badge--charge badge--with-icon">${icons.plug("icon icon--badge", 14)}<span>En charge</span></span>`
+            : ""
+        }
+        ${
+          speech?.speaking
+            ? `<span class="badge badge--speaking badge--with-icon">${icons.volume("icon icon--badge", 14)}<span>Parle</span></span>`
             : ""
         }
         ${

@@ -94,6 +94,13 @@ export interface ReceptionAction {
   route_name?: string | null;
 }
 
+export interface SpeechStatus {
+  speaking: boolean;
+  last_text: string;
+  last_method: string;
+  mock: boolean;
+}
+
 export type AppPage = "dashboard" | "settings";
 
 export interface AppState {
@@ -110,4 +117,5 @@ export interface AppState {
   events: string[];
   wsConnected: boolean;
   voiceListening: boolean;
+  speech: SpeechStatus | null;
 }

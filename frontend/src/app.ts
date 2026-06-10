@@ -29,6 +29,7 @@ let lastSelectedPoint: string | null = null;
 let lastMapKey = "";
 let lastPage = state.page;
 let lastVoiceListening = false;
+let lastSpeechSpeaking = false;
 
 function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
@@ -36,11 +37,11 @@ function renderDashboardContent(): string {
 
   return `
     <div class="dashboard">
-      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected)}</div>
+      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected, state.speech)}</div>
       <main class="dashboard__main">
         <div class="dashboard__left">
           <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
-          <div id="reception-panel-container">${renderReceptionPanel(state.actions, state.voiceListening)}</div>
+          <div id="reception-panel-container">${renderReceptionPanel(state.actions, state.voiceListening, state.speech)}</div>
         </div>
         <div id="map-panel-container">${renderMapCanvas(state.map)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
@@ -84,7 +85,7 @@ function bindLayoutEvents(): void {
 
 function updateStatusBar(): void {
   const el = document.getElementById("status-bar-container");
-  if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected);
+  if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected, state.speech);
 }
 
 function updatePointsPanel(force = false): void {
@@ -149,7 +150,7 @@ function updateReceptionPanel(): void {
   if (state.page !== "dashboard") return;
   const el = document.getElementById("reception-panel-container");
   if (el) {
-    el.innerHTML = renderReceptionPanel(state.actions, state.voiceListening);
+    el.innerHTML = renderReceptionPanel(state.actions, state.voiceListening, state.speech);
     bindReceptionEvents();
   }
 }
@@ -157,6 +158,26 @@ function updateReceptionPanel(): void {
 function bindReceptionEvents(): void {
   document.getElementById("btn-voice")?.addEventListener("click", () => {
     toggleVoiceListening();
+  });
+
+  document.getElementById("btn-speak")?.addEventListener("click", async () => {
+    const input = document.getElementById("speech-text") as HTMLTextAreaElement | null;
+    const text = input?.value.trim();
+    if (!text) return;
+    try {
+      await api.speak(text);
+    } catch (err) {
+      pushEvent(`TTS : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-stop-speech")?.addEventListener("click", async () => {
+    try {
+      await api.stopSpeech();
+      pushEvent("Synthèse vocale interrompue");
+    } catch (err) {
+      pushEvent(`Erreur : ${(err as Error).message}`);
+    }
   });
 
   document.querySelectorAll("[data-action]").forEach((el) => {
@@ -305,9 +326,14 @@ function onStateChange(): void {
   if (state.page === "dashboard") {
     updateStatusBar();
     updatePointsPanel();
-    if (state.voiceListening !== lastVoiceListening) {
+    if (
+      state.voiceListening !== lastVoiceListening ||
+      (state.speech?.speaking ?? false) !== lastSpeechSpeaking
+    ) {
       lastVoiceListening = state.voiceListening;
+      lastSpeechSpeaking = state.speech?.speaking ?? false;
       updateReceptionPanel();
+      updateStatusBar();
     }
     updateMapPanel();
     updateMapCanvas();

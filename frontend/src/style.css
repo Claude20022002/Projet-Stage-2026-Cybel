@@ -218,6 +218,12 @@ body {
   animation: pulse 1.5s infinite;
 }
 
+.badge--speaking {
+  background: #dbeafe;
+  color: #1e40af;
+  animation: pulse 1.5s infinite;
+}
+
 .badge--loading {
   background: #f1f5f9;
   color: var(--text-muted);
@@ -426,6 +432,37 @@ body {
   border-color: #fecaca;
   color: #dc2626;
   animation: pulse 1.5s infinite;
+}
+
+.speech-box {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speech-box__input {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  resize: vertical;
+  background: #f8fafc;
+}
+
+.speech-box__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.speech-box__status {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .point-item {

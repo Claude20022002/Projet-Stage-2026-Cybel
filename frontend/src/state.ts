@@ -9,6 +9,7 @@ import type {
   ReceptionAction,
   RobotSettings,
   RobotStatus,
+  SpeechStatus,
 } from "./types";
 
 type Listener = () => void;
@@ -29,6 +30,7 @@ export const state: AppState = {
   events: [],
   wsConnected: false,
   voiceListening: false,
+  speech: null,
 };
 
 const listeners = new Set<Listener>();
@@ -84,6 +86,11 @@ export function setActions(actions: ReceptionAction[]): void {
 
 export function setVoiceListening(listening: boolean): void {
   state.voiceListening = listening;
+  notify();
+}
+
+export function setSpeech(speech: SpeechStatus): void {
+  state.speech = speech;
   notify();
 }
 

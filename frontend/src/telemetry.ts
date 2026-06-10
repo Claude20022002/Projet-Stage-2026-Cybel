@@ -4,6 +4,7 @@ import {
   setPeople,
   setPoints,
   setPose,
+  setSpeech,
   setStatus,
   setWsConnected,
   pushEvent,
@@ -15,6 +16,7 @@ import type {
   Point,
   Pose,
   RobotStatus,
+  SpeechStatus,
 } from "./types";
 
 let socket: WebSocket | null = null;
@@ -62,6 +64,19 @@ export function connectTelemetry(): void {
       setLidar(data.points as LidarPoint[]);
     } else if (type === "people" && Array.isArray(data.people)) {
       setPeople(data.people as DetectedPerson[]);
+    } else if (type === "speech") {
+      setSpeech({
+        speaking: Boolean(data.speaking),
+        last_text: String(data.text ?? ""),
+        last_method: String(data.method ?? ""),
+        mock: Boolean(data.method === "mock"),
+      });
+      const status = String(data.status ?? "");
+      if (status === "speaking") {
+        pushEvent(`Robot parle : « ${data.text} »`);
+      } else if (status === "done") {
+        pushEvent("Annonce terminée");
+      }
     } else if (type === "event" && typeof data.message === "string") {
       pushEvent(data.message);
     }

@@ -1,5 +1,5 @@
 import { icons } from "../icons";
-import type { ReceptionAction } from "../types";
+import type { ReceptionAction, SpeechStatus } from "../types";
 
 const ICON_MAP: Record<string, (cls?: string, size?: number) => string> = {
   "hand-wave": icons.users,
@@ -19,8 +19,10 @@ function actionIcon(name: string): string {
 
 export function renderReceptionPanel(
   actions: ReceptionAction[],
-  voiceListening: boolean
+  voiceListening: boolean,
+  speech: SpeechStatus | null
 ): string {
+  const speaking = speech?.speaking ?? false;
   const accueil = actions.filter((a) => a.category === "accueil");
   const nav = actions.filter((a) => a.category === "navigation");
   const other = actions.filter(
@@ -68,6 +70,31 @@ export function renderReceptionPanel(
       ${renderGroup("Réception", accueil)}
       ${renderGroup("Navigation", nav)}
       ${renderGroup("Autres", other)}
+
+      <div class="speech-box">
+        <h3 class="reception-group__title">Synthèse vocale</h3>
+        <textarea
+          id="speech-text"
+          class="speech-box__input"
+          rows="2"
+          placeholder="Message à faire dire au robot…"
+        >Bienvenue ! Comment puis-je vous aider ?</textarea>
+        <div class="speech-box__actions">
+          <button id="btn-speak" class="btn btn--primary btn--with-icon btn--block" type="button" ${speaking ? "disabled" : ""}>
+            ${icons.volume("icon", 16)}
+            <span>${speaking ? "En cours…" : "Faire parler"}</span>
+          </button>
+          <button id="btn-stop-speech" class="btn btn--ghost btn--with-icon" type="button">
+            ${icons.square("icon", 14)}
+            <span>Stop parole</span>
+          </button>
+        </div>
+        ${
+          speech?.last_text
+            ? `<p class="speech-box__status">Dernier : « ${speech.last_text} »${speech.last_method ? ` · ${speech.last_method}` : ""}</p>`
+            : ""
+        }
+      </div>
     </section>
   `;
 }

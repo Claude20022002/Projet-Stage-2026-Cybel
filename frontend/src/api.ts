@@ -5,6 +5,7 @@ import type {
   ReceptionAction,
   RobotSettings,
   RobotStatus,
+  SpeechStatus,
 } from "./types";
 
 export interface MoveCommand {
@@ -71,4 +72,11 @@ export const api = {
       "/api/reception/voice",
       { method: "POST", body: JSON.stringify({ text }) }
     ),
+  getSpeechStatus: () => request<SpeechStatus>("/api/speech/status"),
+  speak: (text: string, interrupt = true) =>
+    request<{ ok: boolean; method?: string; text?: string }>("/api/speech/say", {
+      method: "POST",
+      body: JSON.stringify({ text, interrupt }),
+    }),
+  stopSpeech: () => request("/api/speech/stop", { method: "POST" }),
 };

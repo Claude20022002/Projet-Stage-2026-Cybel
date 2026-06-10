@@ -1,8 +1,13 @@
 """Découverte du canal TTS ROS sur le robot CIOT — à lancer connecté au WiFi robot."""
 import asyncio
 import json
+import sys
+from pathlib import Path
 
 import websockets
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from sdk.constants import (
     SPEECH_PUBLISH_PAYLOADS,
