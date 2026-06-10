@@ -1,6 +1,6 @@
 # Projet-Stage-2026-Cybel
 
-# CYBEL — Plateforme de Commande Robot CIOT TY1251D
+# CYBEL - Plateforme de Commande Robot CIOT TY1251D
 
 ## Vue d'ensemble
 
@@ -26,12 +26,12 @@ réel, la navigation autonome et le monitoring du robot via une interface web.
      :9090                      :1883
            │                      │
 ┌──────────▼──────────────────────▼──────────────────────────┐
-│              CHÂSSIS CIOT — 10.42.0.1                      │
+│              CHÂSSIS CIOT - 10.42.0.1                      │
 │              WiFi : TY1251D-03195                          │
 │              Mot de passe : 123456789                      │
 │                                                            │
 │  OS : Linux embarqué (ROS Noetic/Melodic)                  │
-│  Upper body : Android 7.1 (RK3399) — 172.16.0.88          │
+│  Upper body : Android 7.1 (RK3399) - 172.16.0.88          │
 ├────────────────────────────────────────────────────────────┤
 │  PORTS OUVERTS                                             │
 │  :1883  MQTT broker                                        │
@@ -223,7 +223,7 @@ cybel/
 ├── README.md
 ├── docker-compose.yml
 │
-├── sdk/                          # PHASE A — SDK Python
+├── sdk/                          # PHASE A - SDK Python
 │   ├── __init__.py
 │   ├── robot_client.py           # Classe principale RobotClient
 │   ├── rosbridge.py              # Couche WebSocket rosbridge
@@ -235,7 +235,7 @@ cybel/
 │       ├── test_movement.py
 │       └── test_navigation.py
 │
-├── backend/                      # PHASE B+C — API Backend
+├── backend/                      # PHASE B+C - API Backend
 │   ├── main.py                   # FastAPI app
 │   ├── routers/
 │   │   ├── robot.py              # /api/robot/*
@@ -248,7 +248,7 @@ cybel/
 │   └── websocket/
 │       └── manager.py            # Gestionnaire connexions WS
 │
-├── frontend/                     # PHASE B — Interface web
+├── frontend/                     # PHASE B - Interface web
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Dashboard/
@@ -276,7 +276,7 @@ cybel/
 
 ---
 
-## Phase A — SDK Python (RobotClient)
+## Phase A - SDK Python (RobotClient)
 
 ### Interface publique de la classe RobotClient
 
@@ -328,7 +328,7 @@ class RobotClient:
 
 ---
 
-## Phase B — Interface web
+## Phase B - Interface web
 
 ### Pages et fonctionnalités
 
@@ -382,9 +382,9 @@ WS   /ws/telemetry              → stream temps réel (pose, status, lidar)
 
 ---
 
-## Phase C — Navigation autonome
+## Phase C - Navigation autonome
 
-### Service /poi — Navigation par point nommé
+### Service /poi - Navigation par point nommé
 
 Le service ROS `/poi` accepte des requêtes de type `yutong_assistance/poiRequest`.
 Les champs exacts sont à déterminer via introspection :
@@ -477,5 +477,5 @@ scripts/introspect.py         → introspection types ROS
 
 ---
 
-_Projet CYBEL — Robot CIOT TY1251D-03195_
+_Projet CYBEL - Robot CIOT TY1251D-03195_
 _Protocole validé le 10/06/2026_
