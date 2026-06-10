@@ -16,6 +16,8 @@ const MOVE_SPEED = 0.2;
 const ROTATE_SPEED = 0.5;
 let moveInterval: number | null = null;
 let controlsBound = false;
+let lastPointsKey = "";
+let lastSelectedPoint: string | null = null;
 
 function renderShell(): void {
   const app = document.getElementById("app");
@@ -53,7 +55,27 @@ function updateStatusBar(): void {
   if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected);
 }
 
-function updatePointsPanel(): void {
+function updatePointsPanel(force = false): void {
+  const pointsKey = state.points.map((p) => p.id).join(",");
+  const selectionChanged = state.selectedPoint !== lastSelectedPoint;
+  const pointsChanged = pointsKey !== lastPointsKey;
+
+  if (!force && !pointsChanged && !selectionChanged) {
+    document.querySelectorAll("[data-point]").forEach((el) => {
+      const name = (el as HTMLElement).dataset.point;
+      el.classList.toggle("point-item--selected", name === state.selectedPoint);
+    });
+    const navigateBtn = document.getElementById("btn-navigate") as HTMLButtonElement | null;
+    if (navigateBtn) {
+      navigateBtn.disabled = !state.selectedPoint;
+      navigateBtn.textContent = `Aller vers ${state.selectedPoint ?? "…"}`;
+    }
+    return;
+  }
+
+  lastPointsKey = pointsKey;
+  lastSelectedPoint = state.selectedPoint;
+
   const el = document.getElementById("points-panel-container");
   if (el) {
     el.innerHTML = renderPointsList(state.points, state.selectedPoint);
@@ -198,19 +220,9 @@ function stopMoveLoop(): void {
 
 function onStateChange(): void {
   updateStatusBar();
+  updatePointsPanel();
   updateMap();
   updateEventsLog();
-
-  const navigateBtn = document.getElementById("btn-navigate") as HTMLButtonElement | null;
-  if (navigateBtn) {
-    navigateBtn.disabled = !state.selectedPoint;
-    navigateBtn.textContent = `Aller vers ${state.selectedPoint ?? "…"}`;
-  }
-
-  document.querySelectorAll("[data-point]").forEach((el) => {
-    const name = (el as HTMLElement).dataset.point;
-    el.classList.toggle("point-item--selected", name === state.selectedPoint);
-  });
 
   const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
   const newManual = state.status?.nav_mode === "manual";
