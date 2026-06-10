@@ -16,7 +16,6 @@ import type {
   Point,
   Pose,
   RobotStatus,
-  SpeechStatus,
 } from "./types";
 
 let socket: WebSocket | null = null;
