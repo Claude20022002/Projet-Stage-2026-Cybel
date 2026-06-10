@@ -3,8 +3,8 @@ import math
 import random
 from typing import Awaitable, Callable
 
-from mock_map import generate_mock_map
-from models import Coordinate, MapData, Point, Pose, RobotStatus
+from sdk.mock_map import generate_mock_map
+from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus
 
 TelemetryCallback = Callable[[str, dict], Awaitable[None]]
 

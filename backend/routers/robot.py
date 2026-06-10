@@ -1,7 +1,14 @@
-from fastapi import APIRouter, HTTPException
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-from models import MoveCommand, Pose, RobotStatus
+from sdk.models import MoveCommand, Pose, RobotStatus
 from services.robot_service import robot_service
 
 router = APIRouter(prefix="/api/robot", tags=["robot"])

@@ -1,15 +1,19 @@
 import { api } from "./api";
 import { renderControls, renderEventsLog } from "./components/controls";
+import { renderLayout } from "./components/layout";
 import { drawMap, renderMapCanvas } from "./components/mapView";
 import { renderPointsList } from "./components/pointsList";
 import { renderStatusBar } from "./components/statusBar";
+import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
 import { connectTelemetry } from "./telemetry";
 import {
   state,
   subscribe,
   setMap,
+  setPage,
   setPoints,
   setSelectedPoint,
+  setSettings,
   pushEvent,
 } from "./state";
 
@@ -20,36 +24,54 @@ let controlsBound = false;
 let lastPointsKey = "";
 let lastSelectedPoint: string | null = null;
 let lastMapKey = "";
+let lastPage = state.page;
 
-function renderShell(): void {
-  const app = document.getElementById("app");
-  if (!app) return;
-
+function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
   const softEstop = state.status?.soft_estop ?? false;
 
-  app.innerHTML = `
+  return `
     <div class="dashboard">
-      <div id="status-bar-container"></div>
+      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected)}</div>
       <main class="dashboard__main">
-        <div id="points-panel-container"></div>
+        <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
         <div id="map-panel-container">${renderMapCanvas(state.map)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
       </main>
     </div>
   `;
-
-  controlsBound = false;
-  bindControlEvents();
-  updateAll();
 }
 
-function updateAll(): void {
-  updateStatusBar();
-  updatePointsPanel();
-  updateMapPanel(true);
-  updateControls();
-  updateEventsLog();
+function renderApp(): void {
+  const app = document.getElementById("app");
+  if (!app) return;
+
+  const content =
+    state.page === "settings"
+      ? renderSettingsPage(state.settings)
+      : renderDashboardContent();
+
+  app.innerHTML = renderLayout(state.page, content);
+  lastPage = state.page;
+  controlsBound = false;
+
+  bindLayoutEvents();
+  if (state.page === "dashboard") {
+    bindPointEvents();
+    bindControlEvents();
+    updateMapCanvas();
+  } else {
+    bindSettingsEvents(() => api.getSettings().then(setSettings).catch(() => {}));
+  }
+}
+
+function bindLayoutEvents(): void {
+  document.querySelectorAll("[data-page]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const page = (el as HTMLElement).dataset.page as "dashboard" | "settings";
+      if (page && page !== state.page) setPage(page);
+    });
+  });
 }
 
 function updateStatusBar(): void {
@@ -58,6 +80,8 @@ function updateStatusBar(): void {
 }
 
 function updatePointsPanel(force = false): void {
+  if (state.page !== "dashboard") return;
+
   const pointsKey = state.points.map((p) => p.id).join(",");
   const selectionChanged = state.selectedPoint !== lastSelectedPoint;
   const pointsChanged = pointsKey !== lastPointsKey;
@@ -67,11 +91,10 @@ function updatePointsPanel(force = false): void {
       const name = (el as HTMLElement).dataset.point;
       el.classList.toggle("point-item--selected", name === state.selectedPoint);
     });
-    const navigateBtn = document.getElementById("btn-navigate") as HTMLButtonElement | null;
-    if (navigateBtn) {
-      navigateBtn.disabled = !state.selectedPoint;
-      navigateBtn.textContent = `Aller vers ${state.selectedPoint ?? "…"}`;
-    }
+    const navigateBtn = document.getElementById("btn-navigate");
+    const label = navigateBtn?.querySelector("span:last-child");
+    if (label) label.textContent = `Aller vers ${state.selectedPoint ?? "…"}`;
+    if (navigateBtn) (navigateBtn as HTMLButtonElement).disabled = !state.selectedPoint;
     return;
   }
 
@@ -86,6 +109,8 @@ function updatePointsPanel(force = false): void {
 }
 
 function updateMapPanel(force = false): void {
+  if (state.page !== "dashboard") return;
+
   const mapKey = state.map
     ? `${state.map.metadata.name}-${state.map.metadata.width}`
     : "";
@@ -112,6 +137,7 @@ function updateMapCanvas(): void {
 }
 
 function updateControls(): void {
+  if (state.page !== "dashboard") return;
   const el = document.getElementById("controls-panel-container");
   if (!el) return;
 
@@ -234,27 +260,34 @@ function stopMoveLoop(): void {
 }
 
 function onStateChange(): void {
-  updateStatusBar();
-  updatePointsPanel();
-  updateMapPanel();
-  updateEventsLog();
+  if (state.page !== lastPage) {
+    renderApp();
+    return;
+  }
 
-  const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
-  const newManual = state.status?.nav_mode === "manual";
-  const newEstop = state.status?.soft_estop ?? false;
-  const container = document.getElementById("controls-panel-container");
-  if (container) {
-    const needsRerender =
-      !prevManual ||
-      prevManual.checked !== newManual ||
-      Boolean(document.getElementById("btn-estop")) === newEstop ||
-      Boolean(document.getElementById("btn-release-estop")) !== newEstop;
-    if (needsRerender) updateControls();
+  if (state.page === "dashboard") {
+    updateStatusBar();
+    updatePointsPanel();
+    updateMapPanel();
+    updateEventsLog();
+
+    const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
+    const newManual = state.status?.nav_mode === "manual";
+    const newEstop = state.status?.soft_estop ?? false;
+    const container = document.getElementById("controls-panel-container");
+    if (container) {
+      const needsRerender =
+        !prevManual ||
+        prevManual.checked !== newManual ||
+        Boolean(document.getElementById("btn-estop")) === newEstop ||
+        Boolean(document.getElementById("btn-release-estop")) !== newEstop;
+      if (needsRerender) updateControls();
+    }
   }
 }
 
 export async function initApp(): Promise<void> {
-  renderShell();
+  renderApp();
   subscribe(onStateChange);
 
   try {
@@ -269,6 +302,11 @@ export async function initApp(): Promise<void> {
       setMap(await api.getMap());
     } catch {
       pushEvent("Carte non disponible pour le moment");
+    }
+    try {
+      setSettings(await api.getSettings());
+    } catch {
+      /* settings optionnels au démarrage */
     }
     if (state.points.length > 0) {
       setSelectedPoint(state.points[0].name);

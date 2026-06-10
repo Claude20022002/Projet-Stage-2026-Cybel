@@ -1,3 +1,4 @@
+import { icons } from "../icons";
 import type { RobotStatus } from "../types";
 
 function localizationClass(percent: number): string {
@@ -30,15 +31,15 @@ export function renderStatusBar(status: RobotStatus | null, wsConnected: boolean
   return `
     <header class="status-bar">
       <div class="status-bar__left">
-        <span class="brand">CYBEL</span>
         <span class="chassis-id">${status.chassis_id}</span>
         ${
           status.mock
             ? '<span class="badge badge--mock">Mode simulation</span>'
             : ""
         }
-        <span class="badge ${wsConnected ? "badge--ok" : "badge--warn"}">
-          ${wsConnected ? "● Connecté" : "○ Déconnecté"}
+        <span class="badge badge--with-icon ${wsConnected ? "badge--ok" : "badge--warn"}">
+          ${wsConnected ? icons.wifi("icon icon--badge", 14) : icons.wifiOff("icon icon--badge", 14)}
+          <span>${wsConnected ? "Connecté" : "Déconnecté"}</span>
         </span>
       </div>
       <div class="status-bar__center">
@@ -67,17 +68,17 @@ export function renderStatusBar(status: RobotStatus | null, wsConnected: boolean
       </div>
       <div class="status-bar__right">
         <div class="battery ${batClass}">
-          <span class="battery__icon">🔋</span>
+          ${icons.battery("icon icon--battery", 18)}
           <span class="battery__level">${status.battery}%</span>
         </div>
         ${
           status.charger
-            ? '<span class="badge badge--charge">En charge</span>'
+            ? `<span class="badge badge--charge badge--with-icon">${icons.plug("icon icon--badge", 14)}<span>En charge</span></span>`
             : ""
         }
         ${
           status.soft_estop
-            ? '<span class="badge badge--danger">E-STOP ACTIF</span>'
+            ? `<span class="badge badge--danger badge--with-icon">${icons.alertTriangle("icon icon--badge", 14)}<span>E-STOP ACTIF</span></span>`
             : ""
         }
       </div>

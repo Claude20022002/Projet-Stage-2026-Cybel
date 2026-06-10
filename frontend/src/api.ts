@@ -1,4 +1,4 @@
-import type { MapData, Point, Pose, RobotStatus } from "./types";
+import type { MapData, Point, Pose, RobotSettings, RobotStatus } from "./types";
 
 export interface MoveCommand {
   linear_x: number;
@@ -47,4 +47,10 @@ export const api = {
     }),
   cancelNavigation: () =>
     request("/api/navigation/cancel", { method: "POST" }),
+  getSettings: () => request<RobotSettings>("/api/settings"),
+  updateSettings: (settings: RobotSettings) =>
+    request<RobotSettings>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
 };

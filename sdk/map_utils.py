@@ -1,4 +1,4 @@
-from models import MapData, MapMetadata
+from sdk.models import MapData, MapMetadata
 
 
 def parse_occupancy_grid(msg: dict) -> MapData | None:

@@ -79,6 +79,14 @@ class MapData(BaseModel):
     data: list[int]
 
 
+class RobotSettings(BaseModel):
+    speed_gear: Literal["low", "medium", "high"] = "medium"
+    travel_mode: Literal["safety", "balance", "efficiency"] = "balance"
+    directional_mode: Literal["arrows", "joystick"] = "joystick"
+    robot_host: str = "10.42.0.1"
+    mock_mode: bool = True
+
+
 class TelemetryMessage(BaseModel):
     type: Literal["status", "pose", "event", "map", "points"]
     status: RobotStatus | None = None

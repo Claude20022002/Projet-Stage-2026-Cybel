@@ -2,11 +2,10 @@ import asyncio
 import logging
 from typing import Any, Awaitable, Callable
 
-from config import settings
-from constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
-from map_utils import parse_map_metadata, parse_occupancy_grid
-from models import Coordinate, MapData, Point, Pose, RobotStatus
-from rosbridge_client import RosbridgeClient
+from sdk.constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
+from sdk.map_utils import parse_map_metadata, parse_occupancy_grid
+from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus
+from sdk.rosbridge import RosbridgeClient
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +64,10 @@ def _parse_marker(raw: dict, index: int) -> Point | None:
 
 
 class RealRobot:
-    def __init__(self) -> None:
-        host = settings.robot_host
-        port = settings.robot_ws_port
-        self._client = RosbridgeClient(f"ws://{host}:{port}")
+    def __init__(self, host: str = "10.42.0.1", ws_port: int = 9090, chassis_id: str = "TY1251D-03195") -> None:
+        self._host = host
+        self._chassis_id = chassis_id
+        self._client = RosbridgeClient(f"ws://{host}:{ws_port}")
         self._telemetry_callbacks: list[TelemetryCallback] = []
         self._reconnect_task: asyncio.Task | None = None
 
@@ -76,7 +75,7 @@ class RealRobot:
         self.status = RobotStatus(
             connected=False,
             mock=False,
-            chassis_id="TY1251D-03195",
+            chassis_id=self._chassis_id,
             nav_status=600,
             nav_status_label="En initialisation",
             localization_label="Inconnue",
@@ -189,7 +188,7 @@ class RealRobot:
         self.status = RobotStatus(
             connected=True,
             mock=False,
-            chassis_id=settings.robot_host,
+            chassis_id=self._chassis_id,
             battery=battery,
             charger=charger,
             soft_estop=bool(msg.get("soft_estop")),

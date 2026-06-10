@@ -62,12 +62,24 @@ export interface MapData {
   data: number[];
 }
 
+export interface RobotSettings {
+  speed_gear: "low" | "medium" | "high";
+  travel_mode: "safety" | "balance" | "efficiency";
+  directional_mode: "arrows" | "joystick";
+  robot_host: string;
+  mock_mode: boolean;
+}
+
+export type AppPage = "dashboard" | "settings";
+
 export interface AppState {
+  page: AppPage;
   status: RobotStatus | null;
   pose: Pose | null;
   map: MapData | null;
   points: Point[];
   selectedPoint: string | null;
+  settings: RobotSettings | null;
   events: string[];
   wsConnected: boolean;
 }

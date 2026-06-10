@@ -1,3 +1,4 @@
+import { icons } from "../icons";
 import type { Point } from "../types";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -28,6 +29,7 @@ export function renderPointsList(
           <span class="point-item__name">${point.name}</span>
           <span class="point-item__meta">${TYPE_LABELS[point.type] ?? point.type} · (${point.x.toFixed(1)}, ${point.y.toFixed(1)})</span>
         </span>
+        ${point.name === selectedPoint ? icons.mapPin("icon icon--point-selected", 14) : ""}
       </button>
     `
     )
@@ -42,13 +44,15 @@ export function renderPointsList(
       <div class="points-panel__list">
         ${items || '<p class="points-panel__empty">Aucun point disponible</p>'}
       </div>
-      <button id="btn-navigate" class="btn btn--primary btn--block" type="button" ${
+      <button id="btn-navigate" class="btn btn--primary btn--block btn--with-icon" type="button" ${
         selectedPoint ? "" : "disabled"
       }>
-        Aller vers ${selectedPoint ?? "…"}
+        ${icons.navigation("icon", 16)}
+        <span>Aller vers ${selectedPoint ?? "…"}</span>
       </button>
-      <button id="btn-cancel-nav" class="btn btn--ghost btn--block" type="button">
-        Annuler navigation
+      <button id="btn-cancel-nav" class="btn btn--ghost btn--block btn--with-icon" type="button">
+        ${icons.x("icon", 16)}
+        <span>Annuler navigation</span>
       </button>
     </aside>
   `;

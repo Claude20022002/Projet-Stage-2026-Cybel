@@ -1,9 +1,15 @@
+import sys
+from pathlib import Path
 from typing import Protocol
 
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from config import settings
-from mock_robot import MockRobot
-from models import MapData, MoveCommand, Point, Pose, RobotStatus
-from real_robot import RealRobot
+from sdk.mock_robot import MockRobot
+from sdk.models import MapData, MoveCommand, Point, Pose, RobotSettings, RobotStatus
+from sdk.real_robot import RealRobot
 
 
 class RobotBackend(Protocol):
@@ -26,16 +32,27 @@ class RobotService:
     def __init__(self) -> None:
         self._backend: RobotBackend | None = None
         self._use_mock = settings.robot_mock
+        self._settings = RobotSettings()
 
     @property
     def is_mock(self) -> bool:
         return self._use_mock
 
+    def get_settings(self) -> RobotSettings:
+        return self._settings.model_copy(deep=True)
+
+    def update_settings(self, data: RobotSettings) -> RobotSettings:
+        self._settings = data
+        return self.get_settings()
+
     async def connect(self) -> None:
         if self._use_mock:
             self._backend = MockRobot()
         else:
-            self._backend = RealRobot()
+            self._backend = RealRobot(
+                host=settings.robot_host,
+                ws_port=settings.robot_ws_port,
+            )
         await self._backend.start()
 
     async def disconnect(self) -> None:

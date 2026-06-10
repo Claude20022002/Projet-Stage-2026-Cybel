@@ -221,57 +221,50 @@ nginx                     → reverse proxy
 ```
 cybel/
 ├── README.md
-├── docker-compose.yml
+├── .gitignore
+├── docs/                         # Documentation constructeur
 │
-├── sdk/                          # PHASE A - SDK Python
+├── sdk/                          # Couche robot (réutilisable)
 │   ├── __init__.py
-│   ├── robot_client.py           # Classe principale RobotClient
-│   ├── rosbridge.py              # Couche WebSocket rosbridge
-│   ├── mqtt_client.py            # Couche MQTT
-│   ├── models.py                 # Modèles de données (Pydantic)
-│   ├── constants.py              # Constantes (topics, services, codes)
-│   └── tests/
-│       ├── test_connection.py
-│       ├── test_movement.py
-│       └── test_navigation.py
+│   ├── models.py                 # Modèles Pydantic partagés
+│   ├── constants.py              # Topics ROS, services, codes
+│   ├── rosbridge.py              # Client WebSocket rosbridge
+│   ├── map_utils.py              # Parse cartes OccupancyGrid
+│   ├── mock_map.py               # Carte simulée
+│   ├── mock_robot.py             # Simulateur (hors robot)
+│   └── real_robot.py             # Adaptateur robot réel
 │
-├── backend/                      # PHASE B+C - API Backend
-│   ├── main.py                   # FastAPI app
+├── backend/                      # API REST + WebSocket
+│   ├── main.py                   # Point d'entrée FastAPI
+│   ├── config.py                 # Variables d'environnement
+│   ├── requirements.txt
 │   ├── routers/
 │   │   ├── robot.py              # /api/robot/*
 │   │   ├── navigation.py         # /api/navigation/*
 │   │   ├── map.py                # /api/map/*
-│   │   └── telemetry.py          # /api/telemetry/*
+│   │   └── settings.py           # /api/settings
 │   ├── services/
-│   │   ├── robot_service.py      # Logique métier
-│   │   └── ws_relay.py           # Relay WebSocket → clients web
+│   │   └── robot_service.py      # Façade mock / réel
 │   └── websocket/
-│       └── manager.py            # Gestionnaire connexions WS
+│       └── manager.py            # Broadcast télémétrie
 │
-├── frontend/                     # PHASE B - Interface web
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Dashboard/
-│   │   │   ├── Map/
-│   │   │   ├── Joystick/
-│   │   │   ├── StatusBar/
-│   │   │   └── Navigation/
-│   │   ├── hooks/
-│   │   │   ├── useRobotStatus.ts
-│   │   │   ├── useRobotPose.ts
-│   │   │   └── useTelemetry.ts
-│   │   ├── store/
-│   │   │   └── robotStore.ts
-│   │   └── pages/
-│   │       ├── Dashboard.tsx
-│   │       ├── Navigation.tsx
-│   │       └── Settings.tsx
-│   └── package.json
+├── frontend/                     # Interface opérateur (Vite + TS)
+│   └── src/
+│       ├── app.ts                # Routeur pages
+│       ├── api.ts                # Client REST
+│       ├── state.ts              # État global
+│       ├── telemetry.ts          # WebSocket temps réel
+│       ├── icons/                # Icônes SVG inline
+│       ├── components/           # UI (layout, carte, contrôles…)
+│       └── pages/
+│           └── settings.ts       # Page paramètres
 │
-└── scripts/                      # Scripts utilitaires
-    ├── joystick_capture.py
+└── scripts/                      # Outils reverse-engineering
+    ├── robot_move.py
+    ├── robot_status.py
+    ├── ros_explore.py
     ├── mqtt_listen.py
-    └── ros_explore.py
+    └── api_discover.py
 ```
 
 ---

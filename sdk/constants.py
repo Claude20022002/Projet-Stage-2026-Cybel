@@ -41,13 +41,8 @@ MARKER_TYPE_MAP: dict[str, str] = {
     "stop": "stop",
 }
 
-POINT_TYPE_COLORS = {
-    "charging": "#22c55e",
-    "common": "#3b82f6",
-    "gate": "#f97316",
-    "access": "#a855f7",
-    "ride": "#ec4899",
-    "wait": "#06b6d4",
-    "label": "#eab308",
-    "stop": "#facc15",
+SPEED_GEAR_VALUES = {
+    "low": 0.3,
+    "medium": 0.5,
+    "high": 0.8,
 }

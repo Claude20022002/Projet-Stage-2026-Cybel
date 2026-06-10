@@ -1,15 +1,17 @@
-import type { AppState, MapData, Point, Pose, RobotStatus } from "./types";
+import type { AppPage, AppState, MapData, Point, Pose, RobotSettings, RobotStatus } from "./types";
 
 type Listener = () => void;
 
 const MAX_EVENTS = 8;
 
 export const state: AppState = {
+  page: "dashboard",
   status: null,
   pose: null,
   map: null,
   points: [],
   selectedPoint: null,
+  settings: null,
   events: [],
   wsConnected: false,
 };
@@ -37,6 +39,16 @@ export function setPose(pose: Pose): void {
 
 export function setMap(map: MapData): void {
   state.map = map;
+  notify();
+}
+
+export function setPage(page: AppPage): void {
+  state.page = page;
+  notify();
+}
+
+export function setSettings(settings: RobotSettings): void {
+  state.settings = settings;
   notify();
 }
 

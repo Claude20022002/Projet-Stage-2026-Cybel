@@ -1,11 +1,17 @@
 import json
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import map, navigation, robot
+from routers import map, navigation, robot, settings as settings_router
 from services.robot_service import robot_service
 from websocket.manager import ws_manager
 
@@ -24,7 +30,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CYBEL API",
     description="Plateforme de commande robot CIOT TY1251D",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -39,6 +45,7 @@ app.add_middleware(
 app.include_router(robot.router)
 app.include_router(navigation.router)
 app.include_router(map.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/api/health")
@@ -47,6 +54,7 @@ async def health() -> dict:
         "status": "ok",
         "mock": robot_service.is_mock,
         "robot_host": settings.robot_host,
+        "version": "0.2.0",
     }
 
 

@@ -1,4 +1,4 @@
-from models import MapData, MapMetadata
+from sdk.models import MapData, MapMetadata
 
 
 def generate_mock_map() -> MapData:
