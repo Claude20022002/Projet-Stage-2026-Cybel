@@ -63,8 +63,24 @@ class NavigateCommand(BaseModel):
     point_name: str
 
 
+class MapMetadata(BaseModel):
+    name: str = "carte"
+    floor: str = "0"
+    width: int = 0
+    height: int = 0
+    resolution: float = 0.05
+    origin_x: float = 0.0
+    origin_y: float = 0.0
+    area_sqm: float | None = None
+
+
+class MapData(BaseModel):
+    metadata: MapMetadata
+    data: list[int]
+
+
 class TelemetryMessage(BaseModel):
-    type: Literal["status", "pose", "event"]
+    type: Literal["status", "pose", "event", "map", "points"]
     status: RobotStatus | None = None
     pose: Pose | None = None
     event: str | None = None

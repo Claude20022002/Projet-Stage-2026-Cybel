@@ -5,7 +5,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import navigation, robot
+from routers import map, navigation, robot
 from services.robot_service import robot_service
 from websocket.manager import ws_manager
 
@@ -38,6 +38,7 @@ app.add_middleware(
 
 app.include_router(robot.router)
 app.include_router(navigation.router)
+app.include_router(map.router)
 
 
 @app.get("/api/health")
@@ -59,6 +60,11 @@ async def telemetry_ws(websocket: WebSocket) -> None:
         await websocket.send_text(
             json.dumps({"type": "pose", **robot_service.get_pose().model_dump()})
         )
+        map_data = robot_service.get_map()
+        if map_data:
+            await websocket.send_text(
+                json.dumps({"type": "map", **map_data.model_dump()})
+            )
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:

@@ -3,7 +3,8 @@ import math
 import random
 from typing import Awaitable, Callable
 
-from models import Coordinate, Point, Pose, RobotStatus
+from mock_map import generate_mock_map
+from models import Coordinate, MapData, Point, Pose, RobotStatus
 
 TelemetryCallback = Callable[[str, dict], Awaitable[None]]
 
@@ -65,6 +66,7 @@ class MockRobot:
         self._navigation_task: asyncio.Task | None = None
         self._telemetry_callbacks: list[TelemetryCallback] = []
         self._simulation_task: asyncio.Task | None = None
+        self.map_data: MapData = generate_mock_map()
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -74,6 +76,7 @@ class MockRobot:
             await callback(event_type, payload)
 
     async def start(self) -> None:
+        await self._emit("map", self.map_data.model_dump())
         if self._simulation_task is None:
             self._simulation_task = asyncio.create_task(self._simulation_loop())
 
@@ -113,6 +116,9 @@ class MockRobot:
 
     def get_points(self) -> list[Point]:
         return [point.model_copy(deep=True) for point in MOCK_POINTS]
+
+    def get_map(self) -> MapData | None:
+        return self.map_data.model_copy(deep=True)
 
     async def move(self, linear_x: float, angular_z: float) -> None:
         if not self.manual_mode:

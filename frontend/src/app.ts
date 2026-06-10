@@ -7,6 +7,7 @@ import { connectTelemetry } from "./telemetry";
 import {
   state,
   subscribe,
+  setMap,
   setPoints,
   setSelectedPoint,
   pushEvent,
@@ -18,6 +19,7 @@ let moveInterval: number | null = null;
 let controlsBound = false;
 let lastPointsKey = "";
 let lastSelectedPoint: string | null = null;
+let lastMapKey = "";
 
 function renderShell(): void {
   const app = document.getElementById("app");
@@ -31,7 +33,7 @@ function renderShell(): void {
       <div id="status-bar-container"></div>
       <main class="dashboard__main">
         <div id="points-panel-container"></div>
-        ${renderMapCanvas()}
+        <div id="map-panel-container">${renderMapCanvas(state.map)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
       </main>
     </div>
@@ -45,7 +47,7 @@ function renderShell(): void {
 function updateAll(): void {
   updateStatusBar();
   updatePointsPanel();
-  updateMap();
+  updateMapPanel(true);
   updateControls();
   updateEventsLog();
 }
@@ -83,7 +85,19 @@ function updatePointsPanel(force = false): void {
   }
 }
 
-function updateMap(): void {
+function updateMapPanel(force = false): void {
+  const mapKey = state.map
+    ? `${state.map.metadata.name}-${state.map.metadata.width}`
+    : "";
+  if (force || (mapKey && mapKey !== lastMapKey)) {
+    lastMapKey = mapKey;
+    const el = document.getElementById("map-panel-container");
+    if (el) el.innerHTML = renderMapCanvas(state.map);
+  }
+  updateMapCanvas();
+}
+
+function updateMapCanvas(): void {
   const canvas = document.getElementById("map-canvas") as HTMLCanvasElement | null;
   if (canvas) {
     drawMap(
@@ -91,7 +105,8 @@ function updateMap(): void {
       state.pose,
       state.points,
       state.selectedPoint,
-      state.status?.current_goal ?? null
+      state.status?.current_goal ?? null,
+      state.map
     );
   }
 }
@@ -221,7 +236,7 @@ function stopMoveLoop(): void {
 function onStateChange(): void {
   updateStatusBar();
   updatePointsPanel();
-  updateMap();
+  updateMapPanel();
   updateEventsLog();
 
   const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
@@ -250,6 +265,11 @@ export async function initApp(): Promise<void> {
         : "Backend connecté — mode robot réel"
     );
     setPoints(await api.getPoints());
+    try {
+      setMap(await api.getMap());
+    } catch {
+      pushEvent("Carte non disponible pour le moment");
+    }
     if (state.points.length > 0) {
       setSelectedPoint(state.points[0].name);
     }

@@ -1,4 +1,4 @@
-import type { Point, Pose, RobotStatus } from "./types";
+import type { MapData, Point, Pose, RobotStatus } from "./types";
 
 export interface MoveCommand {
   linear_x: number;
@@ -24,6 +24,7 @@ export const api = {
   getStatus: () => request<RobotStatus>("/api/robot/status"),
   getPose: () => request<Pose>("/api/robot/pose"),
   getPoints: () => request<Point[]>("/api/navigation/points"),
+  getMap: () => request<MapData>("/api/map/current"),
   move: (command: MoveCommand) =>
     request("/api/robot/move", {
       method: "POST",

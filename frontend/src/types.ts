@@ -46,9 +46,26 @@ export interface Point {
   floor: string;
 }
 
+export interface MapMetadata {
+  name: string;
+  floor: string;
+  width: number;
+  height: number;
+  resolution: number;
+  origin_x: number;
+  origin_y: number;
+  area_sqm: number | null;
+}
+
+export interface MapData {
+  metadata: MapMetadata;
+  data: number[];
+}
+
 export interface AppState {
   status: RobotStatus | null;
   pose: Pose | null;
+  map: MapData | null;
   points: Point[];
   selectedPoint: string | null;
   events: string[];

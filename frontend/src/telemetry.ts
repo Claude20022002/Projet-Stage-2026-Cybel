@@ -1,5 +1,5 @@
-import { setPose, setStatus, setWsConnected, pushEvent } from "./state";
-import type { Pose, RobotStatus } from "./types";
+import { setMap, setPoints, setPose, setStatus, setWsConnected, pushEvent } from "./state";
+import type { MapData, Point, Pose, RobotStatus } from "./types";
 
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -38,6 +38,10 @@ export function connectTelemetry(): void {
       setStatus(data as unknown as RobotStatus);
     } else if (type === "pose") {
       setPose(data as unknown as Pose);
+    } else if (type === "map" && data.metadata && data.data) {
+      setMap(data as unknown as MapData);
+    } else if (type === "points" && Array.isArray(data.points)) {
+      setPoints(data.points as Point[]);
     } else if (type === "event" && typeof data.message === "string") {
       pushEvent(data.message);
     }

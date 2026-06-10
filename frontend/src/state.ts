@@ -1,4 +1,4 @@
-import type { AppState, Point, Pose, RobotStatus } from "./types";
+import type { AppState, MapData, Point, Pose, RobotStatus } from "./types";
 
 type Listener = () => void;
 
@@ -7,6 +7,7 @@ const MAX_EVENTS = 8;
 export const state: AppState = {
   status: null,
   pose: null,
+  map: null,
   points: [],
   selectedPoint: null,
   events: [],
@@ -31,6 +32,11 @@ export function setStatus(status: RobotStatus): void {
 
 export function setPose(pose: Pose): void {
   state.pose = pose;
+  notify();
+}
+
+export function setMap(map: MapData): void {
+  state.map = map;
   notify();
 }
 

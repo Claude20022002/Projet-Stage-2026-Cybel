@@ -290,9 +290,27 @@ body {
   font-weight: 600;
 }
 
-.map-panel__floor {
+.map-panel__name {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.map-panel__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.map-panel__floor,
+.map-panel__area {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.map-panel__area {
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .map-panel__canvas-wrap {
