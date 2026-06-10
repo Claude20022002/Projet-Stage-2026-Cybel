@@ -70,6 +70,30 @@ export interface RobotSettings {
   mock_mode: boolean;
 }
 
+export interface LidarPoint {
+  x: number;
+  y: number;
+  distance: number;
+}
+
+export interface DetectedPerson {
+  id: string;
+  x: number;
+  y: number;
+  distance: number;
+}
+
+export interface ReceptionAction {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  category: "accueil" | "navigation" | "maintenance" | "sécurité";
+  speech?: string | null;
+  target_point?: string | null;
+  route_name?: string | null;
+}
+
 export type AppPage = "dashboard" | "settings";
 
 export interface AppState {
@@ -77,9 +101,13 @@ export interface AppState {
   status: RobotStatus | null;
   pose: Pose | null;
   map: MapData | null;
+  lidar: LidarPoint[];
+  people: DetectedPerson[];
+  actions: ReceptionAction[];
   points: Point[];
   selectedPoint: string | null;
   settings: RobotSettings | null;
   events: string[];
   wsConnected: boolean;
+  voiceListening: boolean;
 }

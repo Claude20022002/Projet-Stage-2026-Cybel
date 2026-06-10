@@ -1,4 +1,15 @@
-import type { AppPage, AppState, MapData, Point, Pose, RobotSettings, RobotStatus } from "./types";
+import type {
+  AppPage,
+  AppState,
+  DetectedPerson,
+  LidarPoint,
+  MapData,
+  Point,
+  Pose,
+  ReceptionAction,
+  RobotSettings,
+  RobotStatus,
+} from "./types";
 
 type Listener = () => void;
 
@@ -9,11 +20,15 @@ export const state: AppState = {
   status: null,
   pose: null,
   map: null,
+  lidar: [],
+  people: [],
+  actions: [],
   points: [],
   selectedPoint: null,
   settings: null,
   events: [],
   wsConnected: false,
+  voiceListening: false,
 };
 
 const listeners = new Set<Listener>();
@@ -49,6 +64,26 @@ export function setPage(page: AppPage): void {
 
 export function setSettings(settings: RobotSettings): void {
   state.settings = settings;
+  notify();
+}
+
+export function setLidar(points: LidarPoint[]): void {
+  state.lidar = points;
+  notify();
+}
+
+export function setPeople(people: DetectedPerson[]): void {
+  state.people = people;
+  notify();
+}
+
+export function setActions(actions: ReceptionAction[]): void {
+  state.actions = actions;
+  notify();
+}
+
+export function setVoiceListening(listening: boolean): void {
+  state.voiceListening = listening;
   notify();
 }
 

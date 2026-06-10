@@ -1,4 +1,11 @@
-import type { MapData, Point, Pose, RobotSettings, RobotStatus } from "./types";
+import type {
+  MapData,
+  Point,
+  Pose,
+  ReceptionAction,
+  RobotSettings,
+  RobotStatus,
+} from "./types";
 
 export interface MoveCommand {
   linear_x: number;
@@ -53,4 +60,15 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(settings),
     }),
+  getActions: () => request<ReceptionAction[]>("/api/reception/actions"),
+  executeAction: (actionId: string) =>
+    request<{ ok: boolean; events?: string[] }>(
+      `/api/reception/actions/${actionId}/execute`,
+      { method: "POST" }
+    ),
+  voiceCommand: (text: string) =>
+    request<{ ok: boolean; matched_action?: string; events?: string[] }>(
+      "/api/reception/voice",
+      { method: "POST", body: JSON.stringify({ text }) }
+    ),
 };

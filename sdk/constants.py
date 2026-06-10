@@ -8,6 +8,8 @@ ROS_TOPICS = {
     "current_map": "/get_current_map",
     "map_metadata": "/map_metadata",
     "waypoints": "/waypoints",
+    "lidar": "/scan_filter",
+    "people": "/detected_people_array",
 }
 
 ROS_SERVICES = {

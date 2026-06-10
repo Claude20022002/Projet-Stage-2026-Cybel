@@ -1,4 +1,4 @@
-import type { MapData, Point, Pose } from "../types";
+import type { LidarPoint, MapData, Point, Pose } from "../types";
 
 const POINT_COLORS: Record<string, string> = {
   charging: "#22c55e",
@@ -51,7 +51,8 @@ export function renderMapCanvas(map: MapData | null): string {
       <div class="map-panel__canvas-wrap">
         <canvas id="map-canvas" width="640" height="480"></canvas>
         <div class="map-legend">
-          <div class="map-legend__item"><span style="background:#1e293b"></span>Obstacle</div>
+          <div class="map-legend__item"><span style="background:#ef4444"></span>LiDAR live</div>
+          <div class="map-legend__item"><span style="background:#1e293b"></span>Obstacle carte</div>
           <div class="map-legend__item"><span style="background:#22c55e"></span>Pile</div>
           <div class="map-legend__item"><span style="background:#3b82f6"></span>Point</div>
           <div class="map-legend__item"><span style="background:#f97316"></span>Porte</div>
@@ -161,7 +162,8 @@ export function drawMap(
   points: Point[],
   selectedPoint: string | null,
   goal: Pose | null,
-  map: MapData | null
+  map: MapData | null,
+  lidar: LidarPoint[] = []
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -188,6 +190,16 @@ export function drawMap(
     ctx.lineTo(to.cx, to.cy);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  if (lidar.length) {
+    ctx.fillStyle = "rgba(239, 68, 68, 0.75)";
+    for (const hit of lidar) {
+      const { cx, cy } = worldToCanvas(hit.x, hit.y, viewport, width, height);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   for (const point of points) {

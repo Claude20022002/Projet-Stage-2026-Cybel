@@ -3,12 +3,15 @@ import { renderControls, renderEventsLog } from "./components/controls";
 import { renderLayout } from "./components/layout";
 import { drawMap, renderMapCanvas } from "./components/mapView";
 import { renderPointsList } from "./components/pointsList";
+import { renderReceptionPanel } from "./components/receptionPanel";
 import { renderStatusBar } from "./components/statusBar";
+import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
 import { connectTelemetry } from "./telemetry";
 import {
   state,
   subscribe,
+  setActions,
   setMap,
   setPage,
   setPoints,
@@ -25,6 +28,7 @@ let lastPointsKey = "";
 let lastSelectedPoint: string | null = null;
 let lastMapKey = "";
 let lastPage = state.page;
+let lastVoiceListening = false;
 
 function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
@@ -34,7 +38,10 @@ function renderDashboardContent(): string {
     <div class="dashboard">
       <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected)}</div>
       <main class="dashboard__main">
-        <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
+        <div class="dashboard__left">
+          <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
+          <div id="reception-panel-container">${renderReceptionPanel(state.actions, state.voiceListening)}</div>
+        </div>
         <div id="map-panel-container">${renderMapCanvas(state.map)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
       </main>
@@ -58,6 +65,7 @@ function renderApp(): void {
   bindLayoutEvents();
   if (state.page === "dashboard") {
     bindPointEvents();
+    bindReceptionEvents();
     bindControlEvents();
     updateMapCanvas();
   } else {
@@ -131,9 +139,38 @@ function updateMapCanvas(): void {
       state.points,
       state.selectedPoint,
       state.status?.current_goal ?? null,
-      state.map
+      state.map,
+      state.lidar
     );
   }
+}
+
+function updateReceptionPanel(): void {
+  if (state.page !== "dashboard") return;
+  const el = document.getElementById("reception-panel-container");
+  if (el) {
+    el.innerHTML = renderReceptionPanel(state.actions, state.voiceListening);
+    bindReceptionEvents();
+  }
+}
+
+function bindReceptionEvents(): void {
+  document.getElementById("btn-voice")?.addEventListener("click", () => {
+    toggleVoiceListening();
+  });
+
+  document.querySelectorAll("[data-action]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const actionId = (el as HTMLElement).dataset.action;
+      if (!actionId) return;
+      try {
+        const result = await api.executeAction(actionId);
+        result.events?.forEach((e) => pushEvent(e));
+      } catch (err) {
+        pushEvent(`Erreur action : ${(err as Error).message}`);
+      }
+    });
+  });
 }
 
 function updateControls(): void {
@@ -268,7 +305,12 @@ function onStateChange(): void {
   if (state.page === "dashboard") {
     updateStatusBar();
     updatePointsPanel();
+    if (state.voiceListening !== lastVoiceListening) {
+      lastVoiceListening = state.voiceListening;
+      updateReceptionPanel();
+    }
     updateMapPanel();
+    updateMapCanvas();
     updateEventsLog();
 
     const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
@@ -307,6 +349,11 @@ export async function initApp(): Promise<void> {
       setSettings(await api.getSettings());
     } catch {
       /* settings optionnels au démarrage */
+    }
+    try {
+      setActions(await api.getActions());
+    } catch {
+      pushEvent("Actions d'accueil non chargées");
     }
     if (state.points.length > 0) {
       setSelectedPoint(state.points[0].name);

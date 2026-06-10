@@ -87,8 +87,36 @@ class RobotSettings(BaseModel):
     mock_mode: bool = True
 
 
+class LidarPoint(BaseModel):
+    x: float
+    y: float
+    distance: float
+
+
+class DetectedPerson(BaseModel):
+    id: str = ""
+    x: float = 0.0
+    y: float = 0.0
+    distance: float = 0.0
+
+
+class ReceptionAction(BaseModel):
+    id: str
+    label: str
+    description: str
+    icon: str = "circle"
+    category: Literal["accueil", "navigation", "maintenance", "sécurité"] = "accueil"
+    speech: str | None = None
+    target_point: str | None = None
+    route_name: str | None = None
+
+
+class VoiceCommand(BaseModel):
+    text: str
+
+
 class TelemetryMessage(BaseModel):
-    type: Literal["status", "pose", "event", "map", "points"]
+    type: Literal["status", "pose", "event", "map", "points", "lidar", "people", "speech"]
     status: RobotStatus | None = None
     pose: Pose | None = None
     event: str | None = None

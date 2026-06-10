@@ -3,8 +3,9 @@ import logging
 from typing import Any, Awaitable, Callable
 
 from sdk.constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
+from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import parse_map_metadata, parse_occupancy_grid
-from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus
+from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus
 from sdk.rosbridge import RosbridgeClient
 
 logger = logging.getLogger(__name__)
@@ -129,13 +130,15 @@ class RealRobot:
                 await self._emit("status", self.status.model_dump())
 
     async def _subscribe_topics(self) -> None:
-        for topic in (
-            ROS_TOPICS["pose"],
-            ROS_TOPICS["status"],
-            ROS_TOPICS["current_map"],
-            ROS_TOPICS["map_metadata"],
+        for topic, throttle in (
+            (ROS_TOPICS["pose"], 200),
+            (ROS_TOPICS["status"], 500),
+            (ROS_TOPICS["current_map"], 2000),
+            (ROS_TOPICS["map_metadata"], 2000),
+            (ROS_TOPICS["lidar"], 200),
+            (ROS_TOPICS["people"], 500),
         ):
-            await self._client.subscribe(topic, throttle_rate=200)
+            await self._client.subscribe(topic, throttle_rate=throttle)
 
     async def _on_ros_message(self, topic: str, msg: dict[str, Any]) -> None:
         if topic == ROS_TOPICS["pose"]:
@@ -160,6 +163,43 @@ class RealRobot:
             if meta and self.map_data:
                 self.map_data.metadata = meta
                 await self._emit("map", self.map_data.model_dump())
+
+        elif topic == ROS_TOPICS["lidar"]:
+            points = parse_laser_scan(msg, self.pose)
+            if points:
+                await self._emit(
+                    "lidar",
+                    {"points": [p.model_dump() for p in points[:360]]},
+                )
+
+        elif topic == ROS_TOPICS["people"]:
+            people = self._parse_people(msg)
+            if people:
+                await self._emit(
+                    "people",
+                    {"people": [p.model_dump() for p in people]},
+                )
+
+    def _parse_people(self, msg: dict[str, Any]) -> list[DetectedPerson]:
+        raw = msg if isinstance(msg, list) else msg.get("people") or msg.get("data") or []
+        if isinstance(raw, dict):
+            raw = list(raw.values())
+        if not isinstance(raw, list):
+            return []
+
+        people: list[DetectedPerson] = []
+        for i, item in enumerate(raw):
+            if not isinstance(item, dict):
+                continue
+            people.append(
+                DetectedPerson(
+                    id=str(item.get("id") or f"person_{i}"),
+                    x=float(item.get("x") or 0.0),
+                    y=float(item.get("y") or 0.0),
+                    distance=float(item.get("distance") or item.get("dist") or 0.0),
+                )
+            )
+        return people
 
     async def _handle_status(self, msg: dict[str, Any]) -> None:
         battery = int(msg.get("battery") or 0)

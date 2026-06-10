@@ -3,6 +3,7 @@ import math
 import random
 from typing import Awaitable, Callable
 
+from sdk.lidar_utils import mock_lidar_points
 from sdk.mock_map import generate_mock_map
 from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus
 
@@ -106,6 +107,12 @@ class MockRobot:
 
             await self._emit("pose", self.pose.model_dump())
             await self._emit("status", self.status.model_dump())
+            if tick % 2 == 0:
+                lidar = mock_lidar_points(self.pose)
+                await self._emit(
+                    "lidar",
+                    {"points": [p.model_dump() for p in lidar]},
+                )
             await asyncio.sleep(0.5)
 
     def get_status(self) -> RobotStatus:

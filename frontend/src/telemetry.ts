@@ -1,5 +1,21 @@
-import { setMap, setPoints, setPose, setStatus, setWsConnected, pushEvent } from "./state";
-import type { MapData, Point, Pose, RobotStatus } from "./types";
+import {
+  setLidar,
+  setMap,
+  setPeople,
+  setPoints,
+  setPose,
+  setStatus,
+  setWsConnected,
+  pushEvent,
+} from "./state";
+import type {
+  DetectedPerson,
+  LidarPoint,
+  MapData,
+  Point,
+  Pose,
+  RobotStatus,
+} from "./types";
 
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
@@ -42,6 +58,10 @@ export function connectTelemetry(): void {
       setMap(data as unknown as MapData);
     } else if (type === "points" && Array.isArray(data.points)) {
       setPoints(data.points as Point[]);
+    } else if (type === "lidar" && Array.isArray(data.points)) {
+      setLidar(data.points as LidarPoint[]);
+    } else if (type === "people" && Array.isArray(data.people)) {
+      setPeople(data.people as DetectedPerson[]);
     } else if (type === "event" && typeof data.message === "string") {
       pushEvent(data.message);
     }
