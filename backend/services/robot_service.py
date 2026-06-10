@@ -8,7 +8,7 @@ if str(ROOT) not in sys.path:
 
 from config import settings
 from sdk.mock_robot import MockRobot
-from sdk.models import MapData, MoveCommand, Point, Pose, RobotSettings, RobotStatus
+from sdk.models import MapData, MoveCommand, Point, Pose, RobotSettings, RobotStatus, SpeechStatus
 from sdk.real_robot import RealRobot
 
 
@@ -26,6 +26,9 @@ class RobotBackend(Protocol):
     async def release_emergency_stop(self) -> None: ...
     async def set_manual_mode(self, enabled: bool) -> None: ...
     async def navigate_to_point(self, point_name: str) -> bool: ...
+    def get_speech_status(self) -> SpeechStatus: ...
+    async def speak(self, text: str, interrupt: bool = True) -> dict: ...
+    async def stop_speech(self) -> dict: ...
 
 
 class RobotService:
@@ -52,6 +55,8 @@ class RobotService:
             self._backend = RealRobot(
                 host=settings.robot_host,
                 ws_port=settings.robot_ws_port,
+                speech_topic=settings.speech_topic,
+                speech_service=settings.speech_service,
             )
         await self._backend.start()
 
@@ -98,6 +103,15 @@ class RobotService:
 
     async def navigate_to_point(self, point_name: str) -> bool:
         return await self._require().navigate_to_point(point_name)
+
+    def get_speech_status(self) -> SpeechStatus:
+        return self._require().get_speech_status()
+
+    async def speak(self, text: str, interrupt: bool = True) -> dict:
+        return await self._require().speak(text, interrupt=interrupt)
+
+    async def stop_speech(self) -> dict:
+        return await self._require().stop_speech()
 
 
 robot_service = RobotService()

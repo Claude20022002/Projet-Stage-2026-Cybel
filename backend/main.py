@@ -11,7 +11,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from routers import map, navigation, reception, robot, settings as settings_router
+from routers import map, navigation, reception, robot, settings as settings_router, speech
 from services.robot_service import robot_service
 from websocket.manager import ws_manager
 
@@ -47,6 +47,7 @@ app.include_router(navigation.router)
 app.include_router(map.router)
 app.include_router(settings_router.router)
 app.include_router(reception.router)
+app.include_router(speech.router)
 
 
 @app.get("/api/health")

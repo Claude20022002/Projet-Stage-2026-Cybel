@@ -5,8 +5,9 @@ from typing import Any, Awaitable, Callable
 from sdk.constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
 from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import parse_map_metadata, parse_occupancy_grid
-from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus
+from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus, SpeechStatus
 from sdk.rosbridge import RosbridgeClient
+from sdk.speech import RobotSpeech
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +66,24 @@ def _parse_marker(raw: dict, index: int) -> Point | None:
 
 
 class RealRobot:
-    def __init__(self, host: str = "10.42.0.1", ws_port: int = 9090, chassis_id: str = "TY1251D-03195") -> None:
+    def __init__(
+        self,
+        host: str = "10.42.0.1",
+        ws_port: int = 9090,
+        chassis_id: str = "TY1251D-03195",
+        speech_topic: str = "",
+        speech_service: str = "",
+    ) -> None:
         self._host = host
         self._chassis_id = chassis_id
         self._client = RosbridgeClient(f"ws://{host}:{ws_port}")
+        self._speech = RobotSpeech(
+            client=self._client,
+            emit=self._emit,
+            mock=False,
+            preferred_topic=speech_topic,
+            preferred_service=speech_service,
+        )
         self._telemetry_callbacks: list[TelemetryCallback] = []
         self._reconnect_task: asyncio.Task | None = None
 
@@ -282,6 +297,15 @@ class RealRobot:
 
     def get_map(self) -> MapData | None:
         return self.map_data.model_copy(deep=True) if self.map_data else None
+
+    def get_speech_status(self) -> SpeechStatus:
+        return self._speech.get_status()
+
+    async def speak(self, text: str, interrupt: bool = True) -> dict:
+        return await self._speech.speak(text, interrupt=interrupt)
+
+    async def stop_speech(self) -> dict:
+        return await self._speech.stop()
 
     async def move(self, linear_x: float, angular_z: float) -> None:
         if not self._client.connected:

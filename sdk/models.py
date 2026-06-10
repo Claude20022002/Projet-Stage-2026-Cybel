@@ -115,6 +115,18 @@ class VoiceCommand(BaseModel):
     text: str
 
 
+class SpeechRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+    interrupt: bool = True
+
+
+class SpeechStatus(BaseModel):
+    speaking: bool = False
+    last_text: str = ""
+    last_method: str = ""
+    mock: bool = False
+
+
 class TelemetryMessage(BaseModel):
     type: Literal["status", "pose", "event", "map", "points", "lidar", "people", "speech"]
     status: RobotStatus | None = None

@@ -48,3 +48,40 @@ SPEED_GEAR_VALUES = {
     "medium": 0.5,
     "high": 0.8,
 }
+
+# Candidats TTS — à valider sur robot via scripts/speech_explore.py
+SPEECH_PUBLISH_TOPICS = [
+    "/play_tts",
+    "/tts_play",
+    "/robot_tts",
+    "/speaker/tts",
+    "/yutong_assistance/tts",
+    "/android_tts",
+    "/voice_play",
+]
+
+SPEECH_SERVICES = [
+    "/speak",
+    "/tts",
+    "/play_tts",
+    "/play_voice",
+    "/yutong_assistance/speak",
+    "/yutong_assistance/tts",
+]
+
+SPEECH_PUBLISH_PAYLOADS = [
+    lambda text: {"data": text},
+    lambda text: {"text": text},
+    lambda text: {"content": text},
+    lambda text: {"voice": text},
+    lambda text: {"msg": text},
+    lambda text: {"message": text},
+]
+
+SPEECH_SERVICE_ARGS = [
+    lambda text: {"text": text},
+    lambda text: {"data": text},
+    lambda text: {"content": text},
+    lambda text: {"voice": text},
+    lambda text: {"message": text},
+]

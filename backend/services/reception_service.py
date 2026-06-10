@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 
@@ -30,7 +31,13 @@ class ReceptionService:
             return {"ok": True, "action": action_id, "events": events}
 
         if action.speech:
-            events.append(f"Annonce : {action.speech}")
+            speech_result = await robot_service.speak(action.speech)
+            if speech_result.get("ok"):
+                method = speech_result.get("method", "unknown")
+                events.append(f"Annonce : {action.speech} ({method})")
+            else:
+                events.append(f"TTS échoué : {speech_result.get('error', 'inconnu')}")
+            await asyncio.sleep(0.3)
 
         if action.target_point:
             success = await robot_service.navigate_to_point(action.target_point)

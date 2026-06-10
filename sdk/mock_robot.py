@@ -5,7 +5,8 @@ from typing import Awaitable, Callable
 
 from sdk.lidar_utils import mock_lidar_points
 from sdk.mock_map import generate_mock_map
-from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus
+from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus, SpeechStatus
+from sdk.speech import RobotSpeech
 
 TelemetryCallback = Callable[[str, dict], Awaitable[None]]
 
@@ -68,6 +69,7 @@ class MockRobot:
         self._telemetry_callbacks: list[TelemetryCallback] = []
         self._simulation_task: asyncio.Task | None = None
         self.map_data: MapData = generate_mock_map()
+        self._speech = RobotSpeech(emit=self._emit, mock=True)
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -126,6 +128,15 @@ class MockRobot:
 
     def get_map(self) -> MapData | None:
         return self.map_data.model_copy(deep=True)
+
+    def get_speech_status(self) -> SpeechStatus:
+        return self._speech.get_status()
+
+    async def speak(self, text: str, interrupt: bool = True) -> dict:
+        return await self._speech.speak(text, interrupt=interrupt)
+
+    async def stop_speech(self) -> dict:
+        return await self._speech.stop()
 
     async def move(self, linear_x: float, angular_z: float) -> None:
         if not self.manual_mode:
