@@ -16,7 +16,8 @@ function batteryClass(level: number): string {
 export function renderStatusBar(
   status: RobotStatus | null,
   wsConnected: boolean,
-  speech: SpeechStatus | null = null
+  speech: SpeechStatus | null = null,
+  peopleCount = 0
 ): string {
   if (!status) {
     return `
@@ -78,6 +79,11 @@ export function renderStatusBar(
         ${
           status.charger
             ? `<span class="badge badge--charge badge--with-icon">${icons.plug("icon icon--badge", 14)}<span>En charge</span></span>`
+            : ""
+        }
+        ${
+          peopleCount > 0
+            ? `<span class="badge badge--people badge--with-icon">${icons.users("icon icon--badge", 14)}<span>${peopleCount} visiteur${peopleCount > 1 ? "s" : ""}</span></span>`
             : ""
         }
         ${

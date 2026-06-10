@@ -57,6 +57,9 @@ class RobotService:
                 ws_port=settings.robot_ws_port,
                 speech_topic=settings.speech_topic,
                 speech_service=settings.speech_service,
+                speech_http_host=settings.speech_http_host,
+                speech_http_port=settings.speech_http_port,
+                speech_http_path=settings.speech_http_path,
             )
         await self._backend.start()
 

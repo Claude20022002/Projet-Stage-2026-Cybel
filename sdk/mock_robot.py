@@ -4,6 +4,7 @@ import random
 from typing import Awaitable, Callable
 
 from sdk.lidar_utils import mock_lidar_points
+from sdk.people_utils import mock_detected_people
 from sdk.mock_map import generate_mock_map
 from sdk.models import Coordinate, MapData, Point, Pose, RobotStatus, SpeechStatus
 from sdk.speech import RobotSpeech
@@ -114,6 +115,12 @@ class MockRobot:
                 await self._emit(
                     "lidar",
                     {"points": [p.model_dump() for p in lidar]},
+                )
+            if tick % 4 == 0:
+                people = mock_detected_people(self.pose)
+                await self._emit(
+                    "people",
+                    {"people": [p.model_dump() for p in people]},
                 )
             await asyncio.sleep(0.5)
 

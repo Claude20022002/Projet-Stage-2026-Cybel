@@ -30,6 +30,7 @@ let lastMapKey = "";
 let lastPage = state.page;
 let lastVoiceListening = false;
 let lastSpeechSpeaking = false;
+let lastPeopleCount = 0;
 
 function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
@@ -37,7 +38,7 @@ function renderDashboardContent(): string {
 
   return `
     <div class="dashboard">
-      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected, state.speech)}</div>
+      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected, state.speech, state.people.length)}</div>
       <main class="dashboard__main">
         <div class="dashboard__left">
           <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
@@ -85,7 +86,7 @@ function bindLayoutEvents(): void {
 
 function updateStatusBar(): void {
   const el = document.getElementById("status-bar-container");
-  if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected, state.speech);
+  if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected, state.speech, state.people.length);
 }
 
 function updatePointsPanel(force = false): void {
@@ -141,7 +142,8 @@ function updateMapCanvas(): void {
       state.selectedPoint,
       state.status?.current_goal ?? null,
       state.map,
-      state.lidar
+      state.lidar,
+      state.people
     );
   }
 }
@@ -333,6 +335,10 @@ function onStateChange(): void {
       lastVoiceListening = state.voiceListening;
       lastSpeechSpeaking = state.speech?.speaking ?? false;
       updateReceptionPanel();
+      updateStatusBar();
+    }
+    if (state.people.length !== lastPeopleCount) {
+      lastPeopleCount = state.people.length;
       updateStatusBar();
     }
     updateMapPanel();

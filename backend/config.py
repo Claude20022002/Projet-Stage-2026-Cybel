@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     robot_mock: bool = True
     speech_topic: str = ""
     speech_service: str = ""
+    speech_http_host: str = "172.16.0.88"
+    speech_http_port: int = 0
+    speech_http_path: str = ""
     backend_port: int = 8000
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

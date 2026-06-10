@@ -1,4 +1,4 @@
-import type { LidarPoint, MapData, Point, Pose } from "../types";
+import type { DetectedPerson, LidarPoint, MapData, Point, Pose } from "../types";
 
 const POINT_COLORS: Record<string, string> = {
   charging: "#22c55e",
@@ -56,6 +56,7 @@ export function renderMapCanvas(map: MapData | null): string {
           <div class="map-legend__item"><span style="background:#22c55e"></span>Pile</div>
           <div class="map-legend__item"><span style="background:#3b82f6"></span>Point</div>
           <div class="map-legend__item"><span style="background:#f97316"></span>Porte</div>
+          <div class="map-legend__item"><span style="background:#8b5cf6"></span>Visiteur</div>
         </div>
       </div>
     </div>
@@ -156,6 +157,39 @@ function drawFallbackGrid(ctx: CanvasRenderingContext2D, w: number, h: number): 
   }
 }
 
+function drawDetectedPeople(
+  ctx: CanvasRenderingContext2D,
+  people: DetectedPerson[],
+  viewport: Viewport,
+  width: number,
+  height: number
+): void {
+  for (const person of people) {
+    const { cx, cy } = worldToCanvas(person.x, person.y, viewport, width, height);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(139, 92, 246, 0.18)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(139, 92, 246, 0.55)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "#8b5cf6";
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const label = person.distance > 0 ? `${person.distance.toFixed(1)} m` : person.id;
+    ctx.fillStyle = "#5b21b6";
+    ctx.font = "600 9px 'DM Sans', sans-serif";
+    ctx.fillText(label, cx + 10, cy - 6);
+  }
+}
+
 export function drawMap(
   canvas: HTMLCanvasElement,
   pose: Pose | null,
@@ -163,7 +197,8 @@ export function drawMap(
   selectedPoint: string | null,
   goal: Pose | null,
   map: MapData | null,
-  lidar: LidarPoint[] = []
+  lidar: LidarPoint[] = [],
+  people: DetectedPerson[] = []
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -200,6 +235,10 @@ export function drawMap(
       ctx.arc(cx, cy, 2, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  if (people.length) {
+    drawDetectedPeople(ctx, people, viewport, width, height);
   }
 
   for (const point of points) {

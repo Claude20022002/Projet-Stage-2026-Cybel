@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+import math
 from typing import Any, Awaitable, Callable
 
 from sdk.constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
@@ -73,6 +75,9 @@ class RealRobot:
         chassis_id: str = "TY1251D-03195",
         speech_topic: str = "",
         speech_service: str = "",
+        speech_http_host: str = "",
+        speech_http_port: int = 0,
+        speech_http_path: str = "",
     ) -> None:
         self._host = host
         self._chassis_id = chassis_id
@@ -83,6 +88,9 @@ class RealRobot:
             mock=False,
             preferred_topic=speech_topic,
             preferred_service=speech_service,
+            http_host=speech_http_host,
+            http_port=speech_http_port,
+            http_path=speech_http_path,
         )
         self._telemetry_callbacks: list[TelemetryCallback] = []
         self._reconnect_task: asyncio.Task | None = None
@@ -189,32 +197,75 @@ class RealRobot:
 
         elif topic == ROS_TOPICS["people"]:
             people = self._parse_people(msg)
-            if people:
-                await self._emit(
-                    "people",
-                    {"people": [p.model_dump() for p in people]},
-                )
+            await self._emit(
+                "people",
+                {"people": [p.model_dump() for p in people]},
+            )
 
     def _parse_people(self, msg: dict[str, Any]) -> list[DetectedPerson]:
-        raw = msg if isinstance(msg, list) else msg.get("people") or msg.get("data") or []
-        if isinstance(raw, dict):
-            raw = list(raw.values())
+        raw = self._extract_people_raw(msg)
         if not isinstance(raw, list):
             return []
 
         people: list[DetectedPerson] = []
         for i, item in enumerate(raw):
-            if not isinstance(item, dict):
-                continue
-            people.append(
-                DetectedPerson(
-                    id=str(item.get("id") or f"person_{i}"),
-                    x=float(item.get("x") or 0.0),
-                    y=float(item.get("y") or 0.0),
-                    distance=float(item.get("distance") or item.get("dist") or 0.0),
-                )
-            )
+            person = self._parse_person_item(item, i)
+            if person:
+                people.append(person)
         return people
+
+    def _extract_people_raw(self, msg: Any) -> Any:
+        if isinstance(msg, list):
+            return msg
+
+        if not isinstance(msg, dict):
+            return []
+
+        for key in ("people", "data", "array", "detected_people"):
+            if key not in msg:
+                continue
+            value = msg[key]
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            return value
+
+        if all(k in msg for k in ("x", "y")):
+            return [msg]
+
+        return []
+
+    def _parse_person_item(self, item: Any, index: int) -> DetectedPerson | None:
+        if not isinstance(item, dict):
+            return None
+
+        x = item.get("x")
+        y = item.get("y")
+        if x is None and "position" in item and isinstance(item["position"], dict):
+            x = item["position"].get("x")
+            y = item["position"].get("y")
+        if x is None and "pose" in item and isinstance(item["pose"], dict):
+            x = item["pose"].get("x")
+            y = item["pose"].get("y")
+
+        try:
+            px = float(x or 0.0)
+            py = float(y or 0.0)
+        except (TypeError, ValueError):
+            return None
+
+        distance = item.get("distance") or item.get("dist")
+        if distance is None and self.pose:
+            distance = math.hypot(px - self.pose.x, py - self.pose.y)
+
+        return DetectedPerson(
+            id=str(item.get("id") or item.get("name") or f"person_{index}"),
+            x=px,
+            y=py,
+            distance=float(distance or 0.0),
+        )
 
     async def _handle_status(self, msg: dict[str, Any]) -> None:
         battery = int(msg.get("battery") or 0)

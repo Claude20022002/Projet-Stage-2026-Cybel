@@ -85,3 +85,18 @@ SPEECH_SERVICE_ARGS = [
     lambda text: {"voice": text},
     lambda text: {"message": text},
 ]
+
+# Upper body Android (RK3399) — fallback HTTP si ROS échoue
+SPEECH_HTTP_HOST = "172.16.0.88"
+SPEECH_HTTP_PORTS = (80, 8080, 8888, 9000, 9090)
+SPEECH_HTTP_PATHS = (
+    "/tts",
+    "/api/tts",
+    "/api/voice/play",
+    "/api/speech",
+    "/voice/play",
+    "/speak",
+    "/robot/tts",
+    "/yutong/tts",
+    "/android/tts",
+)
