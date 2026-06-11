@@ -454,6 +454,11 @@ ping 10.42.0.1
 cd cybel
 python -m sdk.tests.test_connection
 
+# Lancer le backend + le frontend en une seule commande (depuis la racine)
+python scripts/dev.py
+
+# --- Ou séparément ---
+
 # Lancer le backend
 cd backend
 uvicorn main:app --reload --port 8000
