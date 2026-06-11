@@ -10,6 +10,7 @@ ROS_TOPICS = {
     "waypoints": "/waypoints",
     "lidar": "/scan_filter",
     "people": "/detected_people_array",
+    "localization_confidence": "/localization_confidence",
 }
 
 ROS_SERVICES = {
@@ -17,6 +18,7 @@ ROS_SERVICES = {
     "poi": "/poi",
     "markers": "/marker_manager/get_markers_details",
     "global_localization": "/global_localization",
+    "static_map": "/static_map",
 }
 
 NAV_STATUS_LABELS: dict[int, str] = {

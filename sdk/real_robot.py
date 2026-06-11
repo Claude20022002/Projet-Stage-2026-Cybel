@@ -129,6 +129,7 @@ class RealRobot:
 
         await self._subscribe_topics()
         await self._load_points()
+        await self._load_map()
         await self._emit("event", {"message": "Connecté au robot"})
         await self._emit("status", self.status.model_dump())
         await self._emit("pose", self.pose.model_dump())
@@ -160,8 +161,19 @@ class RealRobot:
             (ROS_TOPICS["map_metadata"], 2000),
             (ROS_TOPICS["lidar"], 200),
             (ROS_TOPICS["people"], 500),
+            (ROS_TOPICS["localization_confidence"], 500),
         ):
             await self._client.subscribe(topic, throttle_rate=throttle)
+
+    async def _load_map(self) -> None:
+        response = await self._client.call_service(ROS_SERVICES["static_map"], {})
+        grid = (response.get("values") or {}).get("map")
+        if not grid:
+            return
+        parsed = parse_occupancy_grid(grid)
+        if parsed:
+            self.map_data = parsed
+            await self._emit("map", parsed.model_dump())
 
     async def _on_ros_message(self, topic: str, msg: dict[str, Any]) -> None:
         if topic == ROS_TOPICS["pose"]:
@@ -201,6 +213,12 @@ class RealRobot:
                 "people",
                 {"people": [p.model_dump() for p in people]},
             )
+
+        elif topic == ROS_TOPICS["localization_confidence"]:
+            self._localization_percent = float(msg.get("data") or 0.0) * 100
+            self.status.localization_percent = self._localization_percent
+            self.status.localization_label = localization_label(self._localization_percent)
+            await self._emit("status", self.status.model_dump())
 
     def _parse_people(self, msg: dict[str, Any]) -> list[DetectedPerson]:
         raw = self._extract_people_raw(msg)
