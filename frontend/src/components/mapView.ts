@@ -1,3 +1,4 @@
+import { icons } from "../icons";
 import type { DetectedPerson, LidarPoint, MapData, Point, Pose } from "../types";
 
 const POINT_COLORS: Record<string, string> = {
