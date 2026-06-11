@@ -267,6 +267,11 @@ body {
     color: var(--primary);
 }
 
+.metric__value--mono {
+    font-family: monospace;
+    white-space: pre;
+}
+
 .loc-low {
     color: #dc2626;
 }
@@ -320,6 +325,70 @@ body {
     }
 }
 
+/* ── Generic icon button ── */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.icon-btn:hover {
+    background: #f1f5f9;
+    color: var(--text);
+}
+
+/* ── Robot card ── */
+.robot-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.robot-card__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.robot-card__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.robot-card__id {
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.robot-card__badges {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
 /* ── Points panel ── */
 .points-panel {
     background: var(--surface);
@@ -343,12 +412,88 @@ body {
     font-weight: 600;
 }
 
+.points-panel__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
 .points-panel__count {
     font-size: 0.75rem;
     background: #f1f5f9;
     padding: 0.15rem 0.5rem;
     border-radius: 999px;
     color: var(--text-muted);
+}
+
+/* ── Legend / map info card ── */
+.legend-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.legend-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.legend-card__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 0;
+}
+
+.legend-card__title span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.legend__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.legend__group--map {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.legend__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text);
+}
+
+.legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-card__area {
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.legend-card__area strong {
+    color: var(--primary);
 }
 
 .points-panel__list {
@@ -619,31 +764,114 @@ body {
     border: 1px solid var(--border);
 }
 
-.map-legend {
+/* ── Map scale bar ── */
+.map-scale {
     position: absolute;
-    bottom: 1rem;
-    left: 1rem;
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.7rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.map-legend__item {
+    top: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
-.map-legend__item span {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+.map-scale__bar {
     display: inline-block;
+    width: 100px;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(to right, #cbd5e1, var(--primary));
+}
+
+/* ── Map vertical toolbar (right edge) ── */
+.map-toolbar {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.5rem;
+    box-shadow: var(--shadow);
+}
+
+.map-toolbar__btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.map-toolbar__btn:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: var(--primary);
+}
+
+/* ── Map floating buttons (bottom-right) ── */
+.map-floating {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.map-floating__btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all 0.15s;
+}
+
+.map-floating__btn:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: var(--primary);
+}
+
+.map-floating__btn--danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+}
+
+.map-floating__btn--danger:hover {
+    background: var(--danger-hover);
+    color: white;
+}
+
+.map-floating__btn--warning {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: white;
 }
 
 /* ── Controls panel ── */

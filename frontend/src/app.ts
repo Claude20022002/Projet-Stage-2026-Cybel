@@ -92,7 +92,10 @@ function bindLayoutEvents(): void {
 
 function updateStatusBar(): void {
   const el = document.getElementById("status-bar-container");
-  if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected, state.speech, state.people.length);
+  if (el) el.innerHTML = renderStatusBar(state.status, state.wsConnected, state.speech, state.people.length, state.pose);
+
+  const robotCard = document.getElementById("robot-card-container");
+  if (robotCard) robotCard.innerHTML = renderRobotCard(state.status, state.wsConnected);
 }
 
 function updatePointsPanel(force = false): void {
@@ -127,13 +130,19 @@ function updatePointsPanel(force = false): void {
 function updateMapPanel(force = false): void {
   if (state.page !== "dashboard") return;
 
+  const softEstop = state.status?.soft_estop ?? false;
   const mapKey = state.map
-    ? `${state.map.metadata.name}-${state.map.metadata.width}`
-    : "";
-  if (force || (mapKey && mapKey !== lastMapKey)) {
+    ? `${state.map.metadata.name}-${state.map.metadata.width}-${softEstop}`
+    : `-${softEstop}`;
+  if (force || mapKey !== lastMapKey) {
     lastMapKey = mapKey;
     const el = document.getElementById("map-panel-container");
-    if (el) el.innerHTML = renderMapCanvas(state.map);
+    if (el) {
+      el.innerHTML = renderMapCanvas(state.map, softEstop);
+      bindMapToolbarEvents();
+    }
+    const legendEl = document.getElementById("legend-card-container");
+    if (legendEl) legendEl.innerHTML = renderMapInfoCard(state.map);
   }
   updateMapCanvas();
 }
@@ -149,9 +158,55 @@ function updateMapCanvas(): void {
       state.status?.current_goal ?? null,
       state.map,
       state.lidar,
-      state.people
+      state.people,
+      pingStartedAt
     );
+
+    const scaleLabel = document.getElementById("map-scale-max");
+    if (scaleLabel) {
+      const scaleBar = canvas.parentElement?.querySelector<HTMLElement>(".map-scale__bar");
+      const barWidth = scaleBar?.getBoundingClientRect().width || 100;
+      const metersPerPixel = computeScaleMetersPerPixel(state.map, canvas.width);
+      const meters = (barWidth * metersPerPixel * (canvas.width / (canvas.getBoundingClientRect().width || canvas.width)));
+      scaleLabel.textContent = `${meters >= 1 ? meters.toFixed(1) : meters.toFixed(2)}m`;
+    }
   }
+}
+
+function startLocatePing(): void {
+  if (!state.pose) return;
+  pingStartedAt = Date.now();
+  if (pingRaf !== null) return;
+
+  const animate = () => {
+    updateMapCanvas();
+    if (pingStartedAt !== null && Date.now() - pingStartedAt < 1200) {
+      pingRaf = window.requestAnimationFrame(animate);
+    } else {
+      pingStartedAt = null;
+      pingRaf = null;
+      updateMapCanvas();
+    }
+  };
+  pingRaf = window.requestAnimationFrame(animate);
+}
+
+function bindMapToolbarEvents(): void {
+  document.getElementById("btn-map-locate")?.addEventListener("click", startLocatePing);
+  document.getElementById("btn-map-center")?.addEventListener("click", startLocatePing);
+
+  document.getElementById("btn-map-settings")?.addEventListener("click", () => {
+    setPage("settings");
+  });
+
+  document.getElementById("btn-map-estop")?.addEventListener("click", () => {
+    stopMoveLoop();
+    api.emergencyStop().catch((err) => pushEvent(`Erreur : ${err.message}`));
+  });
+
+  document.getElementById("btn-map-release-estop")?.addEventListener("click", () => {
+    api.releaseEmergencyStop().catch((err) => pushEvent(`Erreur : ${err.message}`));
+  });
 }
 
 function updateReceptionPanel(): void {
