@@ -149,4 +149,26 @@ export const icons = {
       cls,
       size
     ),
+
+  crosshair: (cls = "icon", size = 18) =>
+    svg(
+      '<circle cx="12" cy="12" r="8"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>',
+      cls,
+      size
+    ),
+
+  moreVertical: (cls = "icon", size = 16) =>
+    svg(
+      '<circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/>',
+      cls,
+      size,
+      "currentColor"
+    ),
+
+  hash: (cls = "icon", size = 16) =>
+    svg(
+      '<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>',
+      cls,
+      size
+    ),
 };
