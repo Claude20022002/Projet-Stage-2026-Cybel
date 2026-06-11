@@ -39,7 +39,12 @@ export function renderPointsList(
     <aside class="points-panel">
       <div class="points-panel__header">
         <h2>Points</h2>
-        <span class="points-panel__count">${points.length}</span>
+        <div class="points-panel__header-actions">
+          <span class="points-panel__count">${points.length}</span>
+          <button class="icon-btn" type="button" title="Options">
+            ${icons.moreVertical("icon", 16)}
+          </button>
+        </div>
       </div>
       <div class="points-panel__list">
         ${items || '<p class="points-panel__empty">Aucun point disponible</p>'}
