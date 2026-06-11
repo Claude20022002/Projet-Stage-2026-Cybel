@@ -47,6 +47,7 @@ class RobotSpeech:
         self._http_path = http_path
         self._status = SpeechStatus(mock=mock)
         self._speech_task: asyncio.Task | None = None
+        self._known_services: set[str] | None = None
 
     def get_status(self) -> SpeechStatus:
         return self._status.model_copy(deep=True)
@@ -107,6 +108,26 @@ class RobotSpeech:
             await self._notify(text, "cancelled", "mock")
             raise
 
+    async def _topic_has_subscribers(self, topic: str) -> bool:
+        try:
+            resp = await self._client.call_service(
+                "/rosapi/subscribers", {"topic": topic}, timeout=2.0
+            )
+            subscribers = (resp.get("values") or {}).get("subscribers") or []
+            return len(subscribers) > 0
+        except Exception:
+            return False
+
+    async def _list_services(self) -> set[str]:
+        if self._known_services is not None:
+            return self._known_services
+        try:
+            resp = await self._client.call_service("/rosapi/services", {}, timeout=3.0)
+            self._known_services = set((resp.get("values") or {}).get("services") or [])
+        except Exception:
+            self._known_services = set()
+        return self._known_services
+
     async def _try_real_speak(self, text: str) -> str | None:
         topics = ([self._preferred_topic] if self._preferred_topic else []) + SPEECH_PUBLISH_TOPICS
         services = ([self._preferred_service] if self._preferred_service else []) + SPEECH_SERVICES
@@ -115,6 +136,9 @@ class RobotSpeech:
 
         for topic in dict.fromkeys(topics):
             if not topic:
+                continue
+            if not await self._topic_has_subscribers(topic):
+                logger.debug("TTS topic %s ignoré : aucun abonné", topic)
                 continue
             for build in SPEECH_PUBLISH_PAYLOADS:
                 try:
@@ -126,8 +150,9 @@ class RobotSpeech:
                 except Exception as exc:
                     logger.debug("TTS publish %s échoué: %s", topic, exc)
 
+        known_services = await self._list_services()
         for service in dict.fromkeys(services):
-            if not service:
+            if not service or service not in known_services:
                 continue
             for build in SPEECH_SERVICE_ARGS:
                 try:
