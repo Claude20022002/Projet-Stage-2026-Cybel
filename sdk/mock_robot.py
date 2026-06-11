@@ -201,6 +201,26 @@ class MockRobot:
         )
         await self._emit("status", self.status.model_dump())
 
+    async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
+        if self._navigation_task:
+            self._navigation_task.cancel()
+
+        target = Point(id="click", name=f"({x:.1f}, {y:.1f})", type="common", x=x, y=y, theta=theta)
+
+        self.manual_mode = False
+        self.status.control_state = 30
+        self.status.nav_mode = "auto_navi"
+        self.status.nav_mode_label = nav_mode_label(self.status.nav_mode)
+        self.navigating_to = None
+        self.status.navigating_to = None
+        self.status.nav_status = 602
+        self.status.nav_status_label = "En navigation"
+        self.status.current_goal = Coordinate(x=x, y=y, theta=theta)
+        await self._emit("event", {"message": f"Navigation vers ({x:.1f}, {y:.1f})"})
+        await self._emit("status", self.status.model_dump())
+        self._navigation_task = asyncio.create_task(self._simulate_navigation(target))
+        return True
+
     async def navigate_to_point(self, point_name: str) -> bool:
         target = next((p for p in MOCK_POINTS if p.name == point_name), None)
         if not target:

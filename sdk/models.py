@@ -63,6 +63,12 @@ class NavigateCommand(BaseModel):
     point_name: str
 
 
+class NavigateCoordinateCommand(BaseModel):
+    x: float
+    y: float
+    theta: float = 0.0
+
+
 class MapMetadata(BaseModel):
     name: str = "carte"
     floor: str = "0"

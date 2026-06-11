@@ -11,6 +11,7 @@ ROS_TOPICS = {
     "lidar": "/scan_filter",
     "people": "/detected_people_array",
     "localization_confidence": "/localization_confidence",
+    "navi_goal": "/navi_goal",
 }
 
 ROS_SERVICES = {

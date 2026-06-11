@@ -110,6 +110,32 @@ function worldToCanvas(
   return { cx, cy };
 }
 
+export function canvasToWorld(
+  cx: number,
+  cy: number,
+  map: MapData | null,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const viewport = getViewport(map);
+  const padding = 24;
+  const rangeX = viewport.maxX - viewport.minX || 1;
+  const rangeY = viewport.maxY - viewport.minY || 1;
+  const x = viewport.minX + ((cx - padding) / (width - padding * 2)) * rangeX;
+  const y = viewport.minY + ((height - padding - cy) / (height - padding * 2)) * rangeY;
+  return { x, y };
+}
+
+/** Renvoie la valeur de la cellule d'occupation (-1 inconnu, 0 libre, 100 occupé), ou null hors carte. */
+export function getCellValue(map: MapData | null, x: number, y: number): number | null {
+  if (!map) return null;
+  const { metadata, data } = map;
+  const gx = Math.floor((x - metadata.origin_x) / metadata.resolution);
+  const gy = Math.floor((y - metadata.origin_y) / metadata.resolution);
+  if (gx < 0 || gy < 0 || gx >= metadata.width || gy >= metadata.height) return null;
+  return data[gy * metadata.width + gx] ?? null;
+}
+
 function cellColor(value: number): [number, number, number] {
   if (value < 0) return [226, 232, 240];
   if (value === 0) return [248, 250, 252];

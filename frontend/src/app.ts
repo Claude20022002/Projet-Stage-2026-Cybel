@@ -1,7 +1,7 @@
 import { api } from "./api";
 import { renderControls, renderEventsLog } from "./components/controls";
 import { renderLayout } from "./components/layout";
-import { computeScaleMetersPerPixel, drawMap, renderMapCanvas } from "./components/mapView";
+import { canvasToWorld, computeScaleMetersPerPixel, drawMap, getCellValue, renderMapCanvas } from "./components/mapView";
 import { renderMapInfoCard } from "./components/legend";
 import { renderPointsList } from "./components/pointsList";
 import { renderReceptionPanel } from "./components/receptionPanel";
@@ -206,6 +206,46 @@ function bindMapToolbarEvents(): void {
 
   document.getElementById("btn-map-release-estop")?.addEventListener("click", () => {
     api.releaseEmergencyStop().catch((err) => pushEvent(`Erreur : ${err.message}`));
+  });
+
+  bindMapCanvasEvents();
+}
+
+const OCCUPANCY_OBSTACLE_THRESHOLD = 65;
+
+function bindMapCanvasEvents(): void {
+  const canvas = document.getElementById("map-canvas") as HTMLCanvasElement | null;
+  if (!canvas) return;
+
+  canvas.addEventListener("click", async (event) => {
+    if (state.status?.soft_estop) {
+      pushEvent("Navigation impossible : E-Stop actif");
+      return;
+    }
+    if (!state.map) {
+      pushEvent("Carte non disponible : navigation par clic impossible");
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const cx = ((event.clientX - rect.left) / rect.width) * canvas.width;
+    const cy = ((event.clientY - rect.top) / rect.height) * canvas.height;
+    const { x, y } = canvasToWorld(cx, cy, state.map, canvas.width, canvas.height);
+
+    const cell = getCellValue(state.map, x, y);
+    if (cell === null || cell < 0 || cell >= OCCUPANCY_OBSTACLE_THRESHOLD) {
+      pushEvent("Point inaccessible : obstacle ou zone non cartographiée");
+      return;
+    }
+
+    const theta = state.pose ? Math.atan2(y - state.pose.y, x - state.pose.x) : 0;
+
+    try {
+      await api.goToCoordinate(x, y, theta);
+      pushEvent(`Navigation vers (${x.toFixed(2)}, ${y.toFixed(2)})`);
+    } catch (err) {
+      pushEvent(`Erreur navigation : ${(err as Error).message}`);
+    }
   });
 }
 

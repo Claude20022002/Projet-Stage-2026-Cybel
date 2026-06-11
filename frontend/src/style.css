@@ -762,6 +762,7 @@ body {
     height: auto;
     border-radius: 8px;
     border: 1px solid var(--border);
+    cursor: crosshair;
 }
 
 /* ── Map scale bar ── */

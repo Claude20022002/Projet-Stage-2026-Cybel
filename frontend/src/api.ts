@@ -53,6 +53,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ point_name: pointName }),
     }),
+  goToCoordinate: (x: number, y: number, theta = 0) =>
+    request("/api/navigation/goto-coordinate", {
+      method: "POST",
+      body: JSON.stringify({ x, y, theta }),
+    }),
   cancelNavigation: () =>
     request("/api/navigation/cancel", { method: "POST" }),
   getSettings: () => request<RobotSettings>("/api/settings"),

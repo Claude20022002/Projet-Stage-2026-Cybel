@@ -419,6 +419,34 @@ class RealRobot:
             {"message": "Mode manuel activé" if enabled else "Mode automatique activé"},
         )
 
+    async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
+        if not self._client.connected:
+            return False
+
+        await self._client.publish(
+            ROS_TOPICS["navi_goal"],
+            {
+                "header": {"frame_id": "map"},
+                "pose": {
+                    "position": {"x": x, "y": y, "z": 0.0},
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": math.sin(theta / 2),
+                        "w": math.cos(theta / 2),
+                    },
+                },
+            },
+        )
+
+        self.status.navigating_to = None
+        self.status.current_goal = Coordinate(x=x, y=y, theta=theta)
+        self.status.nav_status = 602
+        self.status.nav_status_label = "En navigation"
+        await self._emit("event", {"message": f"Navigation vers ({x:.2f}, {y:.2f})"})
+        await self._emit("status", self.status.model_dump())
+        return True
+
     async def navigate_to_point(self, point_name: str) -> bool:
         target = next((p for p in self._points if p.name == point_name), None)
         if not target and not self._client.connected:

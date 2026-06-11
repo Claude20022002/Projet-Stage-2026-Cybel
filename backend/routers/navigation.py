@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
 
 from fastapi import APIRouter, HTTPException
 
-from sdk.models import NavigateCommand, Point
+from sdk.models import NavigateCommand, NavigateCoordinateCommand, Point
 from services.robot_service import robot_service
 
 router = APIRouter(prefix="/api/navigation", tags=["navigation"])
@@ -24,6 +24,14 @@ async def navigate_to(command: NavigateCommand) -> dict:
     if not success:
         raise HTTPException(status_code=404, detail=f"Point '{command.point_name}' introuvable")
     return {"ok": True, "point": command.point_name}
+
+
+@router.post("/goto-coordinate")
+async def navigate_to_coordinate(command: NavigateCoordinateCommand) -> dict:
+    success = await robot_service.navigate_to_coordinate(command.x, command.y, command.theta)
+    if not success:
+        raise HTTPException(status_code=400, detail="Navigation impossible (robot non connecté)")
+    return {"ok": True, "x": command.x, "y": command.y}
 
 
 @router.post("/cancel")
