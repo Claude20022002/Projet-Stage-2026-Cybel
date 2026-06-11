@@ -16,6 +16,8 @@ def stream_output(process: subprocess.Popen, prefix: str) -> None:
 
 
 def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     backend = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "main:app", "--reload", "--port", "8000"],
         cwd=BACKEND_DIR,
