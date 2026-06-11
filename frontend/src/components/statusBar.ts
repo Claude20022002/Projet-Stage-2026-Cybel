@@ -97,6 +97,9 @@ export function renderStatusBar(
         }
       </div>
       <div class="status-bar__right">
+        <span class="badge badge--with-icon ${wsConnected ? "badge--ok" : "badge--warn"}" title="${wsConnected ? "Connecté" : "Déconnecté"}">
+          ${wsConnected ? icons.wifi("icon icon--badge", 14) : icons.wifiOff("icon icon--badge", 14)}
+        </span>
         <div class="battery ${batClass}">
           ${icons.battery("icon icon--battery", 18)}
           <span class="battery__level">${status.battery}%</span>
