@@ -19,7 +19,12 @@ def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     backend = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app", "--reload", "--port", "8000"],
+        [
+            sys.executable, "-m", "uvicorn", "main:app", "--reload",
+            "--reload-dir", str(BACKEND_DIR),
+            "--reload-dir", str(ROOT / "sdk"),
+            "--port", "8000",
+        ],
         cwd=BACKEND_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

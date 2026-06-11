@@ -146,10 +146,17 @@ class RealRobot:
             await asyncio.sleep(5.0)
             if self._client.connected:
                 continue
+
+            if self.status.connected:
+                self.status.connected = False
+                await self._emit("event", {"message": "Connexion robot perdue — reconnexion…"})
+                await self._emit("status", self.status.model_dump())
+
             if await self._client.connect():
                 self.status.connected = True
                 await self._subscribe_topics()
                 await self._load_points()
+                await self._load_map()
                 await self._emit("event", {"message": "Robot reconnecté"})
                 await self._emit("status", self.status.model_dump())
 
