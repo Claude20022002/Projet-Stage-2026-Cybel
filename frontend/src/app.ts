@@ -1,10 +1,11 @@
 import { api } from "./api";
 import { renderControls, renderEventsLog } from "./components/controls";
 import { renderLayout } from "./components/layout";
-import { drawMap, renderMapCanvas } from "./components/mapView";
+import { computeScaleMetersPerPixel, drawMap, renderMapCanvas } from "./components/mapView";
+import { renderMapInfoCard } from "./components/legend";
 import { renderPointsList } from "./components/pointsList";
 import { renderReceptionPanel } from "./components/receptionPanel";
-import { renderStatusBar } from "./components/statusBar";
+import { renderRobotCard, renderStatusBar } from "./components/statusBar";
 import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
 import { connectTelemetry } from "./telemetry";
@@ -31,6 +32,8 @@ let lastPage = state.page;
 let lastVoiceListening = false;
 let lastSpeechSpeaking = false;
 let lastPeopleCount = 0;
+let pingStartedAt: number | null = null;
+let pingRaf: number | null = null;
 
 function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
@@ -38,13 +41,15 @@ function renderDashboardContent(): string {
 
   return `
     <div class="dashboard">
-      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected, state.speech, state.people.length)}</div>
+      <div id="status-bar-container">${renderStatusBar(state.status, state.wsConnected, state.speech, state.people.length, state.pose)}</div>
       <main class="dashboard__main">
         <div class="dashboard__left">
+          <div id="robot-card-container">${renderRobotCard(state.status, state.wsConnected)}</div>
           <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
+          <div id="legend-card-container">${renderMapInfoCard(state.map)}</div>
           <div id="reception-panel-container">${renderReceptionPanel(state.actions, state.voiceListening, state.speech)}</div>
         </div>
-        <div id="map-panel-container">${renderMapCanvas(state.map)}</div>
+        <div id="map-panel-container">${renderMapCanvas(state.map, softEstop)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
       </main>
     </div>
@@ -69,6 +74,7 @@ function renderApp(): void {
     bindPointEvents();
     bindReceptionEvents();
     bindControlEvents();
+    bindMapToolbarEvents();
     updateMapCanvas();
   } else {
     bindSettingsEvents(() => api.getSettings().then(setSettings).catch(() => {}));

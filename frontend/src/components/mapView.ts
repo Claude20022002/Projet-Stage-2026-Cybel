@@ -32,7 +32,7 @@ function getViewport(map: MapData | null): Viewport {
   };
 }
 
-export function renderMapCanvas(map: MapData | null): string {
+export function renderMapCanvas(map: MapData | null, softEstop = false): string {
   const floor = map?.metadata.floor ?? "0";
   const name = map?.metadata.name ?? "—";
   const area = map?.metadata.area_sqm;
@@ -51,17 +51,47 @@ export function renderMapCanvas(map: MapData | null): string {
       </div>
       <div class="map-panel__canvas-wrap">
         <canvas id="map-canvas" width="640" height="480"></canvas>
-        <div class="map-legend">
-          <div class="map-legend__item"><span style="background:#ef4444"></span>LiDAR live</div>
-          <div class="map-legend__item"><span style="background:#1e293b"></span>Obstacle carte</div>
-          <div class="map-legend__item"><span style="background:#22c55e"></span>Pile</div>
-          <div class="map-legend__item"><span style="background:#3b82f6"></span>Point</div>
-          <div class="map-legend__item"><span style="background:#f97316"></span>Porte</div>
-          <div class="map-legend__item"><span style="background:#8b5cf6"></span>Visiteur</div>
+        <div class="map-scale">
+          <span class="map-scale__label">0m</span>
+          <span class="map-scale__bar"></span>
+          <span class="map-scale__label" id="map-scale-max">—</span>
+        </div>
+        <div class="map-toolbar">
+          <button class="map-toolbar__btn" id="btn-map-locate" type="button" title="Localiser le robot">
+            ${icons.crosshair("icon", 18)}
+          </button>
+          <button class="map-toolbar__btn" id="btn-map-settings" type="button" title="Paramètres">
+            ${icons.settings("icon", 18)}
+          </button>
+        </div>
+        <div class="map-floating">
+          <button class="map-floating__btn" id="btn-map-center" type="button" title="Centrer sur le robot">
+            ${icons.crosshair("icon", 18)}
+          </button>
+          ${
+            softEstop
+              ? `<button class="map-floating__btn map-floating__btn--warning" id="btn-map-release-estop" type="button" title="Relâcher E-Stop">
+                  ${icons.alertTriangle("icon", 18)}
+                </button>`
+              : `<button class="map-floating__btn map-floating__btn--danger" id="btn-map-estop" type="button" title="E-STOP">
+                  ${icons.octagon("icon", 20)}
+                </button>`
+          }
         </div>
       </div>
     </div>
   `;
+}
+
+export function computeScaleMetersPerPixel(
+  map: MapData | null,
+  canvasWidth: number
+): number {
+  const viewport = getViewport(map);
+  const padding = 24;
+  const drawW = canvasWidth - padding * 2;
+  const rangeX = viewport.maxX - viewport.minX || 1;
+  return rangeX / drawW;
 }
 
 function worldToCanvas(
@@ -191,6 +221,28 @@ function drawDetectedPeople(
   }
 }
 
+const PING_DURATION_MS = 1200;
+
+function drawLocatePing(
+  ctx: CanvasRenderingContext2D,
+  pose: Pose,
+  viewport: Viewport,
+  width: number,
+  height: number,
+  elapsedMs: number
+): void {
+  const { cx, cy } = worldToCanvas(pose.x, pose.y, viewport, width, height);
+  const progress = Math.min(1, elapsedMs / PING_DURATION_MS);
+  const radius = 12 + progress * 28;
+  const opacity = 1 - progress;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(30, 64, 175, ${opacity})`;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
 export function drawMap(
   canvas: HTMLCanvasElement,
   pose: Pose | null,
@@ -199,7 +251,8 @@ export function drawMap(
   goal: Pose | null,
   map: MapData | null,
   lidar: LidarPoint[] = [],
-  people: DetectedPerson[] = []
+  people: DetectedPerson[] = [],
+  pingStartedAt: number | null = null
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -288,5 +341,12 @@ export function drawMap(
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.restore();
+  }
+
+  if (pose && pingStartedAt !== null) {
+    const elapsed = Date.now() - pingStartedAt;
+    if (elapsed < PING_DURATION_MS) {
+      drawLocatePing(ctx, pose, viewport, width, height, elapsed);
+    }
   }
 }
