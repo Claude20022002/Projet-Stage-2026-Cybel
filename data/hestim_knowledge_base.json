@@ -1,0 +1,312 @@
+{
+  "_meta": {
+    "description_fr": "Base de connaissances de démarrage sur HESTIM, destinée au module de questions/réponses vocales du robot CYBEL. Contenu collecté depuis le site officiel www.hestim.ma (et sous-domaines) le 2026-06-15. À compléter/valider par l'équipe avant intégration finale.",
+    "description_en": "Starter knowledge base about HESTIM for the CYBEL robot's voice Q&A module. Content collected from the official website www.hestim.ma (and subdomains) on 2026-06-15. To be completed/validated by the team before final integration.",
+    "sources": [
+      "https://www.hestim.ma/",
+      "https://www.hestim.ma/a-propos-de-nous",
+      "https://www.hestim.ma/gouvernance",
+      "https://www.hestim.ma/contactus",
+      "https://www.hestim.ma/innovation",
+      "https://www.hestim.ma/politique-rse",
+      "https://www.hestim.ma/ouverture-internationale-1",
+      "https://www.hestim.ma/espace-de-vie",
+      "https://www.hestim.ma/club",
+      "https://engineering-school.hestim.ma/",
+      "https://business-school.hestim.ma/"
+    ],
+    "todo": [
+      "Vérifier/compléter les noms et fonctions des membres de la gouvernance (la page /gouvernance n'affiche que des organigrammes, pas de noms en texte exploitable).",
+      "Récupérer l'adresse e-mail générale (masquée sur le site par une protection anti-spam) via le formulaire https://www.hestim.ma/contactus.",
+      "Compléter les chiffres clés (nombre d'étudiants, diplômés, taux d'insertion) non publiés sur les pages explorées.",
+      "Détailler les pages /espace-de-vie et /club (vie associative, clubs étudiants) non encore parcourues.",
+      "Lister les filières complètes de l'École d'Ingénierie et de l'École de Commerce (seules quelques filières ont été identifiées ici)."
+    ]
+  },
+
+  "etablissement": {
+    "nom": "HESTIM",
+    "nom_complet_fr": "HESTIM Engineering & Business School",
+    "type_fr": "Établissement d'enseignement supérieur privé, reconnu par l'État, regroupant une école d'ingénieurs et une école de commerce",
+    "type_en": "State-recognized private higher education institution, combining an engineering school and a business school",
+    "ville": "Casablanca, Maroc",
+    "adresse": "293, 295 Bd Ghandi, Quartier Oasis, Casablanca, Maroc",
+    "telephones": ["+212 5 22 34 17 23", "+212 6 61 53 62 55"],
+    "email": null,
+    "email_note": "Adresse e-mail générale protégée sur le site (anti-spam) ; utiliser le formulaire de contact sur https://www.hestim.ma/contactus ou WhatsApp.",
+    "sites_web": {
+      "site_principal": "https://www.hestim.ma/",
+      "ecole_ingenierie": "https://engineering-school.hestim.ma/",
+      "ecole_commerce": "https://business-school.hestim.ma/",
+      "portail_candidature": "https://candidature.hestim.ma/portal_com",
+      "alumni": "https://alumni.hestim.ma"
+    },
+    "cadre_juridique_fr": "Établissement privé d'enseignement supérieur opérant sous la loi marocaine 01.00 et le décret n° 2-14-665 relatifs à l'enseignement supérieur privé."
+  },
+
+  "mission": {
+    "fr": "Former des ingénieurs et des managers engagés, agiles et ouverts sur le monde, capables d'accompagner la performance et la transformation des organisations.",
+    "en": "To train engineers and managers who are engaged, agile and open to the world, able to support the performance and transformation of organizations."
+  },
+
+  "valeurs": [
+    {
+      "nom_fr": "Excellence",
+      "nom_en": "Excellence",
+      "description_fr": "Rigueur académique et exigence scientifique.",
+      "description_en": "Academic rigor and scientific standards."
+    },
+    {
+      "nom_fr": "Innovation",
+      "nom_en": "Innovation",
+      "description_fr": "Pédagogie expérientielle et technologies avancées.",
+      "description_en": "Experiential pedagogy and advanced technologies."
+    },
+    {
+      "nom_fr": "Bienveillance",
+      "nom_en": "Care",
+      "description_fr": "Culture de l'écoute et de la proximité.",
+      "description_en": "Culture of listening and proximity."
+    },
+    {
+      "nom_fr": "Engagement",
+      "nom_en": "Engagement",
+      "description_fr": "Implication active dans la vie du campus.",
+      "description_en": "Active involvement in campus life."
+    },
+    {
+      "nom_fr": "Éco-responsabilité",
+      "nom_en": "Eco-responsibility",
+      "description_fr": "Intégration des principes de responsabilité sociale et environnementale (RSE).",
+      "description_en": "Integration of corporate social and environmental responsibility (CSR) principles."
+    }
+  ],
+
+  "organisation": {
+    "description_fr": "HESTIM regroupe deux écoles complémentaires.",
+    "description_en": "HESTIM brings together two complementary schools.",
+    "ecoles": [
+      {
+        "nom_fr": "École d'Ingénierie",
+        "nom_en": "Engineering School",
+        "site_web": "https://engineering-school.hestim.ma/",
+        "filieres_identifiees": [
+          {
+            "nom_fr": "Génie Industriel et Logistique",
+            "url": "https://engineering-school.hestim.ma/genie-industriel-et-logistique"
+          },
+          {
+            "nom_fr": "Génie Civil",
+            "url": "https://engineering-school.hestim.ma/genie-civil"
+          },
+          {
+            "nom_fr": "Ingénierie Informatique et Intelligence Artificielle",
+            "url": "https://engineering-school.hestim.ma/ingenierie-informatique-et-intelligence-artificielle"
+          }
+        ]
+      },
+      {
+        "nom_fr": "École de Commerce (Business School)",
+        "nom_en": "Business School",
+        "site_web": "https://business-school.hestim.ma/",
+        "filieres_identifiees": [
+          {
+            "nom_fr": "Master d'État",
+            "url": "https://business-school.hestim.ma/master-d-etat"
+          },
+          {
+            "nom_fr": "Programme Grande École - Marketing et Stratégies Digitales",
+            "url": "https://business-school.hestim.ma/programme-grande-ecole-marketing-et-strategies-digitales-1"
+          },
+          {
+            "nom_fr": "Licence d'État",
+            "url": "https://business-school.hestim.ma/licence-d-etat-hestim"
+          }
+        ]
+      }
+    ]
+  },
+
+  "direction": {
+    "fondateur_directeur_general": "M. Bennis Abdelilah",
+    "note_fr": "Les organes de gouvernance détaillés (comités, conseils) sont décrits ci-dessous ; les noms des membres autres que le directeur général n'ont pas pu être extraits du site (organigrammes en image)."
+  },
+
+  "gouvernance": {
+    "description_fr": "La gouvernance de HESTIM repose sur plusieurs instances complémentaires, dans le cadre de la loi marocaine 01.00 et du décret n° 2-14-665 sur l'enseignement supérieur privé.",
+    "description_en": "HESTIM's governance relies on several complementary bodies, under Moroccan law 01.00 and decree n° 2-14-665 on private higher education.",
+    "instances": [
+      {
+        "nom_fr": "Comité de Direction",
+        "nom_en": "Management Committee",
+        "role_fr": "Coordonne les différents départements, suit les indicateurs et propose des projets de développement au Conseil d'établissement.",
+        "role_en": "Coordinates the different departments, monitors indicators and proposes development projects to the Board of Establishment."
+      },
+      {
+        "nom_fr": "Conseil d'Établissement",
+        "nom_en": "Board of Establishment",
+        "role_fr": "Principal organe de décision : affaires institutionnelles, politique scientifique, recherche et développement.",
+        "role_en": "Main decision-making body: institutional affairs, scientific policy, research and development."
+      },
+      {
+        "nom_fr": "Conseil Scientifique",
+        "nom_en": "Scientific Council",
+        "role_fr": "Garantit la qualité des programmes pédagogiques, examine les nouveaux contenus pédagogiques et émet des recommandations sur les questions liées au corps enseignant.",
+        "role_en": "Ensures the quality of academic programs, reviews new pedagogical content, and provides recommendations on faculty matters."
+      },
+      {
+        "nom_fr": "Commission de Recherche",
+        "nom_en": "Research Commission",
+        "role_fr": "Supervise l'orientation de la recherche, les projets scientifiques et l'organisation des laboratoires.",
+        "role_en": "Oversees research orientation, scientific projects, and laboratory organization."
+      },
+      {
+        "nom_fr": "Commission Pédagogique et des Affaires Académiques",
+        "nom_en": "Pedagogical and Academic Affairs Commission",
+        "role_fr": "Examine les contenus pédagogiques et traite les dossiers disciplinaires des étudiants.",
+        "role_en": "Reviews educational content and handles student disciplinary cases."
+      },
+      {
+        "nom_fr": "Commission des Activités Étudiantes",
+        "nom_en": "Student Activities Commission",
+        "role_fr": "Accompagne l'orientation, l'information et les activités extrascolaires des étudiants.",
+        "role_en": "Supports student orientation, information, and extracurricular activities."
+      }
+    ]
+  },
+
+  "infrastructure": {
+    "surface_totale_campus_m2": 5100,
+    "laboratoires_plateaux_techniques_m2": 900,
+    "espaces_vie_etudiante_m2": 720,
+    "espaces_conviviaux_rooftop_m2": 270,
+    "description_fr": "Campus situé dans un quartier stratégique de Casablanca, bien desservi par les transports en commun.",
+    "description_en": "Campus located in a strategic district of Casablanca, with excellent public transport access."
+  },
+
+  "ecosysteme": [
+    {
+      "nom": "CIEL",
+      "description_fr": "Incubateur d'entrepreneuriat et d'innovation.",
+      "description_en": "Entrepreneurship and innovation incubator."
+    },
+    {
+      "nom": "Career Center",
+      "description_fr": "Accompagnement à l'insertion professionnelle et à l'employabilité.",
+      "description_en": "Professional integration and employability support."
+    },
+    {
+      "nom": "CERIM",
+      "description_fr": "Centre de recherche appliquée et de valorisation académique.",
+      "description_en": "Center for applied research and academic advancement."
+    },
+    {
+      "nom_fr": "Partenariats internationaux",
+      "nom_en": "International partnerships",
+      "description_fr": "Doubles diplômes et mobilité étudiante avec des écoles partenaires à l'étranger.",
+      "description_en": "Double degrees and student mobility with partner schools abroad."
+    },
+    {
+      "nom_fr": "Associations étudiantes",
+      "nom_en": "Student associations",
+      "description_fr": "Engagement culturel, sportif et artistique sur le campus.",
+      "description_en": "Cultural, sports, and artistic engagement on campus."
+    }
+  ],
+
+  "partenaires_internationaux": [
+    "INSA Rennes",
+    "Excelia Business School",
+    "Audencia Business School",
+    "Université Polytechnique Hauts-de-France",
+    "ESTIA",
+    "ULCO"
+  ],
+
+  "faq": [
+    {
+      "id": "presentation",
+      "question_fr": "Qu'est-ce que HESTIM ?",
+      "question_en": "What is HESTIM?",
+      "reponse_fr": "HESTIM est un établissement d'enseignement supérieur reconnu par l'État, basé à Casablanca, qui regroupe une école d'ingénieurs et une école de commerce. Sa mission est de former des ingénieurs et des managers engagés, agiles et ouverts sur le monde.",
+      "reponse_en": "HESTIM is a state-recognized higher education institution based in Casablanca, combining an engineering school and a business school. Its mission is to train engineers and managers who are engaged, agile and open to the world."
+    },
+    {
+      "id": "localisation",
+      "question_fr": "Où se trouve le campus de HESTIM ?",
+      "question_en": "Where is the HESTIM campus located?",
+      "reponse_fr": "Le campus se trouve au 293-295 Boulevard Ghandi, Quartier Oasis, à Casablanca.",
+      "reponse_en": "The campus is located at 293-295 Boulevard Ghandi, Oasis district, Casablanca."
+    },
+    {
+      "id": "ecoles",
+      "question_fr": "Quelles écoles regroupe HESTIM ?",
+      "question_en": "Which schools are part of HESTIM?",
+      "reponse_fr": "HESTIM regroupe deux écoles complémentaires : une École d'Ingénierie et une École de Commerce (Business School).",
+      "reponse_en": "HESTIM brings together two complementary schools: an Engineering School and a Business School."
+    },
+    {
+      "id": "filieres_ingenierie",
+      "question_fr": "Quelles filières propose l'École d'Ingénierie ?",
+      "question_en": "What programs does the Engineering School offer?",
+      "reponse_fr": "Parmi les filières de l'École d'Ingénierie figurent le Génie Industriel et Logistique, le Génie Civil, et l'Ingénierie Informatique et Intelligence Artificielle.",
+      "reponse_en": "The Engineering School's programs include Industrial and Logistics Engineering, Civil Engineering, and Computer Engineering and Artificial Intelligence."
+    },
+    {
+      "id": "filieres_business",
+      "question_fr": "Quelles filières propose l'École de Commerce ?",
+      "question_en": "What programs does the Business School offer?",
+      "reponse_fr": "L'École de Commerce propose notamment un Master d'État, une Licence d'État, et un Programme Grande École en Marketing et Stratégies Digitales.",
+      "reponse_en": "The Business School offers a Master's degree, a Bachelor's degree, and a Grande École Program in Marketing and Digital Strategies."
+    },
+    {
+      "id": "direction",
+      "question_fr": "Qui dirige HESTIM ?",
+      "question_en": "Who runs HESTIM?",
+      "reponse_fr": "HESTIM a été fondé par M. Bennis Abdelilah, qui en est également le Directeur Général.",
+      "reponse_en": "HESTIM was founded by Mr. Bennis Abdelilah, who is also its General Director."
+    },
+    {
+      "id": "valeurs",
+      "question_fr": "Quelles sont les valeurs de HESTIM ?",
+      "question_en": "What are HESTIM's values?",
+      "reponse_fr": "Les valeurs de HESTIM sont l'excellence, l'innovation, la bienveillance, l'engagement et l'éco-responsabilité.",
+      "reponse_en": "HESTIM's values are excellence, innovation, care, engagement and eco-responsibility."
+    },
+    {
+      "id": "contact",
+      "question_fr": "Comment contacter HESTIM ?",
+      "question_en": "How can I contact HESTIM?",
+      "reponse_fr": "Vous pouvez appeler le +212 5 22 34 17 23, ou utiliser le formulaire de contact et le WhatsApp disponibles sur le site www.hestim.ma.",
+      "reponse_en": "You can call +212 5 22 34 17 23, or use the contact form and WhatsApp available on the website www.hestim.ma."
+    },
+    {
+      "id": "incubateur",
+      "question_fr": "HESTIM propose-t-il un accompagnement pour entreprendre ?",
+      "question_en": "Does HESTIM support entrepreneurship?",
+      "reponse_fr": "Oui, HESTIM dispose de CIEL, un incubateur dédié à l'entrepreneuriat et à l'innovation, ainsi que d'un Career Center pour l'insertion professionnelle.",
+      "reponse_en": "Yes, HESTIM has CIEL, an incubator dedicated to entrepreneurship and innovation, as well as a Career Center for professional integration."
+    },
+    {
+      "id": "recherche",
+      "question_fr": "HESTIM fait-il de la recherche ?",
+      "question_en": "Does HESTIM conduct research?",
+      "reponse_fr": "Oui, à travers le CERIM, son centre de recherche appliquée et de valorisation académique.",
+      "reponse_en": "Yes, through CERIM, its center for applied research and academic advancement."
+    },
+    {
+      "id": "international",
+      "question_fr": "HESTIM a-t-il des partenariats internationaux ?",
+      "question_en": "Does HESTIM have international partnerships?",
+      "reponse_fr": "Oui, HESTIM est partenaire d'écoles internationales comme INSA Rennes, Excelia Business School, Audencia Business School, l'Université Polytechnique Hauts-de-France, ESTIA et ULCO, notamment pour des doubles diplômes et la mobilité étudiante.",
+      "reponse_en": "Yes, HESTIM partners with international schools such as INSA Rennes, Excelia Business School, Audencia Business School, Université Polytechnique Hauts-de-France, ESTIA and ULCO, for double degrees and student mobility."
+    },
+    {
+      "id": "campus",
+      "question_fr": "Le campus est-il grand ?",
+      "question_en": "Is the campus large?",
+      "reponse_fr": "Le campus s'étend sur environ 5100 m², avec 900 m² de laboratoires et plateaux techniques, et 720 m² d'espaces de vie étudiante.",
+      "reponse_en": "The campus covers about 5,100 m², including 900 m² of labs and technical platforms, and 720 m² of student life facilities."
+    }
+  ]
+}
