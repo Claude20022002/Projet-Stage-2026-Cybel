@@ -14,10 +14,10 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
 
     // Adresse du backend CYBEL (servant /kiosk/) joignable depuis le
-    // reseau Wi-Fi du robot. A adapter avant de lancer build.sh :
-    // remplacer par l'IP du PC qui execute `python scripts/dev.py`
-    // sur le reseau Wi-Fi du robot (voir docs/VISITOR_KIOSK.md).
-    private static final String KIOSK_URL = "http://192.168.1.100:8000/kiosk/";
+    // reseau Wi-Fi du robot. A adapter avant de lancer build.sh si l'IP
+    // du PC qui execute `python scripts/dev.py` change (voir
+    // docs/VISITOR_KIOSK.md).
+    private static final String KIOSK_URL = "http://10.42.0.155:8000/kiosk/";
 
     private static final long RETRY_DELAY_MS = 5000;
 
