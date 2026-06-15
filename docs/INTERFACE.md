@@ -437,7 +437,11 @@ La carte est **en lecture seule** — pas de clic pour naviguer ou sélectionner
 | Système | Qui parle | Technologie | Usage |
 |---------|-----------|-------------|-------|
 | **Commande vocale** | L'opérateur → le robot agit | Web Speech API (navigateur) | Bouton « Vocal » |
-| **Synthèse vocale (TTS)** | Le robot parle | ROS / HTTP Android | Actions d'accueil + textarea TTS |
+| **Synthèse vocale (TTS)** | Le robot parle | ROS / ADB (CybelTTSBridge) / HTTP Android | Actions d'accueil + textarea TTS |
+
+> Le canal principal est désormais le pont **CybelTTSBridge** (app Android
+> dédiée pilotée via `adb broadcast`, voir [docs/TTS_BRIDGE.md](TTS_BRIDGE.md)
+> pour le détail de l'investigation et de la mise en œuvre).
 
 ### Commandes vocales reconnues
 
