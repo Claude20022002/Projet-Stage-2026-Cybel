@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from config import settings
 from routers import knowledge, map, navigation, reception, robot, settings as settings_router, speech

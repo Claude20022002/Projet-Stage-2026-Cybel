@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/kiosk/" : "/",
   server: {
     port: 5174,
     proxy: {
@@ -11,4 +12,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
