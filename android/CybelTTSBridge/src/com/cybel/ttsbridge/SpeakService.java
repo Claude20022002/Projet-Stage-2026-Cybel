@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -65,8 +66,16 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
         if (status == TextToSpeech.SUCCESS) {
             tts.setLanguage(Locale.FRENCH);
             if (pendingText != null) {
-                doSpeak(pendingText);
+                final String text = pendingText;
                 pendingText = null;
+                // TextToSpeech.onInit can fire slightly before the
+                // service connection is fully usable; give it a moment.
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        doSpeak(text);
+                    }
+                }, 300);
             }
         } else {
             Log.e(TAG, "TTS init failed: " + status);
