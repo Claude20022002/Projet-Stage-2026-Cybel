@@ -28,6 +28,10 @@ class RobotBackend(Protocol):
     async def global_localization(self) -> bool: ...
     async def navigate_to_point(self, point_name: str) -> bool: ...
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool: ...
+    async def add_point(
+        self, name: str, type: str = "common", x: float | None = None,
+        y: float | None = None, theta: float | None = None
+    ) -> Point: ...
     def get_speech_status(self) -> SpeechStatus: ...
     async def speak(self, text: str, interrupt: bool = True) -> dict: ...
     async def stop_speech(self) -> dict: ...
@@ -115,6 +119,12 @@ class RobotService:
 
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
         return await self._require().navigate_to_coordinate(x, y, theta)
+
+    async def add_point(
+        self, name: str, type: str = "common", x: float | None = None,
+        y: float | None = None, theta: float | None = None
+    ) -> Point:
+        return await self._require().add_point(name, type=type, x=x, y=y, theta=theta)
 
     def get_speech_status(self) -> SpeechStatus:
         return self._require().get_speech_status()

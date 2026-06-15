@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
 
 from fastapi import APIRouter, HTTPException
 
-from sdk.models import NavigateCommand, NavigateCoordinateCommand, Point
+from sdk.models import AddPointCommand, NavigateCommand, NavigateCoordinateCommand, Point
 from services.robot_service import robot_service
 
 router = APIRouter(prefix="/api/navigation", tags=["navigation"])
@@ -16,6 +16,17 @@ router = APIRouter(prefix="/api/navigation", tags=["navigation"])
 @router.get("/points", response_model=list[Point])
 async def get_points() -> list[Point]:
     return robot_service.get_points()
+
+
+@router.post("/points", response_model=Point)
+async def add_point(command: AddPointCommand) -> Point:
+    return await robot_service.add_point(
+        command.name,
+        type=command.type,
+        x=command.x,
+        y=command.y,
+        theta=command.theta,
+    )
 
 
 @router.post("/goto")

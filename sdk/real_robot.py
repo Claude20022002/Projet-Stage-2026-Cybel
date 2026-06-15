@@ -469,6 +469,44 @@ class RealRobot:
         await self._emit("status", self.status.model_dump())
         return True
 
+    async def add_point(
+        self,
+        name: str,
+        type: str = "common",
+        x: float | None = None,
+        y: float | None = None,
+        theta: float | None = None,
+    ) -> Point:
+        point = Point(
+            id=f"local-{len(self._points) + 1}",
+            name=name,
+            type=type,  # type: ignore[arg-type]
+            x=x if x is not None else self.pose.x,
+            y=y if y is not None else self.pose.y,
+            theta=theta if theta is not None else self.pose.theta,
+            floor=self.status.current_floor_name,
+        )
+
+        if self._client.connected:
+            # Tentative non vérifiée : aucun POI ajouté ainsi n'a été testé sur
+            # le robot réel (voir docs/INTERFACE.md).
+            await self._client.call_service(
+                ROS_SERVICES["poi"],
+                {
+                    "name": point.name,
+                    "point_name": point.name,
+                    "command": "add",
+                    "x": point.x,
+                    "y": point.y,
+                    "theta": point.theta,
+                },
+            )
+
+        self._points.append(point)
+        await self._emit("points", {"points": [p.model_dump() for p in self._points]})
+        await self._emit("event", {"message": f"Point '{name}' ajouté"})
+        return point
+
     async def navigate_to_point(self, point_name: str) -> bool:
         target = next((p for p in self._points if p.name == point_name), None)
         if not target and not self._client.connected:

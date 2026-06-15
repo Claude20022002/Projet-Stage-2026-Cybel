@@ -64,6 +64,7 @@ class MockRobot:
             current_building_name="robotics lab",
             current_floor_name="0",
         )
+        self.points: list[Point] = [p.model_copy(deep=True) for p in MOCK_POINTS]
         self.manual_mode = False
         self.navigating_to: str | None = None
         self._navigation_task: asyncio.Task | None = None
@@ -131,7 +132,29 @@ class MockRobot:
         return self.pose.model_copy(deep=True)
 
     def get_points(self) -> list[Point]:
-        return [point.model_copy(deep=True) for point in MOCK_POINTS]
+        return [point.model_copy(deep=True) for point in self.points]
+
+    async def add_point(
+        self,
+        name: str,
+        type: str = "common",
+        x: float | None = None,
+        y: float | None = None,
+        theta: float | None = None,
+    ) -> Point:
+        point = Point(
+            id=f"p{len(self.points) + 1}",
+            name=name,
+            type=type,  # type: ignore[arg-type]
+            x=x if x is not None else self.pose.x,
+            y=y if y is not None else self.pose.y,
+            theta=theta if theta is not None else self.pose.theta,
+            floor=self.status.current_floor_name,
+        )
+        self.points.append(point)
+        await self._emit("points", {"points": [p.model_dump() for p in self.points]})
+        await self._emit("event", {"message": f"Point '{name}' ajouté"})
+        return point
 
     def get_map(self) -> MapData | None:
         return self.map_data.model_copy(deep=True)
@@ -229,7 +252,7 @@ class MockRobot:
         return True
 
     async def navigate_to_point(self, point_name: str) -> bool:
-        target = next((p for p in MOCK_POINTS if p.name == point_name), None)
+        target = next((p for p in self.points if p.name == point_name), None)
         if not target:
             return False
 
