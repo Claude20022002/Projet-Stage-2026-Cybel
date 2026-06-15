@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 
 from sdk.models import ReceptionAction, VoiceCommand
@@ -19,8 +21,8 @@ async def list_actions() -> list[ReceptionAction]:
 
 
 @router.post("/actions/{action_id}/execute")
-async def execute_action(action_id: str) -> dict:
-    result = await reception_service.execute(action_id)
+async def execute_action(action_id: str, lang: Literal["fr", "en"] = "fr") -> dict:
+    result = await reception_service.execute(action_id, lang)
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("error", "Échec"))
     return result

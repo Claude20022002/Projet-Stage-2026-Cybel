@@ -9,6 +9,9 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         category="accueil",
         speech="Bienvenue ! Je suis votre robot d'accueil. Suivez-moi.",
         target_point="Accueil",
+        label_en="Welcome a visitor",
+        description_en="Welcome announcement, then move to the reception point",
+        speech_en="Welcome! I am your reception robot. Follow me.",
     ),
     ReceptionAction(
         id="go_reception",
@@ -17,6 +20,8 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         icon="map-pin",
         category="navigation",
         target_point="Accueil",
+        label_en="Go to reception",
+        description_en="Autonomous navigation to the reception desk",
     ),
     ReceptionAction(
         id="go_meeting_room",
@@ -26,6 +31,9 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         category="navigation",
         speech="Je vous accompagne en salle. Suivez-moi s'il vous plaît.",
         target_point="Salle A",
+        label_en="Lead to meeting room",
+        description_en="Accompany the visitor to the meeting room",
+        speech_en="I will take you to the meeting room. Please follow me.",
     ),
     ReceptionAction(
         id="wait_mode",
@@ -35,6 +43,9 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         category="accueil",
         speech="Je reste à votre disposition.",
         target_point="Attente",
+        label_en="Standby mode",
+        description_en="Move to the waiting point and stay available",
+        speech_en="I remain available for you.",
     ),
     ReceptionAction(
         id="return_charge",
@@ -52,6 +63,9 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         category="accueil",
         speech="Bienvenue pour la visite guidée. Nous allons commencer.",
         route_name="visite_standard",
+        label_en="Guided tour",
+        description_en="Start a predefined visit route (GUIDED)",
+        speech_en="Welcome to the guided tour. Let's get started.",
     ),
     ReceptionAction(
         id="inform_waiting",
@@ -60,6 +74,9 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         icon="message",
         category="accueil",
         speech="Votre interlocuteur arrive dans quelques instants. Merci de patienter.",
+        label_en="Announce a delay",
+        description_en="Announce an estimated waiting time",
+        speech_en="Your contact will arrive shortly. Thank you for waiting.",
     ),
     ReceptionAction(
         id="stop_all",
@@ -67,6 +84,8 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         description="Interrompre navigation et annonces en cours",
         icon="stop",
         category="sécurité",
+        label_en="Stop",
+        description_en="Interrupt current navigation and announcements",
     ),
 ]
 

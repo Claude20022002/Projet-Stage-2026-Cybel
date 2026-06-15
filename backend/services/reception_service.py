@@ -18,7 +18,7 @@ class ReceptionService:
     def get_action(self, action_id: str) -> ReceptionAction | None:
         return next((a for a in DEFAULT_ACTIONS if a.id == action_id), None)
 
-    async def execute(self, action_id: str) -> dict:
+    async def execute(self, action_id: str, lang: str = "fr") -> dict:
         action = self.get_action(action_id)
         if not action:
             return {"ok": False, "error": f"Action '{action_id}' inconnue"}
@@ -30,11 +30,12 @@ class ReceptionService:
             events.append("Action interrompue")
             return {"ok": True, "action": action_id, "events": events}
 
-        if action.speech:
-            speech_result = await robot_service.speak(action.speech)
+        speech_text = action.speech_en if lang == "en" and action.speech_en else action.speech
+        if speech_text:
+            speech_result = await robot_service.speak(speech_text)
             if speech_result.get("ok"):
                 method = speech_result.get("method", "unknown")
-                events.append(f"Annonce : {action.speech} ({method})")
+                events.append(f"Annonce : {speech_text} ({method})")
             else:
                 events.append(f"TTS échoué : {speech_result.get('error', 'inconnu')}")
             await asyncio.sleep(0.3)
