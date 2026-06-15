@@ -21,6 +21,7 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
     private static final String CHANNEL_ID = "cybel_tts";
 
     private TextToSpeech tts;
+    private boolean ttsReady;
     private String pendingText;
 
     @Override
@@ -65,6 +66,7 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
             tts.setLanguage(Locale.FRENCH);
+            ttsReady = true;
             if (pendingText != null) {
                 final String text = pendingText;
                 pendingText = null;
@@ -85,7 +87,7 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
     }
 
     private void speak(String text) {
-        if (tts == null) {
+        if (!ttsReady) {
             pendingText = text;
             return;
         }
