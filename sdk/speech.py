@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import subprocess
 from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import quote
@@ -187,26 +188,22 @@ class RobotSpeech:
 
         await self._notify(text, "speaking", "adb-tts")
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "adb",
-                "-s",
-                self._adb_serial,
-                "shell",
-                remote_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["adb", "-s", self._adb_serial, "shell", remote_cmd],
+                capture_output=True,
+                timeout=5.0,
             )
-            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=5.0)
-            if proc.returncode == 0:
+            if result.returncode == 0:
                 await self._notify(text, "done", "adb-tts")
                 logger.info("TTS via adb broadcast (%s)", self._adb_serial)
                 return "adb-tts"
             logger.debug(
                 "TTS via adb échoué (code %s): %s",
-                proc.returncode,
-                stderr.decode(errors="ignore"),
+                result.returncode,
+                result.stderr.decode(errors="ignore"),
             )
-        except (OSError, asyncio.TimeoutError) as exc:
+        except (OSError, subprocess.TimeoutExpired) as exc:
             logger.debug("TTS via adb échoué: %s", exc)
 
         return None
