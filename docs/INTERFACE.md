@@ -703,6 +703,18 @@ Configuration : `ROBOT_MOCK=true/false` dans `backend/.env`.
 6. **Carte non interactive** (pas de navigation par clic)
 7. **Visite guidée GUIDED** : événement journal seulement, pas de sync cloud
 8. **Paramètres vitesse/travel_mode** : stockés côté backend mais pas encore transmis au robot ROS
+9. **Points ajoutés via le bouton « + »** : en mode `mock`, stockés en mémoire
+   du processus backend (perdus au redémarrage — pas de persistance disque).
+   En mode robot réel, l'appel au service ROS `/poi` avec `command: "add"`
+   (`sdk/real_robot.py`) **n'a pas pu être testé sur le robot** (pas d'accès
+   au robot pendant le développement) ; si ce service ne supporte pas cette
+   commande, le point reste tout de même utilisable côté backend/UI (liste,
+   sélection, navigation) mais ne sera pas persisté côté robot.
+10. **Reconnaissance « va à \<point\> »** (§8) : couvre les tournures de
+    déplacement les plus courantes en français, sans gestion de l'anglais ni
+    des fautes de reconnaissance vocale (ex. homophones). En cas de doute, le
+    matching par sous-chaîne peut associer un nom de point partiel à un point
+    existant dont le nom le contient (ou inversement).
 
 ---
 
