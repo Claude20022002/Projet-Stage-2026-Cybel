@@ -108,20 +108,45 @@ d'erreur de chargement (backend indisponible), la page est rechargée
 automatiquement toutes les 5 secondes. Un `BootReceiver` relance l'app au
 démarrage de la tablette (`BOOT_COMPLETED`).
 
-### 6.2 Configuration de `KIOSK_URL`
+### 6.2 Configuration de `KIOSK_URL` — ⚠️ problème de topologie réseau non résolu
 
 ```java
 private static final String KIOSK_URL = "http://10.42.0.155:8000/kiosk/";
 ```
 
-`10.42.0.155` est l'IP actuelle du poste qui exécute `python scripts/dev.py`
-sur le réseau Wi-Fi du robot (même réseau que `ROBOT_HOST=10.42.0.1`, voir
-[docs/ROBOT_CONNECTION.md](ROBOT_CONNECTION.md)). Comme pour
-`SPEECH_HTTP_HOST`/`SPEECH_ADB_SERIAL`, cette IP est attribuée par **DHCP** et
-peut changer après un redémarrage — si l'app affiche une erreur de
-chargement en boucle, vérifier l'IP du poste backend (`ipconfig` /
-`ifconfig`), mettre à jour `KIOSK_URL`, puis relancer `build.sh` et
-réinstaller.
+`10.42.0.155` est l'IP actuelle du poste de dev sur le réseau Wi-Fi `10.42.0.0/24`
+(passerelle `10.42.0.1`, châssis — voir [docs/ROBOT_CONNECTION.md](ROBOT_CONNECTION.md)).
+
+**Cette valeur n'a pas pu être validée et est probablement injoignable depuis
+la tablette.** En inspectant la configuration réseau de la tête Android
+(`adb shell ip addr show wlan0` / `ip route`), elle est en fait sur un
+**second réseau Wi-Fi distinct, `172.16.0.0/16`** (IP `172.16.0.194`), sans
+route vers `10.42.0.0/24` ni route par défaut. Un `ping` de la tête Android
+vers `10.42.0.155` ne reste pas local : il ressort sur Internet (réponse
+« Time to live exceeded » d'une IP publique), donc il n'y a **pas de route
+retour** vers le poste de dev.
+
+➡️ La connexion `adb connect 172.16.0.194:5555` fonctionne malgré tout depuis
+le poste de dev — probablement via une translation d'adresse (NAT) côté
+châssis (`10.42.0.1`) qui a une patte sur les deux réseaux — mais ce mécanisme
+ne semble pas bidirectionnel pour un nouveau port (8000) initié depuis la tête
+Android.
+
+**Pistes pour résoudre ça (non implémentées) :**
+
+1. Connecter le poste de dev directement au **même Wi-Fi `172.16.0.0/16`** que
+   la tête Android (si ce réseau est diffusé comme SSID séparé), et utiliser
+   l'IP obtenue sur ce réseau pour `KIOSK_URL`.
+2. Héberger `/kiosk` (et le backend) **sur un appareil déjà présent sur
+   `172.16.0.0/16`** (ex. directement sur la tête Android via Termux, ou sur
+   un petit serveur branché sur ce réseau).
+3. Mettre en place un **forward/proxy** côté châssis (`10.42.0.1`) si celui-ci
+   route déjà entre les deux réseaux pour d'autres ports.
+
+En attendant, `KIOSK_URL` reste une constante à adapter manuellement une fois
+la bonne adresse identifiée — comme pour `SPEECH_HTTP_HOST`/`SPEECH_ADB_SERIAL`
+(IP DHCP instable, voir [docs/TTS_BRIDGE.md §9](TTS_BRIDGE.md#9-limites-connues-et-points-dattention)).
+Après modification, relancer `build.sh` et réinstaller l'APK.
 
 ### 6.3 Build et installation
 
