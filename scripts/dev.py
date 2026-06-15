@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
+KIOSK_DIR = ROOT / "frontend-kiosk"
 
 
 def stream_output(process: subprocess.Popen, prefix: str) -> None:
@@ -36,20 +37,29 @@ def main() -> None:
         stderr=subprocess.STDOUT,
         shell=sys.platform == "win32",
     )
+    kiosk = subprocess.Popen(
+        ["npm", "run", "dev"],
+        cwd=KIOSK_DIR,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        shell=sys.platform == "win32",
+    )
 
     threading.Thread(target=stream_output, args=(backend, "backend"), daemon=True).start()
     threading.Thread(target=stream_output, args=(frontend, "frontend"), daemon=True).start()
+    threading.Thread(target=stream_output, args=(kiosk, "kiosk"), daemon=True).start()
 
+    processes = (backend, frontend, kiosk)
     try:
-        while backend.poll() is None and frontend.poll() is None:
+        while all(proc.poll() is None for proc in processes):
             time.sleep(0.5)
     except KeyboardInterrupt:
         pass
     finally:
-        for proc in (backend, frontend):
+        for proc in processes:
             if proc.poll() is None:
                 proc.terminate()
-        for proc in (backend, frontend):
+        for proc in processes:
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
