@@ -85,12 +85,10 @@ class RobotSpeech:
             self._speech_task = asyncio.create_task(self._mock_speak(text))
             return {"ok": True, "method": "mock", "text": text}
 
-        if not self._client or not self._client.connected:
-            return {"ok": False, "error": "Robot non connecté"}
-
-        method = await self._try_real_speak(text)
-        if method:
-            return {"ok": True, "method": method, "text": text}
+        if self._client and self._client.connected:
+            method = await self._try_real_speak(text)
+            if method:
+                return {"ok": True, "method": method, "text": text}
 
         adb_method = await self._try_adb_speak(text)
         if adb_method:
