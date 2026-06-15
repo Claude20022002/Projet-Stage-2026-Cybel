@@ -115,6 +115,9 @@ class ReceptionAction(BaseModel):
     speech: str | None = None
     target_point: str | None = None
     route_name: str | None = None
+    label_en: str | None = None
+    description_en: str | None = None
+    speech_en: str | None = None
 
 
 class VoiceCommand(BaseModel):
