@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.cybel.ttsbridge"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="25" />
+
+    <application
+        android:label="CybelTTSBridge"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:allowBackup="false">
+
+        <receiver
+            android:name=".SpeakReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.cybel.ttsbridge.SPEAK" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".SpeakService"
+            android:exported="false" />
+
+    </application>
+</manifest>
