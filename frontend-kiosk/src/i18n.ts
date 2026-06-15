@@ -1,0 +1,28 @@
+export const t = {
+  fr: {
+    title: "Robot d'accueil",
+    subtitle: "Bonjour ! Que puis-je faire pour vous ?",
+    info: "S'informer",
+    back: "Retour",
+    langToggle: "EN",
+    executing: "Action en cours…",
+    actionDone: "C'est fait !",
+    actionError: "Une erreur est survenue.",
+    faqTitle: "Questions fréquentes",
+    faqHint: "Touchez une question pour entendre la réponse.",
+    loading: "Chargement…",
+  },
+  en: {
+    title: "Reception robot",
+    subtitle: "Hello! How can I help you?",
+    info: "Information",
+    back: "Back",
+    langToggle: "FR",
+    executing: "Working on it…",
+    actionDone: "Done!",
+    actionError: "Something went wrong.",
+    faqTitle: "Frequently asked questions",
+    faqHint: "Tap a question to hear the answer.",
+    loading: "Loading…",
+  },
+} as const;
