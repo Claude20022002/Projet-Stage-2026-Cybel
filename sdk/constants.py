@@ -90,7 +90,7 @@ SPEECH_SERVICE_ARGS = [
 ]
 
 # Upper body Android (RK3399) — fallback HTTP si ROS échoue
-SPEECH_HTTP_HOST = "172.16.0.88"
+SPEECH_HTTP_HOST = "172.16.0.194"
 SPEECH_HTTP_PORTS = (80, 8080, 8888, 9000, 9090)
 SPEECH_HTTP_PATHS = (
     "/tts",
@@ -103,3 +103,9 @@ SPEECH_HTTP_PATHS = (
     "/yutong/tts",
     "/android/tts",
 )
+
+# TTS via la tête Android — app CybelTTSBridge installée sur l'appareil
+# (voir android/CybelTTSBridge), déclenchée par broadcast ADB.
+SPEECH_ADB_SERIAL = "172.16.0.194:5555"
+SPEECH_ADB_RECEIVER = "com.cybel.ttsbridge/.SpeakReceiver"
+SPEECH_ADB_ACTION = "com.cybel.ttsbridge.SPEAK"

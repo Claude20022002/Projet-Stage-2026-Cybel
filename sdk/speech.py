@@ -7,6 +7,9 @@ from urllib.parse import quote
 import httpx
 
 from sdk.constants import (
+    SPEECH_ADB_ACTION,
+    SPEECH_ADB_RECEIVER,
+    SPEECH_ADB_SERIAL,
     SPEECH_HTTP_HOST,
     SPEECH_HTTP_PATHS,
     SPEECH_HTTP_PORTS,
@@ -36,6 +39,7 @@ class RobotSpeech:
         http_host: str = "",
         http_port: int = 0,
         http_path: str = "",
+        adb_serial: str = "",
     ) -> None:
         self._client = client
         self._emit = emit
@@ -45,6 +49,7 @@ class RobotSpeech:
         self._http_host = http_host or SPEECH_HTTP_HOST
         self._http_port = http_port
         self._http_path = http_path
+        self._adb_serial = adb_serial or SPEECH_ADB_SERIAL
         self._status = SpeechStatus(mock=mock)
         self._speech_task: asyncio.Task | None = None
         self._known_services: set[str] | None = None
@@ -87,6 +92,10 @@ class RobotSpeech:
         if method:
             return {"ok": True, "method": method, "text": text}
 
+        adb_method = await self._try_adb_speak(text)
+        if adb_method:
+            return {"ok": True, "method": adb_method, "text": text}
+
         http_method = await self._try_http_speak(text)
         if http_method:
             return {"ok": True, "method": http_method, "text": text}
@@ -94,7 +103,7 @@ class RobotSpeech:
         await self._notify(text, "failed", "none")
         return {
             "ok": False,
-            "error": "Aucun canal TTS (ROS/HTTP) — lancez scripts/speech_explore.py ou http_speech_explore.py",
+            "error": "Aucun canal TTS (ROS/ADB/HTTP) — lancez scripts/speech_explore.py ou http_speech_explore.py",
             "text": text,
         }
 
@@ -163,6 +172,44 @@ class RobotSpeech:
                         return f"service:{service}"
                 except Exception as exc:
                     logger.debug("TTS service %s échoué: %s", service, exc)
+
+        return None
+
+    async def _try_adb_speak(self, text: str) -> str | None:
+        if not self._adb_serial:
+            return None
+
+        # am broadcast --es passe par le shell distant : on échappe pour
+        # rester dans des guillemets simples côté Android.
+        escaped = text.replace("'", "'\\''")
+        remote_cmd = (
+            f"am broadcast -n {SPEECH_ADB_RECEIVER} -a {SPEECH_ADB_ACTION} "
+            f"--es text '{escaped}'"
+        )
+
+        await self._notify(text, "speaking", "adb-tts")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "adb",
+                "-s",
+                self._adb_serial,
+                "shell",
+                remote_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            if proc.returncode == 0:
+                await self._notify(text, "done", "adb-tts")
+                logger.info("TTS via adb broadcast (%s)", self._adb_serial)
+                return "adb-tts"
+            logger.debug(
+                "TTS via adb échoué (code %s): %s",
+                proc.returncode,
+                stderr.decode(errors="ignore"),
+            )
+        except (OSError, asyncio.TimeoutError) as exc:
+            logger.debug("TTS via adb échoué: %s", exc)
 
         return None
 
