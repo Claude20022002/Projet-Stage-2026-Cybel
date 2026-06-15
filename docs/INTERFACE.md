@@ -228,6 +228,7 @@ Liste les **points de navigation** disponibles sur la carte du robot.
 | Clic sur un point | Sélectionne le point (surlignage sur carte + liste) |
 | **Aller vers {point}** | `POST /api/navigation/goto` — désactivé si aucun point sélectionné |
 | **Annuler navigation** | `POST /api/navigation/cancel` (équivalent à un arrêt) |
+| Bouton **+** (en-tête du panneau) | `POST /api/navigation/points` — ajoute un point « en un clic » à la position actuelle du robot (`pose.x/y/theta`), nommé via une invite (`Point N` par défaut), type `common`. Le nouveau point est immédiatement sélectionnable et navigable (clic ou commande vocale « va à … ») |
 
 #### Types de points et couleurs carte
 
@@ -548,6 +549,7 @@ Base URL : `/api` (proxifié vers `:8000` en dev).
 | Méthode | Endpoint | Body | Description |
 |---------|----------|------|-------------|
 | GET | `/api/navigation/points` | — | Liste des points |
+| POST | `/api/navigation/points` | `{ name, type?, x?, y?, theta? }` | Ajouter un point (position courante du robot si `x`/`y`/`theta` omis) → `Point` |
 | POST | `/api/navigation/goto` | `{ point_name: string }` | Naviguer vers un point |
 | POST | `/api/navigation/cancel` | — | Annuler (stop) |
 
