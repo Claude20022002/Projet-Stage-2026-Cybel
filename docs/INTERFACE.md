@@ -755,6 +755,48 @@ WS events : status.navigating_to, pose (mouvement), event « Navigation vers… 
 Arrivée → event « Arrivé à {point} », nav_status_label « Arrivé »
 ```
 
+### Schéma flux : ajout de point en un clic
+
+```
+Clic bouton « + » (panneau Points)
+        │
+        ▼
+Invite navigateur : nom du point (« Point N » par défaut)
+        │
+        ▼
+POST /api/navigation/points { name }
+        │
+        ▼
+Backend : crée Point à pose.x/y/theta courante (type "common")
+        │
+        ▼
+GET /api/navigation/points (rafraîchi) + sélection auto du nouveau point
+        │
+        ▼
+Point utilisable immédiatement : clic « Aller vers » ou commande vocale
+« va à {nom} »
+```
+
+### Schéma flux : navigation vocale générique
+
+```
+Bouton « Vocal » → Web Speech API (fr-FR) → transcription texte
+        │
+        ▼
+POST /api/reception/voice { text }
+        │
+        ├─ 1. match_voice_command()  → action prédéfinie (ex. « va à l'accueil »)
+        │
+        └─ 2. sinon, match_point_navigation() :
+               - reconnaît « va/vas/aller/rends-toi/emmène-moi/conduis-moi… (au/à/vers) <destination> »
+               - normalise (accents, casse, articles) et compare aux noms de
+                 GET /api/navigation/points (y compris points ajoutés via « + »)
+               - si trouvé → POST /api/navigation/goto { point_name }
+        │
+        ▼
+Aucune correspondance → HTTP 400 « Commande vocale non reconnue »
+```
+
 ### Variables d'environnement liées à l'interface
 
 ```env
