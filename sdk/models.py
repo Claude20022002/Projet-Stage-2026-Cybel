@@ -63,6 +63,23 @@ class NavigateCommand(BaseModel):
     point_name: str
 
 
+class AddPointCommand(BaseModel):
+    name: str
+    type: Literal[
+        "charging",
+        "common",
+        "gate",
+        "access",
+        "ride",
+        "wait",
+        "label",
+        "stop",
+    ] = "common"
+    x: float | None = None
+    y: float | None = None
+    theta: float | None = None
+
+
 class NavigateCoordinateCommand(BaseModel):
     x: float
     y: float

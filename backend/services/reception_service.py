@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from sdk.models import ReceptionAction, VoiceCommand
-from sdk.reception_actions import DEFAULT_ACTIONS, match_voice_command
+from sdk.reception_actions import DEFAULT_ACTIONS, match_point_navigation, match_voice_command
 from services.robot_service import robot_service
 
 
@@ -61,16 +61,34 @@ class ReceptionService:
 
     async def handle_voice(self, command: VoiceCommand) -> dict:
         action_id = match_voice_command(command.text)
-        if not action_id:
+        if action_id:
+            result = await self.execute(action_id)
+            result["matched_action"] = action_id
+            result["text"] = command.text
+            return result
+
+        points = robot_service.get_points()
+        point_name = match_point_navigation(command.text, [p.name for p in points])
+        if point_name:
+            success = await robot_service.navigate_to_point(point_name)
+            if not success:
+                return {
+                    "ok": False,
+                    "error": f"Point '{point_name}' introuvable sur la carte",
+                    "text": command.text,
+                }
             return {
-                "ok": False,
-                "error": "Commande vocale non reconnue",
+                "ok": True,
+                "matched_point": point_name,
+                "events": [f"Navigation vers {point_name}"],
                 "text": command.text,
             }
-        result = await self.execute(action_id)
-        result["matched_action"] = action_id
-        result["text"] = command.text
-        return result
+
+        return {
+            "ok": False,
+            "error": "Commande vocale non reconnue",
+            "text": command.text,
+        }
 
 
 reception_service = ReceptionService()

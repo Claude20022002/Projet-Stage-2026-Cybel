@@ -1,3 +1,6 @@
+import re
+import unicodedata
+
 from sdk.models import ReceptionAction
 
 DEFAULT_ACTIONS: list[ReceptionAction] = [
@@ -120,4 +123,53 @@ def match_voice_command(text: str) -> str | None:
     for phrase, action_id in sorted(VOICE_COMMAND_MAP.items(), key=lambda x: -len(x[0])):
         if phrase in normalized:
             return action_id
+    return None
+
+
+def _normalize_text(text: str) -> str:
+    """Minuscules, sans accents, sans ponctuation, espaces normalisés."""
+    decomposed = unicodedata.normalize("NFD", text)
+    without_accents = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    lowered = without_accents.lower().strip()
+    cleaned = re.sub(r"[^a-z0-9\s]", " ", lowered)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+_ARTICLE_PREFIX = re.compile(r"^(?:l|la|le|les|du|des|de la|de l)\s+")
+
+# Verbes/tournures de déplacement suivis d'une préposition + destination,
+# ex. « va à l'accueil », « rends-toi vers la salle b », « conduis-moi au point 3 ».
+_NAV_PATTERN = re.compile(
+    r"^(?:va|vas|aller|allez|aille|emmene|emmenez|conduis|conduisez|amene|amenez|"
+    r"deplace|deplacez|dirige|dirigez|rends toi|rendez vous)\s*"
+    r"(?:toi|vous|moi)?\s+"
+    r"(?:jusqu\s+)?(?:au|aux|a|vers|en|dans)\s+(.+)$"
+)
+
+
+def match_point_navigation(text: str, point_names: list[str]) -> str | None:
+    """Reconnaît une commande du type « va à <point> » et la fait correspondre
+    à un nom de point existant (insensible aux accents/casse/articles)."""
+    normalized = _normalize_text(text)
+    match = _NAV_PATTERN.match(normalized)
+    if not match:
+        return None
+
+    destination = _ARTICLE_PREFIX.sub("", match.group(1).strip()).strip()
+    if not destination:
+        return None
+
+    normalized_points = {_normalize_text(name): name for name in point_names}
+
+    if destination in normalized_points:
+        return normalized_points[destination]
+
+    for norm_name, original in normalized_points.items():
+        if _ARTICLE_PREFIX.sub("", norm_name).strip() == destination:
+            return original
+
+    for norm_name, original in normalized_points.items():
+        if destination in norm_name or norm_name in destination:
+            return original
+
     return None
