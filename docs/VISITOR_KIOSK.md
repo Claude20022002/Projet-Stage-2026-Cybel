@@ -132,21 +132,68 @@ châssis (`10.42.0.1`) qui a une patte sur les deux réseaux — mais ce mécani
 ne semble pas bidirectionnel pour un nouveau port (8000) initié depuis la tête
 Android.
 
-**Pistes pour résoudre ça (non implémentées) :**
+### 6.2.1 Pistes investiguées (2026-06-15)
 
-1. Connecter le poste de dev directement au **même Wi-Fi `172.16.0.0/16`** que
-   la tête Android (si ce réseau est diffusé comme SSID séparé), et utiliser
-   l'IP obtenue sur ce réseau pour `KIOSK_URL`.
-2. Héberger `/kiosk` (et le backend) **sur un appareil déjà présent sur
-   `172.16.0.0/16`** (ex. directement sur la tête Android via Termux, ou sur
-   un petit serveur branché sur ce réseau).
-3. Mettre en place un **forward/proxy** côté châssis (`10.42.0.1`) si celui-ci
-   route déjà entre les deux réseaux pour d'autres ports.
+- **`adb reverse tcp:8000 tcp:8000`** (tunnel via la connexion ADB existante,
+  qui elle fonctionne dans les deux sens) — semblait la solution la plus
+  simple, mais échoue systématiquement avec `error: more than one
+  device/emulator`, même avec un seul appareil connecté et `-s` explicite.
+  Cause identifiée : `adb -s 172.16.0.194:5555 features` ne liste que `cmd` et
+  `shell_v2` — l'`adbd` de cette tête Android (Android 7.1, ancien) **ne
+  supporte pas le protocole `reverse:forward`** attendu par le client adb
+  35.0.2. **Abandonné.**
+
+- **Ajout d'une route IP sur la tête Android** (root disponible via
+  `adb shell` → `su`, `uid=0`). Inspection de `ip route` côté tête :
+
+  ```text
+  172.16.0.0/16  dev wlan0  src 172.16.0.194   (Wi-Fi, réseau "TY1251D-03195")
+  192.168.10.0/24 dev eth0  src 192.168.10.138
+  192.168.20.0/24 dev eth0  src 192.168.20.1   (tête = .1, châssis = .22)
+  ```
+
+  La connexion ADB existante (PC → tête) arrive via `eth0` depuis
+  `192.168.20.22` (le châssis), confirmant que le châssis NAT déjà le trafic
+  `10.42.0.0/24 → tête` vers ce lien interne `192.168.20.0/24`.
+  Test : `ip route add 10.42.0.0/24 via 192.168.20.22 dev eth0` puis
+  `ping 10.42.0.155` **et** `ping 10.42.0.1` (le châssis lui-même) — les deux
+  échouent toujours (« Time to live exceeded » depuis une IP publique). Le
+  châssis ne route/NAT que dans le sens **PC/`10.42.0.x` → tête**, pas
+  l'inverse (pas de règle `FORWARD`/`MASQUERADE` `192.168.20.0/24 →
+  10.42.0.0/24` côté châssis). Route retirée après test (état du robot
+  inchangé).
+
+➡️ **Conclusion** : sans accès SSH/root au châssis (`10.42.0.1` — déjà tenté
+et infructueux, voir [docs/TTS_BRIDGE.md §2](TTS_BRIDGE.md#2-pistes-explorées-et-écartées))
+pour y ajouter une règle de routage retour, **aucune connexion initiée depuis
+la tête Android vers le poste de dev (quel que soit le port) n'aboutit**. Ce
+n'est donc pas spécifique à `adb reverse` ni au port 8000 : c'est une
+limitation réseau du robot lui-même.
+
+### 6.2.2 Pistes restantes (non implémentées)
+
+1. **Connecter le poste de dev au Wi-Fi `172.16.0.0/16`** si ce réseau est
+   diffusé comme SSID séparé (à vérifier sur site — depuis le poste actuel,
+   seul `TY1251D-03195` est visible, qui correspond au `10.42.0.0/24` du
+   châssis).
+2. **Héberger `/kiosk` + le backend directement sur la tête Android** via
+   Termux (déjà installé, voir [docs/TTS_BRIDGE.md §4](TTS_BRIDGE.md#4-exploration-des-applications-android-candidates)) :
+   la `WebView` chargerait alors `http://127.0.0.1:8000/kiosk/` (aucun
+   problème réseau), et le TTS se ferait par `am broadcast` **local** (`su -c`,
+   sans ADB). Reste à valider que Termux peut faire tourner FastAPI/uvicorn
+   sur cet appareil (Android 7.1, RK3399, 2 Go RAM) et que la tête a un accès
+   réseau à `10.42.0.1:9090` (rosbridge) — non vérifié, et le test §6.2.1
+   suggère que non via ce chemin.
+3. **Demander à l'administrateur réseau** (côté établissement) une règle de
+   routage/forward retour `192.168.20.0/24 → 10.42.0.0/24` sur le châssis, ou
+   un accès SSH au châssis pour l'ajouter soi-même.
 
 En attendant, `KIOSK_URL` reste une constante à adapter manuellement une fois
-la bonne adresse identifiée — comme pour `SPEECH_HTTP_HOST`/`SPEECH_ADB_SERIAL`
+une solution réseau trouvée — comme pour `SPEECH_HTTP_HOST`/`SPEECH_ADB_SERIAL`
 (IP DHCP instable, voir [docs/TTS_BRIDGE.md §9](TTS_BRIDGE.md#9-limites-connues-et-points-dattention)).
-Après modification, relancer `build.sh` et réinstaller l'APK.
+Après modification, relancer `build.sh` et réinstaller l'APK
+(`adb install -r out/CybelVisitorKiosk.apk` — déjà installée une première fois,
+§6.3).
 
 ### 6.3 Build et installation
 
