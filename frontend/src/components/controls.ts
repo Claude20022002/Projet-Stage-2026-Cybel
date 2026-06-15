@@ -38,6 +38,10 @@ export function renderControls(manualMode: boolean, softEstop: boolean): string 
           ${icons.square("icon", 14)}
           <span>Arrêt</span>
         </button>
+        <button id="btn-relocalize" class="btn btn--secondary btn--with-icon" type="button" title="Relance la relocalisation globale (le robot va tourner sur lui-même)">
+          ${icons.crosshair("icon", 14)}
+          <span>Relocaliser</span>
+        </button>
         ${
           softEstop
             ? `<button id="btn-release-estop" class="btn btn--warning btn--with-icon" type="button">

@@ -201,6 +201,13 @@ class MockRobot:
         )
         await self._emit("status", self.status.model_dump())
 
+    async def global_localization(self) -> bool:
+        self.status.localization_percent = 95.0
+        self.status.localization_label = "Bonne"
+        await self._emit("event", {"message": "Relocalisation globale lancée"})
+        await self._emit("status", self.status.model_dump())
+        return True
+
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
         if self._navigation_task:
             self._navigation_task.cancel()

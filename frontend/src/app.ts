@@ -366,6 +366,15 @@ function bindControlEvents(): void {
     api.releaseEmergencyStop().catch((err) => pushEvent(`Erreur : ${err.message}`));
   });
 
+  document.getElementById("btn-relocalize")?.addEventListener("click", async () => {
+    try {
+      await api.relocalize();
+      pushEvent("Relocalisation globale lancée");
+    } catch (err) {
+      pushEvent(`Erreur relocalisation : ${(err as Error).message}`);
+    }
+  });
+
   document.querySelectorAll("[data-move]").forEach((el) => {
     const direction = (el as HTMLElement).dataset.move!;
 

@@ -206,3 +206,47 @@ asyncio.run(main())
    (confirme le pont `CybelTTSBridge` via `adb-tts`).
 6. En cas d'échec sur l'un des deux, se référer à la checklist §5 et au
    débogage §6 selon le canal concerné.
+
+### 7.1 Résultat du test réel (2026-06-15)
+
+- **TTS** : `POST /api/speech/say` → `200 OK`,
+  `{"ok": true, "method": "adb-tts", ...}`. Robot a parlé (confirmé logcat :
+  connexion à `GoogleTTSService` + `AudioTrack`).
+- **Déplacement** : `POST /api/robot/move` (`angular_z=0.2` ~0.7s) puis
+  `POST /api/robot/stop` → `200 OK` chacun, robot observé en rotation
+  (confirmé visuellement), vélocité revenue à `[0, 0]` après stop.
+- **Bug corrigé pendant ce test** : voir §6.2 ci-dessous
+  (`NotImplementedError` sur `asyncio.create_subprocess_exec` côté TTS ADB).
+- **Point d'attention relevé** : `localization_percent` ≈ 42–48 %
+  (`"Faible"`, seuil "Faible" = `< 60`), `nav_status` reste à `600` ("En
+  initialisation"). La téléopération directe (`/api/robot/move`) fonctionne
+  malgré tout (commande `cmd_vel` bas niveau). La **navigation par point**
+  (`/api/navigation/goto`) risque en revanche de rester bloquée tant que la
+  localisation n'est pas meilleure — voir §6.3.
+
+### 7.2 Bug Windows : TTS ADB renvoyait 500 (`NotImplementedError`)
+
+`sdk/speech.py` utilisait `asyncio.create_subprocess_exec` pour lancer `adb`.
+Sous Windows, uvicorn tourne sur `SelectorEventLoop`, qui ne supporte pas les
+sous-processus asyncio → `NotImplementedError`, levée **après** la mise à
+jour du statut (`last_method: "adb-tts"`) mais **avant** l'envoi réel du
+broadcast. Résultat : `500 Internal Server Error` côté API, et le robot ne
+parlait pas malgré un statut trompeur.
+
+**Corrigé** dans `sdk/speech.py` (`_try_adb_speak`) : `adb` est maintenant
+lancé via `asyncio.to_thread(subprocess.run, ...)`, indépendant du type de
+boucle asyncio. Voir [docs/TTS_BRIDGE.md §7.2](TTS_BRIDGE.md#72-sdkspeechpy--nouvelle-méthode-_try_adb_speak)
+pour le détail.
+
+⚠️ Si une erreur similaire (`NotImplementedError` / 500 sur un endpoint qui
+lance un sous-processus) réapparaît après une modification du code : vérifier
+qu'aucun nouvel appel `asyncio.create_subprocess_*` n'a été introduit.
+
+### 7.3 Localisation faible — piste pour plus tard
+
+`sdk/constants.py` référence un service ROS `/global_localization`
+(relocalisation globale, généralement une rotation sur place pour recaler le
+lidar sur la carte) mais il n'est **pas encore câblé** dans
+`sdk/real_robot.py`. Si la navigation par point reste bloquée en `nav_status
+600`, ajouter un appel à ce service (ex. bouton "Relocaliser" dans l'UI) —
+⚠️ ceci fera aussi tourner le robot.

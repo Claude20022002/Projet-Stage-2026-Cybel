@@ -241,15 +241,43 @@ async def _try_adb_speak(self, text: str) -> str | None:
         f"am broadcast -n {SPEECH_ADB_RECEIVER} -a {SPEECH_ADB_ACTION} "
         f"--es text '{escaped}'"
     )
-    proc = await asyncio.create_subprocess_exec(
-        "adb", "-s", self._adb_serial, "shell", remote_cmd,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    result = await asyncio.to_thread(
+        subprocess.run,
+        ["adb", "-s", self._adb_serial, "shell", remote_cmd],
+        capture_output=True,
+        timeout=5.0,
     )
     ...
 ```
 
 `RobotSpeech.speak()` essaie désormais, dans l'ordre :
 **ROS/rosbridge → ADB (CybelTTSBridge) → HTTP**.
+
+#### Bug rencontré lors du test réel : `NotImplementedError` sous Windows
+
+Première implémentation avec `asyncio.create_subprocess_exec(...)`. En
+lançant le backend réel via `python scripts/dev.py` (uvicorn, Windows), tout
+appel à `/api/speech/say` renvoyait `500 Internal Server Error` :
+
+```text
+File ".../asyncio/base_events.py", line 539, in _make_subprocess_transport
+    raise NotImplementedError
+NotImplementedError
+```
+
+**Cause** : sous Windows, les méthodes subprocess d'`asyncio` ne sont
+implémentées que par `ProactorEventLoop` ; uvicorn (avec `--reload`) tourne
+sur `SelectorEventLoop`, qui ne les supporte pas. L'exception était levée
+**après** l'appel à `_notify(text, "speaking", "adb-tts")`, donc le statut
+affichait `last_method: "adb-tts"` alors que le broadcast ADB n'avait
+**jamais été envoyé** (et `(OSError, asyncio.TimeoutError)` ne capturait pas
+`NotImplementedError`).
+
+**Correctif** : remplacer `asyncio.create_subprocess_exec` +
+`proc.communicate()` par `asyncio.to_thread(subprocess.run, ...)` — exécute
+`adb` dans un thread, ce qui fonctionne quel que soit le type de boucle
+asyncio. `except (OSError, subprocess.TimeoutExpired)` remplace
+`(OSError, asyncio.TimeoutError)`.
 
 ### 7.3 Correction d'un blocage architectural
 
@@ -280,6 +308,7 @@ Si `speech_adb_serial` est vide, `RobotSpeech` retombe sur la constante
 | Broadcast direct ADB | `adb shell am broadcast -n com.cybel.ttsbridge/.SpeakReceiver -a com.cybel.ttsbridge.SPEAK --es text '...'` | OK — audio joué (AudioTrack créé), service arrêté proprement |
 | Intégration SDK | `RobotSpeech(mock=False).speak("Bonjour, ceci est un test depuis le backend Cybel.")` (sans rosbridge connecté) | `{"ok": True, "method": "adb-tts", "text": "..."}` — audio joué |
 | Import backend | `from backend.config import settings` + `RealRobot` | imports OK, `speech_http_host == "172.16.0.194"` |
+| **Bout en bout (réel)** | `POST /api/speech/say` sur le backend lancé via `python scripts/dev.py` (`ROBOT_MOCK=false`, câble débranché) | `200 OK`, `{"ok": True, "method": "adb-tts", ...}` ; logcat confirme `TextToSpeech: Connected to ... GoogleTTSService` + `AudioTrack` ; robot a parlé |
 
 ## 9. Limites connues et points d'attention
 

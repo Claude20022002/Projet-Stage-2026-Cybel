@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from sdk.models import MoveCommand, Pose, RobotStatus
@@ -56,3 +56,11 @@ async def release_emergency_stop() -> dict:
 async def set_manual_mode(request: ManualModeRequest) -> dict:
     await robot_service.set_manual_mode(request.enabled)
     return {"ok": True, "manual": request.enabled}
+
+
+@router.post("/relocalize")
+async def relocalize() -> dict:
+    success = await robot_service.global_localization()
+    if not success:
+        raise HTTPException(status_code=400, detail="Relocalisation impossible (robot non connecté)")
+    return {"ok": True}

@@ -428,6 +428,19 @@ class RealRobot:
             {"message": "Mode manuel activé" if enabled else "Mode automatique activé"},
         )
 
+    async def global_localization(self) -> bool:
+        """Relance la relocalisation globale (recalage du lidar sur la carte).
+
+        Fait généralement tourner le robot sur lui-même pendant quelques
+        secondes — le pourcentage de localisation remonte ensuite via
+        /localization_confidence.
+        """
+        if not self._client.connected:
+            return False
+        await self._client.call_service(ROS_SERVICES["global_localization"], {})
+        await self._emit("event", {"message": "Relocalisation globale lancée"})
+        return True
+
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
         if not self._client.connected:
             return False
