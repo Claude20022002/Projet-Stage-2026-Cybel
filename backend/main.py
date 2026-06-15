@@ -52,6 +52,11 @@ app.include_router(speech.router)
 app.include_router(knowledge.router)
 
 
+KIOSK_DIST = ROOT / "frontend-kiosk" / "dist"
+if KIOSK_DIST.is_dir():
+    app.mount("/kiosk", StaticFiles(directory=str(KIOSK_DIST), html=True), name="kiosk")
+
+
 @app.get("/api/health")
 async def health() -> dict:
     return {
