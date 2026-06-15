@@ -457,7 +457,21 @@ Correspondance par **sous-chaîne** insensible à la casse (phrase la plus longu
 | visite, visite guidée | Visite guidée |
 | arrête, stop, arrêter | Arrêter l'action |
 
-Phrase non reconnue → HTTP 400 → journal « Commande non reconnue ».
+#### Navigation générique « va à \<point\> »
+
+Si aucune des correspondances ci-dessus ne s'applique, `match_point_navigation()`
+(`sdk/reception_actions.py`) essaie de reconnaître une tournure de déplacement
+(« va à… », « va vers… », « rends-toi à… », « emmène-moi à… », « conduis-moi
+au… », etc.) suivie du **nom d'un point existant** (`GET /api/navigation/points`),
+en ignorant accents, casse et articles (« le/la/l'/les »). Cela permet de
+naviguer vocalement vers **n'importe quel point**, y compris ceux ajoutés via
+le bouton « + » du panneau Points (§5.2), sans modifier `VOICE_COMMAND_MAP`.
+
+Exemple : « va à la salle B » → si un point nommé « Salle B » existe,
+`POST /api/navigation/goto` est appelé avec `point_name: "Salle B"`.
+
+Phrase non reconnue (ni action prédéfinie, ni point correspondant) → HTTP 400
+→ journal « Commande non reconnue ».
 
 ### Chaîne TTS robot (backend)
 

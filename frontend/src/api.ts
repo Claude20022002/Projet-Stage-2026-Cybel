@@ -1,12 +1,21 @@
 import type {
   MapData,
   Point,
+  PointType,
   Pose,
   ReceptionAction,
   RobotSettings,
   RobotStatus,
   SpeechStatus,
 } from "./types";
+
+export interface AddPointCommand {
+  name: string;
+  type?: PointType;
+  x?: number;
+  y?: number;
+  theta?: number;
+}
 
 export interface MoveCommand {
   linear_x: number;
@@ -32,6 +41,11 @@ export const api = {
   getStatus: () => request<RobotStatus>("/api/robot/status"),
   getPose: () => request<Pose>("/api/robot/pose"),
   getPoints: () => request<Point[]>("/api/navigation/points"),
+  addPoint: (command: AddPointCommand) =>
+    request<Point>("/api/navigation/points", {
+      method: "POST",
+      body: JSON.stringify(command),
+    }),
   getMap: () => request<MapData>("/api/map/current"),
   move: (command: MoveCommand) =>
     request("/api/robot/move", {

@@ -337,6 +337,21 @@ function bindPointEvents(): void {
       pushEvent(`Erreur : ${(err as Error).message}`);
     }
   });
+
+  document.getElementById("btn-add-point")?.addEventListener("click", async () => {
+    const defaultName = `Point ${state.points.length + 1}`;
+    const name = window.prompt("Nom du nouveau point (position actuelle du robot) :", defaultName);
+    if (!name || !name.trim()) return;
+
+    try {
+      const point = await api.addPoint({ name: name.trim() });
+      setPoints(await api.getPoints());
+      setSelectedPoint(point.name);
+      pushEvent(`Point '${point.name}' ajouté à la position actuelle`);
+    } catch (err) {
+      pushEvent(`Erreur ajout point : ${(err as Error).message}`);
+    }
+  });
 }
 
 function bindControlEvents(): void {

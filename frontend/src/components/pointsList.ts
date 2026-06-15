@@ -41,6 +41,9 @@ export function renderPointsList(
         <h2>Points</h2>
         <div class="points-panel__header-actions">
           <span class="points-panel__count">${points.length}</span>
+          <button class="icon-btn" id="btn-add-point" type="button" title="Ajouter un point à la position actuelle du robot">
+            ${icons.plus("icon", 16)}
+          </button>
           <button class="icon-btn" type="button" title="Options">
             ${icons.moreVertical("icon", 16)}
           </button>
