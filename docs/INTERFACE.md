@@ -654,7 +654,7 @@ Configuration : `ROBOT_MOCK=true/false` dans `backend/.env`.
 |--------|---------------------|------------|
 | Badge barre statut | **Mode simulation** | Absent |
 | Message démarrage | « mode simulation actif » | « mode robot réel » |
-| Points | 5 points fixes (Accueil, Salle A, Pile, Porte principale, Attente) | Points ROS dynamiques (`/marker_manager/get_markers_details`) |
+| Points | 5 points fixes (Accueil, Salle A, Pile, Porte principale, Attente) + ceux ajoutés via le bouton « + » (en mémoire, perdus au redémarrage) | Points ROS dynamiques (`/marker_manager/get_markers_details`) + ceux ajoutés via le bouton « + » (appel `/poi` avec `command: "add"`, **non vérifié sur le robot réel**) |
 | Carte | Carte générée 130 m² | Carte ROS occupancy grid |
 | LiDAR | Points simulés autour du robot | `/scan_filter` réel |
 | Visiteurs | 2 visiteurs simulés proches du robot | `/detected_people_array` réel |
