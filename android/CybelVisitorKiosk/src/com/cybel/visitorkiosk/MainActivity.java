@@ -19,6 +19,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 public class MainActivity extends Activity {
 
@@ -28,13 +32,10 @@ public class MainActivity extends Activity {
     private static final long RETRY_DELAY_MS = 5000;
 
     private WebView webView;
+    private final List<String> urlCandidates = new ArrayList<>();
+    private int urlIndex;
     private String kioskUrl = DEFAULT_KIOSK_URL;
-    private int urlAttempt;
     private final Handler retryHandler = new Handler();
-    private final String[] fallbackUrls = {
-            DEFAULT_KIOSK_URL,
-            "http://192.168.20.1:8000/kiosk/",
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,7 +46,8 @@ public class MainActivity extends Activity {
                         | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         kioskUrl = resolveKioskUrl();
-        urlAttempt = 0;
+        buildUrlCandidates();
+        urlIndex = 0;
 
         webView = new WebView(this);
         WebSettings settings = webView.getSettings();
@@ -105,6 +107,15 @@ public class MainActivity extends Activity {
         return DEFAULT_KIOSK_URL;
     }
 
+    private void buildUrlCandidates() {
+        Set<String> seen = new LinkedHashSet<>();
+        seen.add(kioskUrl);
+        seen.add(DEFAULT_KIOSK_URL);
+        seen.add("http://192.168.20.1:8000/kiosk/");
+        urlCandidates.clear();
+        urlCandidates.addAll(seen);
+    }
+
     private void loadKiosk() {
         Log.i(TAG, "Chargement " + kioskUrl);
         webView.loadUrl(kioskUrl);
@@ -138,16 +149,8 @@ public class MainActivity extends Activity {
         retryHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                urlAttempt++;
-                if (urlAttempt <= fallbackUrls.length) {
-                    kioskUrl = resolveKioskUrl();
-                    if (urlAttempt > 1 && urlAttempt - 2 < fallbackUrls.length) {
-                        kioskUrl = fallbackUrls[urlAttempt - 2];
-                    }
-                } else {
-                    kioskUrl = resolveKioskUrl();
-                    urlAttempt = 0;
-                }
+                urlIndex = (urlIndex + 1) % urlCandidates.size();
+                kioskUrl = urlCandidates.get(urlIndex);
                 loadKiosk();
             }
         }, RETRY_DELAY_MS);
