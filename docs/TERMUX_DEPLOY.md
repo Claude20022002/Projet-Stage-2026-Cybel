@@ -60,10 +60,13 @@ Vérifiez notamment :
 
 | Test | Attendu |
 |------|---------|
-| `ping 10.42.0.1` | Réponses OK |
-| `curl http://10.42.0.1:9090` | Code HTTP (rosbridge) |
-| `python --version` | Python 3.x Termux |
-| `su -c id` | Root si broadcast TTS sans ADB |
+| `ping 10.42.0.1` | Échec attendu (pas de route) |
+| `ping 192.168.20.22` | **OK** — châssis via eth0 interne |
+| `curl http://192.168.20.22:9090` | **HTTP 200** — rosbridge joignable |
+| `pkg list-installed \| grep python` | `pkg install python` si absent |
+| `su -c id` | Root disponible (TTS local) |
+
+> **ROBOT_HOST** sur Termux : utiliser `192.168.20.22`, pas `10.42.0.1`.
 
 ---
 
@@ -99,14 +102,14 @@ Fichier : `scripts/termux/cybel.env` (déployé sur la tablette)
 
 ```env
 ROBOT_MOCK=false
-ROBOT_HOST=10.42.0.1
+ROBOT_HOST=192.168.20.22
 ROBOT_WS_PORT=9090
 SPEECH_LOCAL_BROADCAST=true
 SPEECH_ADB_SERIAL=
 BACKEND_PORT=8000
 ```
 
-- **ROS** : rosbridge sur le châssis `10.42.0.1:9090`
+- **ROS** : rosbridge sur le châssis via lien eth0 `192.168.20.22:9090` (depuis Termux, `10.42.0.1` n'est pas routé)
 - **TTS** : broadcast local vers `CybelTTSBridge` (pas d'ADB depuis le PC)
 
 ---
@@ -160,7 +163,8 @@ adb install -r out/CybelVisitorKiosk.apk
 | Health check KO | `tail ~/cybel-uvicorn.log` — import manquant ? |
 | Kiosque boucle rechargement | Backend down ou `/kiosk/` 404 → rebuild `frontend-kiosk` |
 | TTS silencieux | `CybelTTSBridge` installé ? `su` disponible ? |
-| Robot non connecté | `ping 10.42.0.1` depuis Termux — routage châssis |
+| Robot non connecté | `ping 192.168.20.22` depuis Termux — pas `10.42.0.1` |
+| Espace disque | `df -h $HOME` — libérer si >85 % (actuellement critique sur la tablette) |
 
 ---
 
