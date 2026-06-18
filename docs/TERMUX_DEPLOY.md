@@ -159,7 +159,7 @@ adb install -r out/CybelVisitorKiosk.apk
 | Symptôme | Piste |
 |----------|-------|
 | SSH timeout | WiFi robot, IP DHCP changée (`termux_explore.py` → `ip`) |
-| `pip install` échoue | `pkg install python rust` puis relancer bootstrap |
+| `pip install` échoue (pydantic-core) | `pkg install rust binutils` puis relancer `bootstrap.sh` |
 | Health check KO | `tail ~/cybel-uvicorn.log` — import manquant ? |
 | Kiosque boucle rechargement | Backend down ou `/kiosk/` 404 → rebuild `frontend-kiosk` |
 | TTS silencieux | `CybelTTSBridge` installé ? `su` disponible ? |
