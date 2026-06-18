@@ -7,6 +7,7 @@ BACKEND_DIR="$CYBEL_HOME/backend"
 ENV_FILE="$CYBEL_HOME/scripts/termux/cybel.env"
 PID_FILE="$HOME/.cybel-uvicorn.pid"
 LOG_FILE="$HOME/cybel-uvicorn.log"
+LITE_FLAG="$CYBEL_HOME/scripts/termux/.use_lite"
 
 if [ -f "$ENV_FILE" ]; then
   set -a
@@ -17,8 +18,8 @@ fi
 
 PORT="${BACKEND_PORT:-8000}"
 
-if [ ! -d "$BACKEND_DIR" ]; then
-  echo "ERREUR: backend absent dans $CYBEL_HOME"
+if [ ! -d "$CYBEL_HOME/scripts/termux" ]; then
+  echo "ERREUR: cybel non déployé dans $CYBEL_HOME"
   exit 1
 fi
 
@@ -39,11 +40,14 @@ fi
 export PYTHONPATH="$CYBEL_HOME${PYTHONPATH:+:$PYTHONPATH}"
 
 cd "$BACKEND_DIR"
-echo "Démarrage CYBEL sur 0.0.0.0:$PORT (log: $LOG_FILE)"
-nohup python -m uvicorn main:app \
-  --host 0.0.0.0 \
-  --port "$PORT" \
-  >>"$LOG_FILE" 2>&1 &
+
+if [ -f "$LITE_FLAG" ] || ! python -c "import fastapi" 2>/dev/null; then
+  echo "Démarrage CYBEL lite sur 0.0.0.0:$PORT (log: $LOG_FILE)"
+  nohup python "$CYBEL_HOME/scripts/termux/cybel_lite.py" >>"$LOG_FILE" 2>&1 &
+else
+  echo "Démarrage CYBEL complet sur 0.0.0.0:$PORT (log: $LOG_FILE)"
+  nohup python -m uvicorn main:app --host 0.0.0.0 --port "$PORT" >>"$LOG_FILE" 2>&1 &
+fi
 echo $! >"$PID_FILE"
 echo "PID $(cat "$PID_FILE")"
 

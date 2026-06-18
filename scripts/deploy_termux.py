@@ -134,7 +134,10 @@ def deploy_remote(
         f"bash {sh_quote(remote_base)}/scripts/termux/free_disk.sh || true",
     ]
     if bootstrap:
-        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh")
+        remote_cmds.append(
+            f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap_lite.sh || "
+            f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh"
+        )
     if restart:
         remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/stop_cybel.sh || true")
         remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/start_cybel.sh")
