@@ -181,7 +181,8 @@ adb install -r out/CybelVisitorKiosk.apk
 | Kiosque boucle rechargement | Backend down ou `/kiosk/` 404 → rebuild `frontend-kiosk` |
 | TTS silencieux | `CybelTTSBridge` installé ? `su` disponible ? |
 | Robot non connecté | `ping 192.168.20.22` depuis Termux — pas `10.42.0.1` |
-| Espace disque | **~1,5–2 Go libres** requis pour le backend complet (compilation pydantic-core). En dessous → mode lite. |
+| Espace disque | **~1,5–2 Go libres** pour la compilation Rust |
+| Python 3.13 Termux | **Pas de wheel** `pydantic-core` pour `aarch64-linux-android` — la compilation échoue (maturin/rust). Le backend complet n'est **pas viable** sur cette tablette pour l'instant. Utiliser le **mode lite**. |
 
 ---
 
