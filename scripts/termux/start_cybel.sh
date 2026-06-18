@@ -56,6 +56,15 @@ if curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null; then
   echo "OK — health check http://127.0.0.1:$PORT/api/health"
   curl -s "http://127.0.0.1:$PORT/api/health"
   echo ""
+  KIOSK_URL_FILE="/sdcard/Download/cybel_kiosk_url.txt"
+  WLAN_IP="$(ip -4 addr show wlan0 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | head -1)"
+  if [ -n "$WLAN_IP" ]; then
+    echo "http://${WLAN_IP}:${PORT}/kiosk/" >"$KIOSK_URL_FILE"
+    echo "URL kiosk pour l'app Android : http://${WLAN_IP}:${PORT}/kiosk/"
+  else
+    echo "http://127.0.0.1:${PORT}/kiosk/" >"$KIOSK_URL_FILE"
+    echo "URL kiosk pour l'app Android : http://127.0.0.1:${PORT}/kiosk/"
+  fi
 else
   echo "Échec health check — voir $LOG_FILE"
   tail -n 30 "$LOG_FILE" || true
