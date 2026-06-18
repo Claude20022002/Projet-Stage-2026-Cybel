@@ -178,6 +178,7 @@ def main() -> int:
     parser.add_argument("--skip-kiosk-build", action="store_true")
     parser.add_argument("--no-bootstrap", action="store_true", help="Ne pas réinstaller pip deps")
     parser.add_argument("--full", action="store_true", help="Forcer bootstrap complet (pas lite)")
+    parser.add_argument("--lite-only", action="store_true", help="Bootstrap lite uniquement")
     parser.add_argument("--no-restart", action="store_true", help="Ne pas redémarrer uvicorn")
     args = parser.parse_args()
 

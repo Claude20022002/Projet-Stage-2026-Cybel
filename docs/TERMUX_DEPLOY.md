@@ -181,7 +181,7 @@ adb install -r out/CybelVisitorKiosk.apk
 | Kiosque boucle rechargement | Backend down ou `/kiosk/` 404 → rebuild `frontend-kiosk` |
 | TTS silencieux | `CybelTTSBridge` installé ? `su` disponible ? |
 | Robot non connecté | `ping 192.168.20.22` depuis Termux — pas `10.42.0.1` |
-| Espace disque | `df -h $HOME` — libérer si >85 % (actuellement critique sur la tablette) |
+| Espace disque | **~1,5–2 Go libres** requis pour le backend complet (compilation pydantic-core). En dessous → mode lite. |
 
 ---
 
