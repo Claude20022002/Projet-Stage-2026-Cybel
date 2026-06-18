@@ -17,7 +17,7 @@ public class MainActivity extends Activity {
     // reseau Wi-Fi du robot. A adapter avant de lancer build.sh si l'IP
     // du PC qui execute `python scripts/dev.py` change (voir
     // docs/VISITOR_KIOSK.md).
-    private static final String KIOSK_URL = "http://10.42.0.155:8000/kiosk/";
+    private static final String KIOSK_URL = "http://127.0.0.1:8000/kiosk/";
 
     private static final long RETRY_DELAY_MS = 5000;
 

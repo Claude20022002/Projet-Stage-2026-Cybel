@@ -79,6 +79,7 @@ class RealRobot:
         speech_http_port: int = 0,
         speech_http_path: str = "",
         speech_adb_serial: str = "",
+        speech_local_broadcast: bool = False,
     ) -> None:
         self._host = host
         self._chassis_id = chassis_id
@@ -93,6 +94,7 @@ class RealRobot:
             http_port=speech_http_port,
             http_path=speech_http_path,
             adb_serial=speech_adb_serial,
+            local_broadcast=speech_local_broadcast,
         )
         self._telemetry_callbacks: list[TelemetryCallback] = []
         self._reconnect_task: asyncio.Task | None = None

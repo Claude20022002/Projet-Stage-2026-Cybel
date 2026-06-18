@@ -67,6 +67,7 @@ class RobotService:
                 speech_http_port=settings.speech_http_port,
                 speech_http_path=settings.speech_http_path,
                 speech_adb_serial=settings.speech_adb_serial,
+                speech_local_broadcast=settings.speech_local_broadcast,
             )
         await self._backend.start()
 

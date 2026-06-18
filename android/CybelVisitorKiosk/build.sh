@@ -20,29 +20,33 @@ OUT="$DIR/out"
 rm -rf "$OUT"
 mkdir -p "$OUT/gen" "$OUT/obj"
 
-echo "== 1/6 Linking resources + manifest =="
+echo "== 1/7 Compiling launcher icons =="
+"$AAPT2" compile --dir "$DIR/res" -o "$OUT/res"
+
+echo "== 2/7 Linking resources + manifest =="
 "$AAPT2" link -o "$OUT/kiosk-unaligned.apk" \
   -I "$ANDROID_JAR" \
   --manifest "$DIR/AndroidManifest.xml" \
-  --java "$OUT/gen"
+  --java "$OUT/gen" \
+  "$OUT/res"/*.flat
 
-echo "== 2/6 Compiling Java sources =="
+echo "== 3/7 Compiling Java sources =="
 javac -source 8 -target 8 \
   -cp "$ANDROID_JAR" \
   -d "$OUT/obj" \
   "$OUT/gen/com/cybel/visitorkiosk/R.java" \
   "$DIR"/src/com/cybel/visitorkiosk/*.java
 
-echo "== 3/6 Converting to dex =="
+echo "== 4/7 Converting to dex =="
 "$D8" --output "$OUT" --lib "$ANDROID_JAR" $(find "$OUT/obj" -name "*.class")
 
-echo "== 4/6 Adding classes.dex to APK =="
+echo "== 5/7 Adding classes.dex to APK =="
 ( cd "$OUT" && "$AAPT" add kiosk-unaligned.apk classes.dex )
 
-echo "== 5/6 Aligning APK =="
+echo "== 6/7 Aligning APK =="
 "$ZIPALIGN" -f -p 4 "$OUT/kiosk-unaligned.apk" "$OUT/kiosk-aligned.apk"
 
-echo "== 6/6 Signing APK =="
+echo "== 7/7 Signing APK =="
 KEYSTORE="$DIR/debug.keystore"
 if [ ! -f "$KEYSTORE" ]; then
   keytool -genkeypair -v -keystore "$KEYSTORE" -storepass android -alias androiddebugkey \

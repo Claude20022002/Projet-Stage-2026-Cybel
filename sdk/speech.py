@@ -41,6 +41,7 @@ class RobotSpeech:
         http_port: int = 0,
         http_path: str = "",
         adb_serial: str = "",
+        local_broadcast: bool = False,
     ) -> None:
         self._client = client
         self._emit = emit
@@ -50,7 +51,8 @@ class RobotSpeech:
         self._http_host = http_host or SPEECH_HTTP_HOST
         self._http_port = http_port
         self._http_path = http_path
-        self._adb_serial = adb_serial or SPEECH_ADB_SERIAL
+        self._adb_serial = adb_serial if adb_serial else ("" if local_broadcast else SPEECH_ADB_SERIAL)
+        self._local_broadcast = local_broadcast
         self._status = SpeechStatus(mock=mock)
         self._speech_task: asyncio.Task | None = None
         self._known_services: set[str] | None = None
@@ -94,6 +96,10 @@ class RobotSpeech:
         adb_method = await self._try_adb_speak(text)
         if adb_method:
             return {"ok": True, "method": adb_method, "text": text}
+
+        local_method = await self._try_local_broadcast_speak(text)
+        if local_method:
+            return {"ok": True, "method": local_method, "text": text}
 
         http_method = await self._try_http_speak(text)
         if http_method:
@@ -205,6 +211,44 @@ class RobotSpeech:
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             logger.debug("TTS via adb échoué: %s", exc)
+
+        return None
+
+    async def _try_local_broadcast_speak(self, text: str) -> str | None:
+        """TTS via am broadcast sur le même appareil (Termux sur la tête Android)."""
+        if not self._local_broadcast:
+            return None
+
+        escaped = text.replace("'", "'\\''")
+        broadcast = (
+            f"am broadcast -n {SPEECH_ADB_RECEIVER} -a {SPEECH_ADB_ACTION} "
+            f"--es text '{escaped}'"
+        )
+        commands = [
+            ["sh", "-c", broadcast],
+            ["sh", "-c", f"su -c '{broadcast}'"],
+        ]
+
+        await self._notify(text, "speaking", "local-broadcast")
+        for cmd in commands:
+            try:
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    cmd,
+                    capture_output=True,
+                    timeout=5.0,
+                )
+                if result.returncode == 0:
+                    await self._notify(text, "done", "local-broadcast")
+                    logger.info("TTS via broadcast local")
+                    return "local-broadcast"
+                logger.debug(
+                    "TTS broadcast local échoué (%s): %s",
+                    result.returncode,
+                    result.stderr.decode(errors="ignore"),
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                logger.debug("TTS broadcast local échoué: %s", exc)
 
         return None
 
