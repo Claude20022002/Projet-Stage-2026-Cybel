@@ -439,6 +439,12 @@ Guide complet du fonctionnement de l'interface web (panneaux, workflows, API, We
 
 **[docs/INTERFACE.md](docs/INTERFACE.md)**
 
+## Déploiement kiosque sur Termux (tête Android)
+
+Backend + interface visiteur embarqués sur la tablette (`ssh -p 8022`) :
+
+**[docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md)**
+
 ---
 
 ## Commandes de démarrage rapide

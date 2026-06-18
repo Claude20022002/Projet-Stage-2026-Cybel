@@ -111,26 +111,28 @@ def deploy_remote(
         print(f"Échec connexion: {exc}")
         return 1
 
-    remote_base = REMOTE_HOME.replace("~/", "$HOME/")
-    remote_tar = f"{remote_base}/cybel-deploy.tar.gz"
+    stdin, stdout, stderr = client.exec_command("echo $HOME")
+    home = stdout.read().decode("utf-8", errors="replace").strip() or "/data/data/com.termux/files/home"
+    remote_base = f"{home}/cybel"
+    remote_tar = f"{home}/cybel-deploy.tar.gz"
 
     print("== Upload archive ==")
     sftp = client.open_sftp()
-    with sftp.file(remote_tar.replace("$HOME", sftp.normalize(".")), "wb") as remote_file:
+    with sftp.file(remote_tar, "wb") as remote_file:
         remote_file.write(bundle)
     sftp.close()
 
     remote_cmds = [
-        f"mkdir -p {remote_base}",
-        f"tar -xzf {remote_tar} -C {remote_base}",
-        f"chmod +x {remote_base}/scripts/termux/*.sh",
-        f"rm -f {remote_tar}",
+        f"mkdir -p {sh_quote(remote_base)}",
+        f"tar -xzf {sh_quote(remote_tar)} -C {sh_quote(remote_base)}",
+        f"chmod +x {sh_quote(remote_base)}/scripts/termux/*.sh",
+        f"rm -f {sh_quote(remote_tar)}",
     ]
     if bootstrap:
-        remote_cmds.append(f"bash {remote_base}/scripts/termux/bootstrap.sh")
+        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh")
     if restart:
-        remote_cmds.append(f"bash {remote_base}/scripts/termux/stop_cybel.sh || true")
-        remote_cmds.append(f"bash {remote_base}/scripts/termux/start_cybel.sh")
+        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/stop_cybel.sh || true")
+        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/start_cybel.sh")
 
     print("== Exécution distante ==")
     for cmd in remote_cmds:
