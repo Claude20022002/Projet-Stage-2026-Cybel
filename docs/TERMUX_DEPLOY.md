@@ -72,7 +72,24 @@ Vérifiez notamment :
 
 ## 2. Déploiement
 
-Depuis la racine du projet :
+### Mode recommandé : **CYBEL lite** (Termux)
+
+Le backend complet (FastAPI + pydantic) nécessite ~2 Go libres pour compiler Rust.
+Sur la tablette RK3399 (8 Go, souvent >90 % plein), utilisez le **mode lite** :
+
+- `scripts/termux/cybel_lite.py` — Starlette, sans pydantic
+- API kiosque : actions, FAQ, TTS local, navigation ROS
+- Dépendances : `uvicorn`, `starlette`, `websockets` uniquement
+
+```bash
+python scripts/deploy_termux.py --skip-kiosk-build
+# ou, si déjà uploadé :
+python scripts/termux_lite_deploy.py
+```
+
+Le script tente d'abord `bootstrap_lite.sh`, puis le bootstrap complet en secours.
+
+### Déploiement complet (poste de dev puissant / tablette avec espace)
 
 ```bash
 python scripts/deploy_termux.py
@@ -173,8 +190,13 @@ adb install -r out/CybelVisitorKiosk.apk
 | Fichier | Rôle |
 |---------|------|
 | `scripts/deploy_termux.py` | Déploiement depuis le PC |
+| `scripts/termux_lite_deploy.py` | Bootstrap lite + démarrage (sans re-upload) |
 | `scripts/termux_explore.py` | Diagnostic SSH |
-| `scripts/termux/bootstrap.sh` | Install pip deps |
+| `scripts/termux/cybel_lite.py` | **Backend lite** (Starlette) |
+| `scripts/termux/actions.json` | Catalogue actions kiosque |
+| `scripts/termux/requirements-lite.txt` | Dépendances sans pydantic |
+| `scripts/termux/bootstrap_lite.sh` | Install deps lite |
+| `scripts/termux/bootstrap.sh` | Install deps complètes (Rust) |
 | `scripts/termux/start_cybel.sh` | Lance uvicorn |
 | `scripts/termux/stop_cybel.sh` | Arrête uvicorn |
 | `scripts/termux/cybel.env` | Config robot embarquée |

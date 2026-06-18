@@ -16,4 +16,4 @@ echo "Installation dépendances lite (starlette, uvicorn, websockets)..."
 python -m pip install --no-cache-dir -r "$REQ"
 
 touch "$CYBEL_HOME/scripts/termux/.use_lite"
-echo "Mode lite activé — $(python -c 'import starlette,uvicorn,websockets; print(\"OK\")')"
+python -c "import starlette, uvicorn, websockets; print('deps OK')"
