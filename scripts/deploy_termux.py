@@ -30,6 +30,8 @@ SKIP_PARTS = {
     "node_modules",
 }
 
+SKIP_SUFFIXES = {".log", ".pyc"}
+
 
 def build_kiosk(skip: bool) -> None:
     if skip:
@@ -48,7 +50,9 @@ def build_kiosk(skip: bool) -> None:
 
 
 def should_skip(path: Path) -> bool:
-    return any(part in SKIP_PARTS for part in path.parts)
+    if any(part in SKIP_PARTS for part in path.parts):
+        return True
+    return path.suffix.lower() in SKIP_SUFFIXES
 
 
 def create_bundle() -> bytes:
@@ -127,6 +131,7 @@ def deploy_remote(
         f"tar -xzf {sh_quote(remote_tar)} -C {sh_quote(remote_base)}",
         f"chmod +x {sh_quote(remote_base)}/scripts/termux/*.sh",
         f"rm -f {sh_quote(remote_tar)}",
+        f"bash {sh_quote(remote_base)}/scripts/termux/free_disk.sh || true",
     ]
     if bootstrap:
         remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh")
