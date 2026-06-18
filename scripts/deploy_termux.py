@@ -91,6 +91,9 @@ def deploy_remote(
     bundle: bytes,
     bootstrap: bool,
     restart: bool,
+    *,
+    full: bool = False,
+    lite_only: bool = False,
 ) -> int:
     try:
         import paramiko
@@ -134,9 +137,10 @@ def deploy_remote(
         f"bash {sh_quote(remote_base)}/scripts/termux/free_disk.sh || true",
     ]
     if bootstrap:
-        if args.lite_only:
+        if lite_only:
             remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap_lite.sh")
-        elif args.full:
+        elif full:
+            remote_cmds.append(f"rm -f {sh_quote(remote_base)}/scripts/termux/.use_lite")
             remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh")
         else:
             remote_cmds.append(
@@ -150,7 +154,7 @@ def deploy_remote(
     print("== Exécution distante ==")
     for cmd in remote_cmds:
         print(f"$ {cmd}")
-        _, stdout, stderr = client.exec_command(cmd, timeout=300)
+        _, stdout, stderr = client.exec_command(cmd, timeout=2400 if "bootstrap" in cmd else 300)
         out = stdout.read().decode("utf-8", errors="replace")
         err = stderr.read().decode("utf-8", errors="replace")
         if out.strip():
@@ -194,6 +198,8 @@ def main() -> int:
         bundle,
         bootstrap=not args.no_bootstrap,
         restart=not args.no_restart,
+        full=args.full,
+        lite_only=args.lite_only,
     )
 
 
