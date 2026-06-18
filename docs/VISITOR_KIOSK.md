@@ -111,10 +111,24 @@ démarrage de la tablette (`BOOT_COMPLETED`).
 ### 6.2 Configuration de `KIOSK_URL` — ⚠️ problème de topologie réseau non résolu
 
 ```java
-private static final String KIOSK_URL = "http://10.42.0.155:8000/kiosk/";
+private static final String KIOSK_URL = "http://127.0.0.1:8000/kiosk/";
 ```
 
-`10.42.0.155` est l'IP actuelle du poste de dev sur le réseau Wi-Fi `10.42.0.0/24`
+Le backend tourne **sur la tablette** (Termux, mode lite). L'ancienne URL
+`http://10.42.0.155:8000/kiosk/` (PC dev) n'est **pas joignable** depuis la
+tête Android — d'où `ERR_ADDRESS_UNREACHABLE` si l'APK n'a pas été réinstallé.
+
+Après modification de `KIOSK_URL`, reconstruire et réinstaller :
+
+```bash
+# Build (PowerShell, depuis android/CybelVisitorKiosk)
+# … voir build.sh ou scripts/install_kiosk_apk.py
+
+python scripts/install_kiosk_apk.py   # via SSH + pm install
+# ou : adb install -r android/CybelVisitorKiosk/out/CybelVisitorKiosk.apk
+```
+
+Vérifier que Termux exécute le backend : `curl http://127.0.0.1:8000/api/health`
 (passerelle `10.42.0.1`, châssis — voir [docs/ROBOT_CONNECTION.md](ROBOT_CONNECTION.md)).
 
 **Cette valeur n'a pas pu être validée et est probablement injoignable depuis
