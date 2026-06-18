@@ -443,9 +443,11 @@ Guide complet du fonctionnement de l'interface web (panneaux, workflows, API, We
 
 Backend + interface visiteur embarqués sur la tablette (`ssh -p 8022`) :
 
-**[docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md)**
+- **[docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md)** — procédure, scripts, dépannage
+- **[docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md)** — interface visiteur, app Android, problèmes rencontrés
 
----
+**État (juin 2026)** : backend lite opérationnel sur Termux ; correctifs écran blanc
+(build legacy WebView + URL dynamique) prêts — validation terrain en attente de redéploiement.
 
 ## Commandes de démarrage rapide
 

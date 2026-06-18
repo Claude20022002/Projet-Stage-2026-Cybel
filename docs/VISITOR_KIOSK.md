@@ -1,6 +1,22 @@
-# Interface visiteur (kiosque) — début d'implémentation
+# Interface visiteur (kiosque)
 
-Documentation de la première version de l'**interface visiteur** du robot CYBEL, destinée à être affichée en plein écran sur l'écran tactile de l'upper body Android, et utilisable directement par un visiteur (sans opérateur).
+Documentation de l'**interface visiteur** du robot CYBEL, destinée à être affichée en plein écran sur l'écran tactile de l'upper body Android, et utilisable directement par un visiteur (sans opérateur).
+
+---
+
+## État d'avancement (juin 2026)
+
+| Composant | Statut | Notes |
+|-----------|--------|-------|
+| `frontend-kiosk/` (UI tactile FR/EN, FAQ, actions) | ✅ Fonctionnel | Testé en dev (`:5174`) et en build statique |
+| Backend sur PC (`:8000/kiosk/`) | ✅ Fonctionnel | Montage automatique de `frontend-kiosk/dist/` |
+| Déploiement Termux (backend lite) | ✅ Opérationnel | `cybel_lite.py` — health check 200 depuis Termux |
+| App Android `CybelVisitorKiosk` | ⚠️ En cours de validation | APK reconstruit ; écran blanc diagnostiqué et corrigé côté code |
+| TTS local (`CybelTTSBridge` + broadcast) | ✅ Intégré | Via `SPEECH_LOCAL_BROADCAST=true` dans `cybel.env` |
+| ROS / navigation depuis Termux | ✅ Configuré | `ROBOT_HOST=192.168.20.22` (eth0 interne, pas `10.42.0.1`) |
+| Démarrage auto au boot | ⏳ Optionnel | Script `termux-boot.sh` prêt, non activé par défaut |
+
+**Prochaine étape** : redéployer le build legacy + APK mis à jour sur la tablette et valider l'affichage en conditions réelles (voir §6.5 et [TERMUX_DEPLOY.md](TERMUX_DEPLOY.md)).
 
 ---
 
@@ -64,8 +80,15 @@ FastAPI — pas besoin de garder le serveur Vite (`:5174`) actif :
 
 ```bash
 cd frontend-kiosk
+npm install          # inclut @vitejs/plugin-legacy (obligatoire pour la tablette)
 npm run build        # génère frontend-kiosk/dist/
 ```
+
+> **WebView Android 7.1** : le build utilise `@vitejs/plugin-legacy` avec la
+> cible `chrome >= 49, android >= 7`. Sans ce plugin, Vite produit un script
+> `type="module"` avec syntaxe ES2020 (`??`, etc.) que la WebView de la
+> tablette **ignore silencieusement** → page blanche malgré un backend OK
+> (voir §6.5).
 
 `backend/main.py` monte automatiquement ce dossier (s'il existe) sur
 `/kiosk` :
@@ -108,31 +131,51 @@ d'erreur de chargement (backend indisponible), la page est rechargée
 automatiquement toutes les 5 secondes. Un `BootReceiver` relance l'app au
 démarrage de la tablette (`BOOT_COMPLETED`).
 
-### 6.2 Configuration de `KIOSK_URL` — ⚠️ problème de topologie réseau non résolu
+### 6.2 Configuration de l'URL kiosk — résolution Termux (juin 2026)
 
-```java
-private static final String KIOSK_URL = "http://127.0.0.1:8000/kiosk/";
-```
+**Solution retenue** : héberger le backend sur la tablette via Termux (voir
+[TERMUX_DEPLOY.md](TERMUX_DEPLOY.md)). L'app Android charge `/kiosk/` servi
+localement — plus besoin du PC développeur en production.
 
-Le backend tourne **sur la tablette** (Termux, mode lite). L'ancienne URL
-`http://10.42.0.155:8000/kiosk/` (PC dev) n'est **pas joignable** depuis la
-tête Android — d'où `ERR_ADDRESS_UNREACHABLE` si l'APK n'a pas été réinstallé.
+#### Mécanisme actuel (fichier de config + fallbacks)
 
-Après modification de `KIOSK_URL`, reconstruire et réinstaller :
+Au démarrage du backend, `start_cybel.sh` écrit l'URL joignable par la WebView
+dans `/sdcard/Download/cybel_kiosk_url.txt` (IP Wi-Fi de la tablette, ex.
+`http://172.16.0.128:8000/kiosk/`).
+
+`MainActivity` lit ce fichier au lancement, puis essaie en secours :
+
+1. URL du fichier (IP Wi-Fi)
+2. `http://127.0.0.1:8000/kiosk/`
+3. `http://192.168.20.1:8000/kiosk/` (interface eth0 de la tête)
+
+En cas d'échec, une **page d'erreur visible** s'affiche (au lieu d'un écran
+blanc) et un rechargement est tenté toutes les 5 secondes.
+
+#### Historique réseau (problème PC → tablette, résolu par contournement)
+
+L'ancienne URL `http://10.42.0.155:8000/kiosk/` (PC dev) provoquait
+`ERR_ADDRESS_UNREACHABLE` : la tête Android ne peut pas initier de connexion
+vers le poste de dev. Ce problème est **contourné** par l'hébergement Termux,
+pas par un routage retour sur le châssis.
+
+Vérifier que Termux exécute le backend :
 
 ```bash
-# Build (PowerShell, depuis android/CybelVisitorKiosk)
-# … voir build.sh ou scripts/install_kiosk_apk.py
+curl http://127.0.0.1:8000/api/health    # depuis Termux → 200 attendu
+cat /sdcard/Download/cybel_kiosk_url.txt   # URL pour la WebView
+```
 
-python scripts/install_kiosk_apk.py   # via SSH + pm install
+Réinstaller l'APK après modification du code Android :
+
+```bash
+python scripts/install_kiosk_apk.py --password *** --host 172.16.0.XXX
 # ou : adb install -r android/CybelVisitorKiosk/out/CybelVisitorKiosk.apk
 ```
 
-Vérifier que Termux exécute le backend : `curl http://127.0.0.1:8000/api/health`
-(passerelle `10.42.0.1`, châssis — voir [docs/ROBOT_CONNECTION.md](ROBOT_CONNECTION.md)).
+#### Investigation réseau initiale (avant Termux)
 
-**Cette valeur n'a pas pu être validée et est probablement injoignable depuis
-la tablette.** En inspectant la configuration réseau de la tête Android
+En inspectant la configuration réseau de la tête Android
 (`adb shell ip addr show wlan0` / `ip route`), elle est en fait sur un
 **second réseau Wi-Fi distinct, `172.16.0.0/16`** (IP `172.16.0.194`), sans
 route vers `10.42.0.0/24` ni route par défaut. Un `ping` de la tête Android
@@ -184,30 +227,17 @@ la tête Android vers le poste de dev (quel que soit le port) n'aboutit**. Ce
 n'est donc pas spécifique à `adb reverse` ni au port 8000 : c'est une
 limitation réseau du robot lui-même.
 
-### 6.2.2 Pistes restantes (non implémentées)
+### 6.2.2 Pistes restantes (hors scope Termux)
 
-1. **Connecter le poste de dev au Wi-Fi `172.16.0.0/16`** si ce réseau est
-   diffusé comme SSID séparé (à vérifier sur site — depuis le poste actuel,
-   seul `TY1251D-03195` est visible, qui correspond au `10.42.0.0/24` du
-   châssis).
-2. **Héberger `/kiosk` + le backend directement sur la tête Android** via
-   Termux (déjà installé, voir [docs/TTS_BRIDGE.md §4](TTS_BRIDGE.md#4-exploration-des-applications-android-candidates)) :
-   la `WebView` chargerait alors `http://127.0.0.1:8000/kiosk/` (aucun
-   problème réseau), et le TTS se ferait par `am broadcast` **local** (`su -c`,
-   sans ADB). Reste à valider que Termux peut faire tourner FastAPI/uvicorn
-   sur cet appareil (Android 7.1, RK3399, 2 Go RAM) et que la tête a un accès
-   réseau à `10.42.0.1:9090` (rosbridge) — non vérifié, et le test §6.2.1
-   suggère que non via ce chemin.
-3. **Demander à l'administrateur réseau** (côté établissement) une règle de
-   routage/forward retour `192.168.20.0/24 → 10.42.0.0/24` sur le châssis, ou
-   un accès SSH au châssis pour l'ajouter soi-même.
+1. **Connecter le poste de dev au Wi-Fi `172.16.0.0/16`** — utile pour le
+   développement itératif sans SSH, mais non nécessaire en production.
+2. **Routage retour châssis** (`192.168.20.0/24 → 10.42.0.0/24`) — toujours
+   absent ; contourné par Termux.
+3. **Découverte automatique d'URL** dans l'APK — partiellement couverte par
+   `cybel_kiosk_url.txt` ; pas d'écran de configuration utilisateur.
 
-En attendant, `KIOSK_URL` reste une constante à adapter manuellement une fois
-une solution réseau trouvée — comme pour `SPEECH_HTTP_HOST`/`SPEECH_ADB_SERIAL`
-(IP DHCP instable, voir [docs/TTS_BRIDGE.md §9](TTS_BRIDGE.md#9-limites-connues-et-points-dattention)).
-Après modification, relancer `build.sh` et réinstaller l'APK
-(`adb install -r out/CybelVisitorKiosk.apk` — déjà installée une première fois,
-§6.3).
+La piste **Termux** (anciennement « non implémentée ») est désormais **en
+production** : backend lite validé, rosbridge joignable via `192.168.20.22`.
 
 ### 6.3 Build et installation
 
@@ -222,19 +252,77 @@ voir [docs/ROBOT_CONNECTION.md §4](ROBOT_CONNECTION.md#4-procédure-de-reconnex
 
 Lancer ensuite l'app « CYBEL Accueil » depuis le lanceur Android de la
 tablette (ou `adb shell am start -n com.cybel.visitorkiosk/.MainActivity`).
-S'assurer au préalable que `python scripts/dev.py` tourne et que
-`frontend-kiosk/dist/` est à jour (§5) — sinon `/kiosk/` répond `404` et l'app
-restera en boucle de rechargement.
+
+**Sur la tablette (production)** : s'assurer que le backend Termux tourne
+(`bash ~/cybel/scripts/termux/start_cybel.sh`) et que `frontend-kiosk/dist/`
+est à jour sur la tablette (via `deploy_termux.py`) — sinon `/kiosk/` répond
+`404`.
+
+**En développement (PC)** : `python scripts/dev.py` sert `/kiosk/` depuis le
+backend local une fois `npm run build` effectué dans `frontend-kiosk/`.
 
 ### 6.4 Limites connues
 
-- `KIOSK_URL` est une constante codée en dur, à modifier et reconstruire si
-  l'IP du poste backend change (pas de découverte automatique).
-- Pas d'écran de configuration dans l'app — toute modification (URL,
-  comportement du bouton retour, etc.) nécessite de reconstruire l'APK.
+- L'URL kiosk dépend de l'IP Wi-Fi DHCP — `start_cybel.sh` régénère
+  `cybel_kiosk_url.txt` à chaque démarrage ; relancer le backend après un
+  changement d'IP.
+- Pas d'écran de configuration dans l'app — toute modification de comportement
+  (bouton retour, thème, etc.) nécessite de reconstruire l'APK.
 - Le mode immersif/plein écran dépend des flags `View.SYSTEM_UI_FLAG_*`
   (API 23-25, conformes à l'Android 7.1 de la tablette) ; non testé sur
   d'autres versions d'Android.
+- Google Fonts retirées du build (offline) — police système utilisée en secours.
+
+### 6.5 Problèmes rencontrés et solutions (déploiement tablette)
+
+#### Problème 1 — Backend PC injoignable depuis la tablette
+
+| | |
+|---|---|
+| **Symptôme** | `ERR_ADDRESS_UNREACHABLE` dans la WebView ; ancienne URL `10.42.0.155:8000` |
+| **Cause** | Routage asymétrique : le châssis NAT le trafic PC → tête, pas l'inverse |
+| **Solution** | Backend **lite** sur Termux (`cybel_lite.py`), WebView vers localhost ou IP Wi-Fi locale |
+| **Statut** | ✅ Résolu (contournement) |
+
+#### Problème 2 — Backend complet (FastAPI/pydantic) ne s'installe pas sur Termux
+
+| | |
+|---|---|
+| **Symptôme** | `pip install pydantic` échoue ; compilation `pydantic-core` (Rust/maturin) impossible |
+| **Cause** | Python 3.13 Termux, pas de wheel `aarch64-linux-android` ; disque souvent >90 % plein |
+| **Solution** | Mode **lite** : Starlette + uvicorn + websockets, sans pydantic (`bootstrap_lite.sh`) |
+| **Statut** | ✅ Résolu |
+
+#### Problème 3 — Écran blanc malgré `curl` health 200
+
+| | |
+|---|---|
+| **Symptôme** | App « CYBEL Accueil » blanche ; `curl http://127.0.0.1:8000/api/health` → 200 depuis Termux |
+| **Causes identifiées** | (a) WebView Android 7.1 ignore les scripts `type="module"` ; (b) syntaxe ES2020 (`??`) non supportée ; (c) possible isolation réseau Termux ↔ WebView sur `127.0.0.1` |
+| **Solutions appliquées** | Build Vite **legacy** (`@vitejs/plugin-legacy`) ; URL via IP Wi-Fi dans `cybel_kiosk_url.txt` ; `usesCleartextTraffic` dans le manifest ; page d'erreur visible + logs `WebChromeClient` |
+| **Statut** | ⚠️ Correctifs dans le dépôt ; validation sur tablette en attente de redéploiement |
+
+#### Problème 4 — rosbridge via `10.42.0.1` depuis Termux
+
+| | |
+|---|---|
+| **Symptôme** | Robot non connecté malgré backend actif |
+| **Cause** | Depuis Termux, `10.42.0.1` n'est pas routé ; le châssis est joignable via eth0 interne |
+| **Solution** | `ROBOT_HOST=192.168.20.22` dans `scripts/termux/cybel.env` |
+| **Statut** | ✅ Résolu |
+
+#### Diagnostic utile
+
+```bash
+# Depuis le PC
+python scripts/kiosk_network_probe.py    # compare curl Termux vs contexte système
+python scripts/termux_explore.py         # inventaire réseau + ping rosbridge
+
+# Depuis Termux
+curl -s http://127.0.0.1:8000/kiosk/ | head
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/kiosk/assets/index-legacy-*.js
+cat /sdcard/Download/cybel_kiosk_url.txt
+```
 
 ## 7. Limites connues / suite
 
