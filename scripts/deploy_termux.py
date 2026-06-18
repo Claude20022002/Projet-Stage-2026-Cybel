@@ -134,10 +134,15 @@ def deploy_remote(
         f"bash {sh_quote(remote_base)}/scripts/termux/free_disk.sh || true",
     ]
     if bootstrap:
-        remote_cmds.append(
-            f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap_lite.sh || "
-            f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh"
-        )
+        if args.lite_only:
+            remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap_lite.sh")
+        elif args.full:
+            remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh")
+        else:
+            remote_cmds.append(
+                f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap_lite.sh || "
+                f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh"
+            )
     if restart:
         remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/stop_cybel.sh || true")
         remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/start_cybel.sh")
@@ -172,6 +177,7 @@ def main() -> int:
     parser.add_argument("--password", default=os.environ.get("CYBEL_TERMUX_PASSWORD", ""))
     parser.add_argument("--skip-kiosk-build", action="store_true")
     parser.add_argument("--no-bootstrap", action="store_true", help="Ne pas réinstaller pip deps")
+    parser.add_argument("--full", action="store_true", help="Forcer bootstrap complet (pas lite)")
     parser.add_argument("--no-restart", action="store_true", help="Ne pas redémarrer uvicorn")
     args = parser.parse_args()
 
