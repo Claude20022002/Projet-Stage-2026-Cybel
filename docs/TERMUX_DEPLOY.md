@@ -21,6 +21,8 @@ Guide pour faire tourner le **backend + kiosque visiteur** directement sur la ta
 identifiées (WebView + réseau) et correctifs commités ; redéploiement requis
 (voir §6 et [VISITOR_KIOSK.md §6.5](VISITOR_KIOSK.md#65-problèmes-rencontrés-et-solutions-déploiement-tablette)).
 
+> **Aide IA** : brief complet pour Claude AI → [PROMPT_CLAUDE_KIOSK_TABLETTE.md](PROMPT_CLAUDE_KIOSK_TABLETTE.md)
+
 ### Procédure de redéploiement (après correctif écran blanc)
 
 ```bash
