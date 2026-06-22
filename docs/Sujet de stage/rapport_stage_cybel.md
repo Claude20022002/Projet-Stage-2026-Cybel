@@ -4,7 +4,7 @@
 
 > Document de travail destiné à servir de base au rapport de stage (PFA, 3ᵉ année — Informatique et Intelligence Artificielle), réalisé dans le cadre du stage proposé par HESTIM Engineering & Business School (encadrant : Dr. Sridath Tula).
 >
-> Ce document suit le plan académique imposé. Les sections relevant de l'état d'avancement (Implémentation, Résultats, Analyse critique) reflètent l'état réel du projet au **18/06/2026**, soit environ la moitié du stage : elles décrivent un travail substantiellement avancé, avec un blocage résiduel sur le déploiement terrain de l'interface visiteur sur la tablette Android.
+> Ce document suit le plan académique imposé. Les sections relevant de l'état d'avancement (Implémentation, Résultats, Analyse critique) reflètent l'état réel du projet à la **fin juin 2026** : le kiosque visiteur est opérationnel sur la tablette ; l'objectif principal est désormais une **visite autonome du laboratoire** (navigation + présentation vocale des équipements), supervisée depuis l'interface opérateur.
 
 ---
 
@@ -14,7 +14,7 @@ Les robots de service mobiles sont généralement livrés avec un écosystème l
 
 La démarche adoptée repose sur une **rétro-ingénierie incrémentale et non destructive** du protocole de communication interne du robot : balayage des services réseau exposés, introspection des topics et services ROS via `rosbridge`/`rosapi`, et vérification systématique de l'effectivité de chaque commande avant de la considérer comme fonctionnelle. Sur cette base, une **architecture en trois couches** a été conçue — un SDK Python proposant une implémentation simulée (*mock*) et une implémentation réelle interchangeables, une API **FastAPI** (REST + WebSocket) et une interface web **Vite/TypeScript** opérateur — complétée par une **interface visiteur kiosque** (`frontend-kiosk/`) et deux applications Android natives légères (`CybelTTSBridge`, `CybelVisitorKiosk`).
 
-À ce stade du stage, la connectivité avec le robot est établie, le protocole de télémétrie, de commande de vitesse et de navigation autonome a été reconstruit et intégré, la synthèse vocale (TTS) fonctionne via une application Android dédiée déclenchée par `am broadcast`, une interface opérateur complète (carte SLAM, LiDAR, visiteurs détectés, actions d'accueil, commande vocale) est opérationnelle, et un déploiement embarqué sur Termux (backend lite + kiosque) a été mis en place. Le **dernier obstacle** concerne l'affichage de l'interface visiteur dans la WebView de la tablette (écran blanc malgré un backend local fonctionnel), pour lequel des correctifs techniques ont été identifiés (compatibilité WebView Android 7.1, isolation réseau Termux/WebView) mais restent à valider sur le matériel. Ce rapport présente le contexte, la problématique, l'état de l'art, la conception, la méthodologie, l'implémentation réalisée, les résultats intermédiaires obtenus, ainsi qu'une analyse critique des limites et perspectives du projet.
+À ce stade du stage, la connectivité avec le robot est établie, le protocole de télémétrie, de commande de vitesse et de navigation autonome a été reconstruit et intégré, la synthèse vocale (TTS) fonctionne via une application Android dédiée déclenchée par `am broadcast`, une interface opérateur complète (carte SLAM, LiDAR, visiteurs détectés, **gestion du parcours de visite**, arrêt d'urgence pendant une visite) est opérationnelle, et un déploiement embarqué sur Termux (backend lite + kiosque) est **validé sur la tablette**. L'interface visiteur a été recentrée sur une **visite guidée autonome du laboratoire** : huit arrêts synchronisés depuis `data/knowledgeV2-lab.json` vers `data/lab_tour.json`, navigation par coordonnées (`/navi_goal`) et annonces vocales séquentielles. Ce rapport présente le contexte, la problématique, l'état de l'art, la conception, la méthodologie, l'implémentation réalisée, les résultats obtenus, ainsi qu'une analyse critique des limites et perspectives du projet.
 
 **Mots-clés** : robotique de service, rétro-ingénierie de protocole, ROS, rosbridge, FastAPI, interface homme-robot, navigation autonome, synthèse vocale, Termux, WebView Android.
 
@@ -24,7 +24,7 @@ Mobile service robots are typically delivered with a closed software ecosystem: 
 
 The approach relies on **incremental, non-destructive reverse engineering** of the robot's internal communication protocol: scanning exposed network services, introspecting ROS topics and services via `rosbridge`/`rosapi`, and systematically verifying that a command has a real effect before considering it functional. Based on this analysis, a **three-layer architecture** was designed — a Python SDK providing interchangeable mock and real implementations, a **FastAPI** API (REST + WebSocket), and an operator **Vite/TypeScript** web interface — extended with a **visitor kiosk interface** (`frontend-kiosk/`) and two lightweight native Android applications (`CybelTTSBridge`, `CybelVisitorKiosk`).
 
-At this stage of the internship, connectivity with the robot has been established; telemetry, velocity control, and autonomous navigation protocols have been reconstructed and integrated; text-to-speech (TTS) works via a dedicated Android app triggered by `am broadcast`; a full operator interface (SLAM map, LiDAR, detected visitors, reception actions, voice commands) is operational; and an embedded Termux deployment (lite backend + kiosk) has been set up. The **remaining blocker** concerns displaying the visitor interface in the tablet WebView (blank screen despite a working local backend), for which technical fixes have been identified (Android 7.1 WebView compatibility, Termux/WebView network isolation) but remain to be validated on hardware. This report presents the context, problem statement, related work, design, methodology, current implementation, intermediate results, and a critical analysis of the project's limitations and outlook.
+At this stage of the internship, connectivity with the robot has been established; telemetry, velocity control, and autonomous navigation protocols have been reconstructed and integrated; text-to-speech (TTS) works via a dedicated Android app triggered by `am broadcast`; a full operator interface (SLAM map, LiDAR, detected visitors, **guided tour management**, emergency halt during a tour) is operational; and an embedded Termux deployment (lite backend + kiosk) is **validated on the tablet**. The visitor interface now focuses on an **autonomous laboratory guided tour**: eight stops derived from `data/knowledgeV2-lab.json` into `data/lab_tour.json`, coordinate-based navigation (`/navi_goal`), and sequential voice presentations. This report presents the context, problem statement, related work, design, methodology, current implementation, results, and a critical analysis of the project's limitations and outlook.
 
 **Keywords**: service robotics, protocol reverse engineering, ROS, rosbridge, FastAPI, human-robot interaction, autonomous navigation, text-to-speech, Termux, Android WebView.
 
@@ -536,24 +536,25 @@ Le planning ci-dessous reprend les quatre phases proposées dans le sujet de sta
 |---|---|---|---|
 | **Phase 1 — Connectivité** | Semaines 1–2 | Compréhension de l'architecture matérielle, connexion au réseau WiFi du robot, identification des hôtes et ports actifs | **Réalisée** : connectivité établie, ports identifiés ; topologie dual-stack documentée (`10.42.0.1` châssis, `172.16.0.x` tête Android, `192.168.20.22` lien eth0 interne) |
 | **Phase 2 — Exploration protocolaire** | Semaines 2–6 | Introspection ROS, identification topics/services, exploration MQTT, canaux d'interaction (TTS) | **Réalisée** : navigation, télémétrie, commande vitesse documentés ; TTS résolu via accès ADB + `CybelTTSBridge` |
-| **Phase 3 — Développement de l'interface** | Semaines 5–12 | Backend FastAPI, frontend opérateur, interface visiteur, supervision, navigation, interaction | **Largement réalisée** : dashboard opérateur, kiosque visiteur, actions d'accueil FR/EN, FAQ HESTIM, détection visiteurs, commande vocale ; déploiement Termux opérationnel |
-| **Phase 4 — Intégration, tests, validation** | Semaines 12–16 | Intégration complète, tests sur robot réel, rapport final, démonstration | **En cours** : validation terrain de l'app kiosque bloquée (écran blanc WebView) ; TTS et backend lite validés |
+| **Phase 3 — Développement de l'interface** | Semaines 5–12 | Backend FastAPI, frontend opérateur, interface visiteur, supervision, navigation, interaction | **Réalisée** : dashboard opérateur, **visite guidée labo**, panneau gestion parcours, arrêt d'urgence, déploiement Termux validé |
+| **Phase 4 — Intégration, tests, validation** | Semaines 12–16 | Intégration complète, tests sur robot réel, rapport final, démonstration | **En cours** : validation terrain navigation multi-arrêts sur carte réelle ; affichage kiosque validé |
 
 ---
 
 ## 10. Implémentation
 
-### 10.1 Fonctionnalités développées (état au 18/06/2026)
+### 10.1 Fonctionnalités développées (état fin juin 2026)
 
 #### 10.1.1 Plateforme opérateur (backend + `frontend/`)
 
 - **Connexion et reconnexion automatique au robot** via `rosbridge` (`RosbridgeClient`), avec gestion explicite de l'état de connexion et rechargement de la carte lors d'une reconnexion.
-- **Tableau de bord opérateur** : barre de statut (batterie, mode, vitesse, matching de localisation, compteur visiteurs), panneau latéral (points de navigation, journal d'événements), panneau carte.
-- **Carte SLAM interactive** : grille d'occupation, overlay LiDAR, position robot temps réel, **visiteurs détectés** (`/detected_people_array`, cercles violets + distance), navigation par clic avec rejet préventif des obstacles (seuil `65`) et zones inconnues (`-1`).
+- **Tableau de bord opérateur** : barre de statut (batterie, mode, vitesse, matching de localisation, compteur visiteurs), panneau latéral (points de navigation, **panneau visite guidée**, journal d'événements), panneau carte.
+- **Carte SLAM interactive** : grille d'occupation, overlay LiDAR, position robot temps réel, **visiteurs détectés** (`/detected_people_array`), navigation par clic avec rejet préventif des obstacles (seuil `65`) et zones inconnues (`-1`).
 - **Navigation** par point nommé, par coordonnée cliquée, annulation de trajectoire.
-- **Téléopération manuelle** avec arrêt d'urgence.
-- **Actions d'accueil** (`ReceptionService`, `sdk/reception_actions.py`) : catalogue d'actions (accueil, navigation salle, mode attente, visite guidée…) avec libellés et annonces **bilingues FR/EN**.
-- **Synthèse vocale (TTS)** via `CybelTTSBridge` : `RobotSpeech` déclenche `am broadcast` vers `com.cybel.ttsbridge.SPEAK` ; correction d'une race condition `TextToSpeech` dans `SpeakService.java`.
+- **Téléopération manuelle** avec arrêt d'urgence ; **arrêt total** (`POST /api/tour/halt`) interrompant visite, navigation et TTS, y compris sur la tablette (`CYBEL_KIOSK_BACKEND_URL`).
+- **Panneau « Visite guidée »** : suivi d'état en temps réel, CRUD des arrêts (`lab_tour.json`), position robot → formulaire, bouton **ARRÊT TOTAL**.
+- **Actions d'accueil** (`ReceptionService`, `sdk/reception_actions.py`) : catalogue d'actions bilingues FR/EN (complément au parcours principal).
+- **Synthèse vocale (TTS)** via `CybelTTSBridge` : `RobotSpeech` déclenche `am broadcast` vers `com.cybel.ttsbridge.SPEAK`.
 - **Commande vocale opérateur** via Web Speech API (`voice.ts`).
 - **Page de paramètres** (vitesse, mode de déplacement).
 - **Mode simulation complet (`MockRobot`)** avec visiteurs simulés, LiDAR et navigation.
@@ -561,12 +562,13 @@ Le planning ci-dessous reprend les quatre phases proposées dans le sujet de sta
 
 #### 10.1.2 Interface visiteur (`frontend-kiosk/` + `CybelVisitorKiosk`)
 
-- **Application web kiosque** séparée : gros boutons tactiles, écran FAQ « S'informer », bascule **FR/EN**.
-- **Actions visiteur** via `POST /api/reception/actions/{id}/execute?lang=fr|en`.
-- **FAQ HESTIM** servie par `GET /api/knowledge/faq` depuis `data/hestim_knowledge_base.json` ; toucher une question déclenche l'affichage et le TTS de la réponse.
-- **Build production** monté sur `/kiosk/` par `backend/main.py` et `cybel_lite.py`.
-- **Build legacy Vite** (`@vitejs/plugin-legacy`) pour compatibilité WebView Android 7.1.
-- **App Android `CybelVisitorKiosk`** : WebView plein écran, mode immersif, lecture URL depuis `/sdcard/Download/cybel_kiosk_url.txt`, fallbacks réseau, page d'erreur visible, logs `WebChromeClient`, `BootReceiver` au démarrage.
+- **Application web kiosque** orientée **visite autonome du laboratoire** : écran d'accueil, bouton « Démarrer la visite », progression, phases (déplacement / présentation / observation), bouton arrêt visiteur, bascule **FR/EN**.
+- **Moteur de visite** (`sdk/lab_tour.py`, `TourEngine`) : enchaînement intro → pour chaque arrêt (approche vocale, navigation, présentation, pause) → conclusion.
+- **Données de parcours** : `data/lab_tour.json` (8 arrêts), synthétisé depuis `data/knowledgeV2-lab.json` (coordonnées + textes des équipements du labo).
+- **Navigation par coordonnées** : publication `/navi_goal` (x, y, θ) depuis Termux et backend complet.
+- **API tour** : `GET/PUT /api/tour/full`, `POST/PUT/DELETE /api/tour/stops`, `GET /api/tour/status`, `POST /api/tour/start|stop|halt`.
+- **Build production IIFE** (`vite.config.ts`, cible Chrome 49) monté sur `/kiosk/` — compatible WebView Android 7.1 (plus de `type="module"`).
+- **App Android `CybelVisitorKiosk` v1.2** : WebView plein écran, `cybel_kiosk_url.txt`, fallbacks réseau, **safe-area** (`viewport-fit=cover`, injection `--android-safe-top`), page d'erreur visible, `BootReceiver`.
 
 #### 10.1.3 Déploiement embarqué Termux
 
@@ -603,7 +605,11 @@ cybel/
 │   ├── CybelTTSBridge/    # Pont TTS Android (broadcast + TextToSpeech)
 │   └── CybelVisitorKiosk/  # App kiosque (WebView plein écran)
 ├── data/
-│   └── hestim_knowledge_base.json   # FAQ HESTIM (FR/EN)
+│   ├── hestim_knowledge_base.json   # FAQ HESTIM (FR/EN)
+│   ├── knowledgeV2-lab.json         # Points équipements labo (coords + textes)
+│   └── lab_tour.json                # Parcours visite guidée (8 arrêts)
+├── sdk/
+│   └── lab_tour.py                  # TourEngine — exécution séquentielle
 ├── scripts/
 │   ├── dev.py              # Lancement dev (3 processus)
 │   ├── deploy_termux.py    # Déploiement SSH/SFTP
@@ -618,7 +624,7 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 
 ## 11. Résultats
 
-> Cette section décrit l'état réellement constaté au **18/06/2026**. Le projet est en phase 3 avancée / début de phase 4 ; les résultats ci-dessous sont des **résultats intermédiaires substantiels**, avec un blocage résiduel sur la validation terrain de l'app kiosque.
+> Cette section décrit l'état constaté **fin juin 2026**. Le kiosque est affiché sur la tablette ; la priorité est la validation du parcours multi-arrêts sur la carte réelle du laboratoire.
 
 ### 11.1 Fonctionnalités obtenues
 
@@ -641,10 +647,10 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 
 **Interface visiteur et déploiement embarqué**
 
-- Interface kiosque développée (`frontend-kiosk/`) : actions, FAQ HESTIM, FR/EN.
-- Backend lite Termux opérationnel : `curl http://127.0.0.1:8000/api/health` → **200**.
-- APK `CybelVisitorKiosk` construit et installé.
-- **Non validé** : affichage dans la WebView (écran blanc malgré backend OK).
+- Interface kiosque **visite guidée labo** déployée (`frontend-kiosk/dist/` sur Termux).
+- Backend lite Termux opérationnel : health 200, API `/api/tour` avec 8 arrêts.
+- APK `CybelVisitorKiosk` v1.2 : affichage validé (build IIFE + URL Wi-Fi + correctifs responsive).
+- **En cours** : validation navigation autonome sur les 8 coordonnées en conditions réelles (waypoints carte).
 
 ### 11.2 Performances
 
@@ -663,11 +669,9 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 | Indicateur | Valeur |
 |---|---|
 | Topics/services ROS documentés | ~15 topics lecture, 3+ commande, services `rosapi`/`move_base` |
-| Endpoints REST développés | Robot, navigation, carte, paramètres, speech, reception, knowledge |
-| Applications Android construites | 2 (`CybelTTSBridge`, `CybelVisitorKiosk`) |
-| Couverture mock/réel | Navigation, télémétrie, TTS, actions d'accueil |
-| Canal TTS robot validé | **1/1** (CybelTTSBridge) |
-| Interface visiteur validée sur tablette | **0/1** (écran blanc — correctifs en attente de déploiement) |
+| Endpoints REST développés | Robot, navigation, carte, paramètres, speech, reception, knowledge, **tour** |
+| Arrêts de visite configurés | **8** (routeur CNC, LG-10, LG-09, extraction, remplissage, thermoformage, DTF, sérigraphie) |
+| Interface visiteur validée sur tablette | **1/1** (affichage kiosque OK ; parcours navigation en validation) |
 | Documentation technique | 6+ fichiers (`INTERFACE`, `TTS_BRIDGE`, `VISITOR_KIOSK`, `TERMUX_DEPLOY`, `ROBOT_CONNECTION`, `PROMPT_CLAUDE_KIOSK_TABLETTE`) |
 
 ---
@@ -676,13 +680,13 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 
 ### 12.1 Limites
 
-- **Interface visiteur non validée sur tablette** : l'app « CYBEL Accueil » affiche un écran blanc malgré un backend Termux fonctionnel (`health` 200). Causes probables : incompatibilité WebView Android 7.1 avec le build JavaScript moderne, et/ou isolation réseau entre le processus Termux et la WebView sur `127.0.0.1`. Des correctifs ont été développés (build legacy, URL dynamique via IP Wi-Fi) mais n'ont pas encore été validés sur le matériel.
-- **Backend complet non déployable sur Termux** : FastAPI + pydantic nécessite `pydantic-core` (compilation Rust), impossible sur Python 3.13 Termux avec l'espace disque disponible (~90 % occupé). Le backend lite (Starlette) couvre le kiosque mais pas toutes les fonctionnalités opérateur.
-- **Routage réseau asymétrique** : la tête Android ne peut pas initier de connexion vers le PC développeur (`10.42.0.0/24`). Contourné par l'hébergement Termux, mais complique le développement itératif (SSH parfois indisponible, IP DHCP variable).
-- **IP DHCP instable** : l'adresse Wi-Fi de la tête Android change (`172.16.0.88` → `.194` → `.130` → `.128` observés), nécessitant une mise à jour régulière des scripts et de la configuration.
+- **Validation navigation multi-arrêts** : les coordonnées proviennent de `knowledgeV2-lab.json` ; l'alignement précis sur la carte SLAM et l'absence d'obstacles dynamiques restent à confirmer en conditions réelles.
+- **Backend complet non déployable sur Termux** : FastAPI + pydantic nécessite `pydantic-core` (compilation Rust), impossible sur Python 3.13 Termux. Le backend lite (Starlette) couvre le kiosque et l'API tour, mais pas toutes les fonctionnalités opérateur.
+- **Contrôle opérateur / visite** : l'arrêt total depuis le PC repose sur `CYBEL_KIOSK_BACKEND_URL` pour interrompre la visite sur la tablette ; si l'IP Wi-Fi change, cette URL doit être mise à jour.
+- **Routage réseau asymétrique** : la tête Android ne peut pas initier de connexion vers le PC développeur (`10.42.0.0/24`). Contourné par l'hébergement Termux.
+- **IP DHCP instable** : l'adresse Wi-Fi de la tête Android change, nécessitant une régénération de `cybel_kiosk_url.txt` via `start_cybel.sh`.
 - **Robot unique disponible** : tests sur un seul exemplaire, partagé — prudence obligatoire pour toute commande physique.
-- **Version Android obsolète (7.1)** : limite les outils de débogage (`adb reverse` non supporté par l'adbd embarqué), impose des contraintes fortes sur le JavaScript servi par la WebView.
-- **Identifiants SSH/FTP châssis inconnus** : accès système Linux embarqué non obtenu.
+- **Version Android obsolète (7.1)** : impose un build JavaScript IIFE (pas de modules ES) et des correctifs safe-area pour la WebView.
 
 ### 12.2 Difficultés rencontrées
 
@@ -701,10 +705,11 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 
 **Déploiement tablette (kiosque)**
 
-- **Backend PC injoignable** : `ERR_ADDRESS_UNREACHABLE` → pivot Termux.
-- **FastAPI/pydantic échoue sur Termux** : compilation Rust impossible → backend lite Starlette.
-- **Écran blanc WebView** : `curl` health 200 depuis Termux mais page blanche dans l'app → diagnostic WebView 7.1 + isolation réseau.
-- **rosbridge via mauvaise IP depuis Termux** : `10.42.0.1` non routé → `192.168.20.22` via eth0.
+- **Backend PC injoignable** : `ERR_ADDRESS_UNREACHABLE` → pivot Termux (**résolu**).
+- **FastAPI/pydantic échoue sur Termux** → backend lite Starlette (**résolu**).
+- **Écran blanc WebView** → build IIFE + IP Wi-Fi + safe-area (**résolu**).
+- **Import `sdk.lab_tour` sur Termux** → chargement direct du module sans `sdk/__init__.py` (**résolu**).
+- **rosbridge via mauvaise IP depuis Termux** : `ROBOT_HOST=192.168.20.22` (**résolu**).
 
 **Environnement de développement**
 
@@ -714,29 +719,25 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 
 ### 12.3 Améliorations futures
 
-- **Valider le correctif écran blanc** : redéployer build legacy + APK mis à jour ; page de test ES5 minimale pour isoler réseau vs JavaScript.
+- **Valider le parcours complet** sur la carte réelle du laboratoire (ajustement fin des coordonnées, ordre des arrêts).
 - **Activer le démarrage auto** Termux au boot (`termux-boot.sh`) pour un kiosque autonome après redémarrage du robot.
-- **Formaliser des tests automatisés** (SDK mock, API, build kiosk).
-- **Étudier la sécurisation** des canaux rosbridge/MQTT (OWASP IoT Top 10).
-- **Connecter la FAQ** au module conversationnel en préparation.
-- **Reconnaissance vocale côté visiteur** (micro tablette) — non implémentée dans la v1 kiosque.
+- **Persistance des waypoints** côté robot ROS (service `/poi` add) pour synchroniser carte et `lab_tour.json`.
+- **Formaliser des tests automatisés** (SDK mock, API tour, build kiosk).
+- **Reconnaissance vocale côté visiteur** (micro tablette) — non implémentée dans la v1.
 - **Conteneurisation** Docker pour déploiement opérateur sur poste dédié.
-- **Exploiter l'IPC** des apps propriétaires (`com.ciot.welcomepatrol`) — nécessiterait décompilation APK, gardé en réserve.
 
 ---
 
 ## 13. Conclusion
 
-À mi-parcours du stage (18/06/2026), le projet CYBEL a permis d'atteindre des **résultats substantiels** par rapport aux objectifs et livrables du sujet de stage :
+À mi-parcours du stage (fin juin 2026), le projet CYBEL a permis d'atteindre des **résultats substantiels** :
 
-1. **Connectivité et protocole** : le robot est accessible, son protocole de communication (télémétrie, mouvement, navigation) a été reconstruit par rétro-ingénierie et documenté.
-2. **Plateforme opérateur** : SDK mock/réel, API FastAPI, interface web complète (supervision, carte SLAM, LiDAR, visiteurs, téléopération, actions d'accueil bilingues, commande vocale) — fonctionnelle en simulation et sur robot réel.
-3. **Synthèse vocale** : le canal TTS, initialement le principal blocage, a été **résolu** par le développement de `CybelTTSBridge`, une application Android légère exploitant le moteur Google TTS natif.
-4. **Interface visiteur** : une seconde interface web kiosque (`frontend-kiosk/`) et une application Android (`CybelVisitorKiosk`) ont été développées, avec un déploiement embarqué sur Termux (backend lite) pour un fonctionnement autonome sans PC développeur.
+1. **Connectivité et protocole** : le robot est accessible, son protocole a été reconstruit par rétro-ingénierie et documenté.
+2. **Plateforme opérateur** : SDK mock/réel, API FastAPI, interface web complète avec **gestion du parcours de visite** et **arrêt d'urgence** pendant une visite.
+3. **Synthèse vocale** : canal TTS résolu via `CybelTTSBridge`.
+4. **Interface visiteur** : kiosque **visite guidée du laboratoire** (8 équipements), déployé sur Termux et **affiché sur la tablette** ; navigation par coordonnées et présentation vocale autonome.
 
-Le **dernier obstacle** concerne la validation terrain de l'app kiosque sur la tablette : écran blanc malgré un backend local fonctionnel. Ce problème, distinct du protocole robot ou du TTS, illustre les contraintes spécifiques de l'écosystème Android 7.1 embarqué (WebView legacy, isolation réseau Termux/WebView, espace disque limité). Des correctifs techniques ont été identifiés et implémentés ; leur validation constitue la priorité immédiate de la phase 4.
-
-Ce travail démontre qu'une plateforme de commande tierce, fonctionnellement riche et documentée, peut être construite **sans documentation constructeur**, par une démarche itérative de rétro-ingénierie prudente, complétée par un accès direct au sous-système Android lorsque le protocole ROS s'avère insuffisant. L'objectif final — une démonstration intégrée opérateur + visiteur sur le robot physique — reste atteignable dès la résolution du blocage WebView.
+La priorité actuelle est la **validation terrain du parcours** (navigation entre les huit arrêts sur la carte réelle). Ce travail démontre qu'une plateforme tierce, riche et documentée, peut être construite sans documentation constructeur, par rétro-ingénierie incrémentale complétée par un accès direct au sous-système Android.
 
 ---
 

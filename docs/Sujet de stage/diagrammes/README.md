@@ -14,7 +14,9 @@ Les fichiers `.mmd` sont les **sources Mermaid** à convertir en PNG pour le dos
 | `sequence_navigation.mmd` | `sequence_navigation.png` | Figure séquence navigation |
 | `sequence_tts.mmd` | `sequence_tts.png` | Figure séquence TTS |
 | `sequence_telemetry.mmd` | `sequence_telemetry.png` | Figure séquence télémétrie |
-| `sequence_kiosk_action.mmd` | `sequence_kiosk_action.png` | Figure séquence kiosque |
+| `sequence_kiosk_action.mmd` | `sequence_kiosk_action.png` | Figure séquence kiosque (actions accueil — historique) |
+| `sequence_lab_tour.mmd` | `sequence_lab_tour.png` | Figure séquence visite guidée labo |
+| `sequence_tour_halt.mmd` | `sequence_tour_halt.png` | Figure arrêt total opérateur |
 | `topologie_reseau.mmd` | `topologie_reseau.png` | Figure topologie réseau |
 
 ## Génération des PNG

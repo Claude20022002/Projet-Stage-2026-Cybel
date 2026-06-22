@@ -291,7 +291,7 @@ Groupées en trois sections :
 | `return_charge` | Retour à la pile | — | → Pile |
 | `stop_all` | Arrêter l'action | — | Stop robot |
 
-\* La visite guidée enregistre un événement journal ; la synchronisation avec le module GUIDED cloud n'est pas encore implémentée.
+\* L'action `guided_tour` historique (module GUIDED cloud) est **remplacée** par le parcours `lab_tour.json` et l'API `/api/tour` (voir §5.3.1).
 
 #### Séquence d'exécution d'une action
 
@@ -315,6 +315,51 @@ Clic action
 | **Faire parler** | `POST /api/speech/say` — désactivé pendant une annonce en cours |
 | **Stop parole** | `POST /api/speech/stop` |
 | Statut | « Dernier : « … » · {méthode} » (ex. `mock`, `publish:/play_tts`) |
+
+---
+
+### 5.3.1 Panneau Visite guidée (colonne gauche)
+
+Gestion du **parcours autonome du laboratoire** (`data/lab_tour.json`), distinct des actions d'accueil ponctuelles.
+
+#### État et contrôle
+
+| Élément | Description |
+|---------|-------------|
+| Badge d'état | Au repos / En cours / Terminée / Interrompue / Erreur |
+| Indicateur live | Étape N/8, équipement en cours (si visite active) |
+| **ARRÊT TOTAL** | `POST /api/tour/halt` — stoppe visite, navigation, TTS ; relaie vers la tablette (`CYBEL_KIOSK_BACKEND_URL`) |
+| **Arrêter la visite** | `POST /api/tour/stop` (visite locale uniquement) |
+
+Les boutons **Arrêt**, **E-STOP** (téléopération et carte) et **Annuler navigation** déclenchent également `/api/tour/halt`.
+
+#### Gestion des arrêts
+
+| Action | API |
+|--------|-----|
+| Lister / éditer | `GET /api/tour/full` |
+| Ajouter | `POST /api/tour/stops` |
+| Modifier | `PUT /api/tour/stops/{id}` |
+| Supprimer | `DELETE /api/tour/stops/{id}` |
+| Position robot → formulaire | Bouton « Position robot » (lit `GET /api/robot/pose`) |
+
+Chaque arrêt : `equipment_fr`, `name_fr`, `speech_fr`, coordonnées `x`, `y`, `theta`, `dwell_seconds`.
+
+Source des coordonnées initiales : [data/knowledgeV2-lab.json](../data/knowledgeV2-lab.json).
+
+#### Schéma flux arrêt total
+
+```
+Opérateur → ARRÊT TOTAL / E-STOP
+    │
+    ├─► POST /api/tour/halt (backend PC)
+    │       ├─► TourEngine.stop() + robot stop + TTS stop
+    │       └─► POST http://<tablette>:8000/api/tour/halt
+    │
+    └─► Journal « Arrêt total effectué »
+```
+
+Voir [VISITOR_KIOSK.md](VISITOR_KIOSK.md) pour le flux côté visiteur.
 
 ---
 
@@ -700,8 +745,8 @@ Configuration : `ROBOT_MOCK=true/false` dans `backend/.env`.
 3. **Paramètre directional_mode** sauvegardé mais non appliqué à l'UI
 4. **mock_mode** non modifiable depuis l'interface (uniquement `.env`)
 5. **hard_estop** non affiché (seul `soft_estop` visible)
-6. **Carte non interactive** (pas de navigation par clic)
-7. **Visite guidée GUIDED** : événement journal seulement, pas de sync cloud
+6. **Carte interactive** : navigation par clic sur cellules libres (obstacle ≥ 65 rejeté)
+7. **Visite guidée labo** : parcours séquentiel via `lab_tour.json` et `/api/tour` (pas le module GUIDED cloud propriétaire)
 8. **Paramètres vitesse/travel_mode** : stockés côté backend mais pas encore transmis au robot ROS
 9. **Points ajoutés via le bouton « + »** : en mode `mock`, stockés en mémoire
    du processus backend (perdus au redémarrage — pas de persistance disque).
@@ -807,6 +852,7 @@ ROBOT_WS_PORT=9090           # rosbridge
 SPEECH_TOPIC=                # Topic TTS ROS (optionnel)
 SPEECH_SERVICE=              # Service TTS ROS (optionnel)
 SPEECH_HTTP_HOST=172.16.0.88 # Upper body Android (fallback TTS)
+CYBEL_KIOSK_BACKEND_URL=http://172.16.0.131:8000  # Arrêt visite sur tablette
 ```
 
 ### Scripts utiles (hors interface)
@@ -819,4 +865,4 @@ SPEECH_HTTP_HOST=172.16.0.88 # Upper body Android (fallback TTS)
 
 ---
 
-_Documentation interface CYBEL v0.2.0 — mise à jour juin 2026_
+_Documentation interface CYBEL v0.2.1 — mise à jour fin juin 2026_

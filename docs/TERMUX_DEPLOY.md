@@ -4,22 +4,21 @@ Guide pour faire tourner le **backend + kiosque visiteur** directement sur la ta
 
 ---
 
-## État d'avancement (juin 2026)
+## État d'avancement (fin juin 2026)
 
 | Étape | Statut | Détail |
 |-------|--------|--------|
-| SSH Termux (`:8022`) | ✅ | Exploration et déploiement automatisés via `paramiko` |
-| Bootstrap lite (Starlette) | ✅ | Pas de pydantic ; ~60 KiB d'archive déployée |
-| Backend `cybel_lite.py` | ✅ | Health `/api/health` → 200 ; sert `/kiosk/` |
-| Config ROS embarquée | ✅ | `ROBOT_HOST=192.168.20.22` (eth0, pas `10.42.0.1`) |
-| TTS local | ✅ | `SPEECH_LOCAL_BROADCAST=true` → `CybelTTSBridge` |
-| Build kiosk legacy (WebView 7.1) | ✅ | `@vitejs/plugin-legacy` dans `frontend-kiosk/` |
-| APK `CybelVisitorKiosk` | ⚠️ | Reconstruit avec URL dynamique ; validation terrain en cours |
+| SSH Termux (`:8022`) | ✅ | `deploy_termux.py`, `install_kiosk_apk.py` |
+| Bootstrap lite (Starlette) | ✅ | Sans pydantic ; ~45 KiB d'archive |
+| Backend `cybel_lite.py` | ✅ | Health 200 ; `/kiosk/` + API `/api/tour/*` |
+| Config ROS embarquée | ✅ | `ROBOT_HOST=192.168.20.22` |
+| TTS local | ✅ | `SPEECH_LOCAL_BROADCAST=true` |
+| Build kiosk IIFE (WebView 7.1) | ✅ | Bundle `app.js` sans `type="module"` |
+| Parcours `lab_tour.json` (8 arrêts) | ✅ | Coordonnées depuis `knowledgeV2-lab.json` |
+| APK `CybelVisitorKiosk` v1.2 | ✅ | Safe-area, affichage validé |
 | Démarrage auto (`termux-boot`) | ⏳ | Script prêt, non activé |
 
-**Blocage actuel** : écran blanc sur la tablette malgré backend OK — causes
-identifiées (WebView + réseau) et correctifs commités ; redéploiement requis
-(voir §6 et [VISITOR_KIOSK.md §6.5](VISITOR_KIOSK.md#65-problèmes-rencontrés-et-solutions-déploiement-tablette)).
+**Priorité actuelle** : valider la navigation autonome sur les 8 arrêts en conditions réelles (carte du laboratoire).
 
 > **Aide IA** : brief complet pour Claude AI → [PROMPT_CLAUDE_KIOSK_TABLETTE.md](PROMPT_CLAUDE_KIOSK_TABLETTE.md)
 

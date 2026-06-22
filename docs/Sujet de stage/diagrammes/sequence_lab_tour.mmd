@@ -1,0 +1,27 @@
+%% Séquence — visite guidée du laboratoire (kiosque)
+%% Export : sequence_lab_tour.png
+sequenceDiagram
+    actor Visiteur
+    participant KUI as frontend-kiosk
+    participant API as cybel_lite :8000
+    participant ENG as TourEngine
+    participant ROS as rosbridge :9090
+    participant TTS as CybelTTSBridge
+
+    Visiteur->>KUI: Démarrer la visite
+    KUI->>API: POST /api/tour/start?lang=fr
+    API->>ENG: start(lang)
+    API-->>KUI: 200 { state: running }
+
+    loop Pour chaque arrêt (lab_tour.json)
+        ENG->>TTS: speak(approach_speech)
+        ENG->>ROS: publish /navi_goal (x, y, θ)
+        ENG->>TTS: speak(présentation équipement)
+        ENG->>ENG: pause (dwell_seconds)
+    end
+
+    ENG->>TTS: speak(outro)
+    ENG-->>API: state completed
+    KUI->>API: GET /api/tour/status (polling)
+    API-->>KUI: progression + phase
+    KUI-->>Visiteur: Écran « Visite terminée »

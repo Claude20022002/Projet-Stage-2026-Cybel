@@ -1,0 +1,21 @@
+%% Séquence — arrêt total depuis le contrôleur opérateur
+%% Export : sequence_tour_halt.png
+sequenceDiagram
+    actor Operateur
+    participant CTRL as frontend opérateur
+    participant API_PC as FastAPI :8000
+    participant API_TAB as cybel_lite tablette
+    participant ENG as TourEngine
+    participant ROS as rosbridge
+    participant TTS as CybelTTSBridge
+
+    Operateur->>CTRL: ARRÊT TOTAL / E-STOP
+    CTRL->>API_PC: POST /api/tour/halt
+    API_PC->>ENG: stop() (si visite locale)
+    API_PC->>ROS: cancel + stop
+    API_PC->>TTS: stop speech
+    API_PC->>API_TAB: POST /api/tour/halt (kiosk_backend_url)
+    API_TAB->>ENG: stop()
+    API_TAB->>ROS: cancel + stop
+    API_PC-->>CTRL: 200 OK
+    CTRL-->>Operateur: Journal « Arrêt total effectué »
