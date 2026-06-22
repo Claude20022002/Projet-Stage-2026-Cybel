@@ -745,7 +745,7 @@ Configuration : `ROBOT_MOCK=true/false` dans `backend/.env`.
 3. **Paramètre directional_mode** sauvegardé mais non appliqué à l'UI
 4. **mock_mode** non modifiable depuis l'interface (uniquement `.env`)
 5. **hard_estop** non affiché (seul `soft_estop` visible)
-6. **Carte interactive** : navigation par clic sur cellules libres (obstacle ≥ 65 rejeté)
+6. **Navigation par clic** : limitée aux cellules libres de la carte (obstacle ≥ 65 ou zone inconnue rejetés)
 7. **Visite guidée labo** : parcours séquentiel via `lab_tour.json` et `/api/tour` (pas le module GUIDED cloud propriétaire)
 8. **Paramètres vitesse/travel_mode** : stockés côté backend mais pas encore transmis au robot ROS
 9. **Points ajoutés via le bouton « + »** : en mode `mock`, stockés en mémoire

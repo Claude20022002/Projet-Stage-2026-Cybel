@@ -1,6 +1,10 @@
 # Prompt ingénieur — Faire fonctionner l'application kiosque sur la tablette du robot CIOT TY1251D
 
-> **Usage** : copier-coller le bloc « Prompt à envoyer à Claude » ci-dessous dans une nouvelle conversation Claude AI (ou adapter selon le contexte). Ce document sert de brief technique complet pour obtenir une aide ciblée sur le **dernier problème non résolu** du projet CYBEL.
+> **Usage** : brief technique pour diagnostic kiosque / visite guidée sur tablette CIOT.
+>
+> **État fin juin 2026** : l'écran blanc WebView est **résolu** (build IIFE, URL Wi-Fi, safe-area).
+> Le kiosque affiche la **visite guidée du laboratoire** (8 arrêts). Priorité actuelle :
+> validation navigation terrain et affinage des coordonnées dans `lab_tour.json`.
 
 ---
 

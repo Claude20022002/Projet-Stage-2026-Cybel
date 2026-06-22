@@ -242,7 +242,9 @@ cybel/
 │   │   ├── robot.py              # /api/robot/*
 │   │   ├── navigation.py         # /api/navigation/*
 │   │   ├── map.py                # /api/map/*
-│   │   └── settings.py           # /api/settings
+│   │   ├── reception.py         # /api/reception/*
+│   │   ├── tour.py              # /api/tour/* (visite guidée)
+│   │   └── settings.py          # /api/settings
 │   ├── services/
 │   │   └── robot_service.py      # Façade mock / réel
 │   └── websocket/

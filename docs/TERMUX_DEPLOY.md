@@ -122,7 +122,8 @@ Le backend complet (FastAPI + pydantic) nécessite ~2 Go libres pour compiler Ru
 Sur la tablette RK3399 (8 Go, souvent >90 % plein), utilisez le **mode lite** :
 
 - `scripts/termux/cybel_lite.py` — Starlette, sans pydantic
-- API kiosque : actions, FAQ, TTS local, navigation ROS
+- API : actions, FAQ, TTS local, navigation ROS, **API tour** (`/api/tour/*`)
+- Données : `data/lab_tour.json`, `data/knowledgeV2-lab.json`
 - Dépendances : `uvicorn`, `starlette`, `websockets` uniquement
 
 ```bash
@@ -133,13 +134,12 @@ python scripts/termux_lite_deploy.py
 
 Le script tente d'abord `bootstrap_lite.sh`, puis le bootstrap complet en secours.
 
-**Important** : avant déploiement, reconstruire le kiosk avec le plugin legacy
-(obligatoire pour WebView Android 7.1) :
+**Important** : avant déploiement, reconstruire le kiosk (bundle **IIFE** pour WebView 7.1) :
 
 ```bash
 cd frontend-kiosk
 npm install
-npm run build    # produit index-legacy-*.js + polyfills-legacy-*.js
+npm run build    # produit assets/app.js (sans type="module")
 ```
 
 ### Déploiement complet (poste de dev puissant / tablette avec espace)
