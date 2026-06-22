@@ -144,6 +144,52 @@ async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None
         )
 
 
+def estimate_speech_seconds(text: str) -> float:
+    return min(max(len(text.strip()) * 0.055, 1.5), 90.0)
+
+
+async def wait_for_navigation_arrival(timeout: float = 300.0) -> bool:
+    uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    saw_active = False
+    activation_deadline = loop.time() + 12.0
+
+    async with websockets.connect(uri, open_timeout=5) as ws:
+        await ws.send(
+            json.dumps(
+                {
+                    "op": "subscribe",
+                    "topic": "/robot_status",
+                    "throttle_rate": 500,
+                }
+            )
+        )
+        while loop.time() < deadline:
+            try:
+                raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+            except asyncio.TimeoutError:
+                if not saw_active and loop.time() > activation_deadline:
+                    return False
+                continue
+            data = json.loads(raw)
+            if data.get("topic") != "/robot_status":
+                continue
+            msg = data.get("msg") or {}
+            nav_status = int(msg.get("nav_status") or msg.get("nav_internal_status") or 0)
+            if nav_status == 602:
+                saw_active = True
+            if nav_status == 604:
+                return False
+            if saw_active and nav_status == 603:
+                velocity = msg.get("velocity") or [0.0, 0.0]
+                if abs(velocity[0]) < 0.05 and abs(velocity[1]) < 0.05:
+                    return True
+            if not saw_active and loop.time() > activation_deadline:
+                return False
+    return False
+
+
 async def stop_robot() -> None:
     try:
         await ros_call_service("/path_follower/cancel", {})
@@ -221,13 +267,21 @@ def get_tour_engine() -> TourEngine:
         async def speak(text: str) -> None:
             if not speak_local(text):
                 raise RuntimeError("TTS échoué")
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(estimate_speech_seconds(text))
 
         async def navigate(stop) -> None:
             if stop.has_coordinates():
                 await navigate_to_coordinate(stop.x, stop.y, stop.theta or 0.0)
+                if not await wait_for_navigation_arrival():
+                    raise RuntimeError(
+                        f"Le robot n'est pas arrivé à {stop.equipment_fr}"
+                    )
             elif stop.target_point:
                 await navigate_to_point(str(stop.target_point))
+                if not await wait_for_navigation_arrival():
+                    raise RuntimeError(
+                        f"Le robot n'est pas arrivé au point '{stop.target_point}'"
+                    )
             else:
                 raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
 

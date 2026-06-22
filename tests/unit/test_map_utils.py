@@ -32,5 +32,7 @@ def test_is_coordinate_navigable():
     m = _sample_map()
     assert is_coordinate_navigable(m, 0.5, 0.5) is True
     assert is_coordinate_navigable(m, 2.5, 0.5) is False
-    assert is_coordinate_navigable(m, 0.5, 1.5) is False  # valeur 50 >= seuil 65? 50 < 65 -> True
-    assert is_coordinate_navigable(m, 5.0, 5.0) is False  # hors carte
+    assert is_coordinate_navigable(m, 0.5, 1.5, strict=True) is False  # inconnu
+    assert is_coordinate_navigable(m, 0.5, 1.5, strict=False) is True  # OK pour /navi_goal
+    assert is_coordinate_navigable(m, 5.0, 5.0, strict=True) is False
+    assert is_coordinate_navigable(m, 5.0, 5.0, strict=False) is True

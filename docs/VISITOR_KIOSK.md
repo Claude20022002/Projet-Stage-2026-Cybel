@@ -29,7 +29,17 @@ Contrairement au tableau de bord opérateur (`frontend/`, port `5173`), le kiosq
 - **Fin** : écran de conclusion, possibilité de relancer une visite ;
 - **Bascule FR / EN** : textes affichés et annonces vocales.
 
-Le robot exécute le parcours de façon **autonome** : approche vocale → navigation (`/navi_goal`) → présentation à l'arrivée → pause d'observation → arrêt suivant.
+Le robot exécute le parcours de façon **autonome** : navigation (`/navi_goal`) → présentation à l'arrivée → pause d'observation → arrêt suivant.
+
+### Mode déployé (sans PC, sans câble USB)
+
+Sur la tablette / tête Android (Termux + `cybel_lite.py`) :
+
+- **Navigation** : rosbridge vers le châssis (`ROBOT_HOST`, ex. `192.168.20.22`)
+- **TTS** : `am broadcast` local (`speak_local`) — **pas d'ADB**, pas de PC
+- **Démarrage visite** : app kiosque `CybelVisitorKiosk` ou dashboard si le backend tablette est joignable
+
+Le contrôleur PC (`frontend/`) reste utile pour la supervision et l'édition du parcours ; la visite visiteur peut tourner **100 % sur la tablette**.
 
 L'interface est servie par le backend (`/kiosk/`) et affichée dans l'app Android `CybelVisitorKiosk` (WebView plein écran).
 
