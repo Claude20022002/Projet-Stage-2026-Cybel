@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     speech_http_path: str = ""
     speech_adb_serial: str = ""
     speech_local_broadcast: bool = False
+    kiosk_backend_url: str = "http://172.16.0.131:8000"
     backend_port: int = 8000
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

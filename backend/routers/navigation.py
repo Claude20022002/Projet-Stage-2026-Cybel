@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from sdk.models import AddPointCommand, NavigateCommand, NavigateCoordinateCommand, Point
 from services.robot_service import robot_service
+from services.tour_service import tour_service
 
 router = APIRouter(prefix="/api/navigation", tags=["navigation"])
 
@@ -47,5 +48,6 @@ async def navigate_to_coordinate(command: NavigateCoordinateCommand) -> dict:
 
 @router.post("/cancel")
 async def cancel_navigation() -> dict:
+    await tour_service.stop()
     await robot_service.stop()
     return {"ok": True}

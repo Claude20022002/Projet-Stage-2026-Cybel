@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Literal
@@ -83,10 +85,72 @@ def default_tour_path() -> Path:
     return Path(__file__).resolve().parent.parent / "data" / "lab_tour.json"
 
 
-def load_lab_tour(path: Path | None = None) -> LabTour:
+def load_tour_data(path: Path | None = None) -> dict:
     tour_path = path or default_tour_path()
     with open(tour_path, encoding="utf-8") as f:
-        raw = json.load(f)
+        return json.load(f)
+
+
+def save_tour_data(data: dict, path: Path | None = None) -> None:
+    tour_path = path or default_tour_path()
+    tour_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(tour_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def slugify(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "_", ascii_text.lower()).strip("_")
+    return slug or "stop"
+
+
+def validate_stop_dict(stop: dict) -> dict:
+    stop_id = str(stop.get("id", "")).strip() or slugify(
+        str(stop.get("equipment_fr", "stop"))
+    )
+    equipment_fr = str(stop.get("equipment_fr", "")).strip()
+    if not equipment_fr:
+        raise ValueError("equipment_fr est requis")
+    has_coords = stop.get("x") is not None and stop.get("y") is not None
+    has_point = bool(stop.get("target_point"))
+    if not has_coords and not has_point:
+        raise ValueError("Chaque arrêt doit avoir des coordonnées (x, y) ou un target_point")
+    return {
+        "id": stop_id,
+        "name_fr": str(stop.get("name_fr", equipment_fr)),
+        "name_en": str(stop.get("name_en", stop.get("name_fr", equipment_fr))),
+        "equipment_fr": equipment_fr,
+        "equipment_en": str(stop.get("equipment_en", equipment_fr)),
+        "speech_fr": str(stop.get("speech_fr", "")),
+        "speech_en": str(stop.get("speech_en", stop.get("speech_fr", ""))),
+        **({"target_point": str(stop["target_point"])} if has_point else {}),
+        **(
+            {
+                "x": float(stop["x"]),
+                "y": float(stop["y"]),
+                "theta": float(stop.get("theta", 0)),
+            }
+            if has_coords
+            else {}
+        ),
+        **(
+            {"approach_speech_fr": stop["approach_speech_fr"]}
+            if stop.get("approach_speech_fr")
+            else {}
+        ),
+        **(
+            {"approach_speech_en": stop["approach_speech_en"]}
+            if stop.get("approach_speech_en")
+            else {}
+        ),
+        "dwell_seconds": float(stop.get("dwell_seconds", 12)),
+    }
+
+
+def load_lab_tour(path: Path | None = None) -> LabTour:
+    raw = load_tour_data(path)
     stops = [
         TourStop(
             id=str(s["id"]),

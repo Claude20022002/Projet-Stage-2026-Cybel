@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from sdk.models import MoveCommand, Pose, RobotStatus
 from services.robot_service import robot_service
+from services.tour_service import tour_service
 
 router = APIRouter(prefix="/api/robot", tags=["robot"])
 
@@ -36,12 +37,13 @@ async def move(command: MoveCommand) -> dict:
 
 @router.post("/stop")
 async def stop() -> dict:
-    await robot_service.stop()
+    await tour_service.halt()
     return {"ok": True}
 
 
 @router.post("/emergency-stop")
 async def emergency_stop() -> dict:
+    await tour_service.halt()
     await robot_service.emergency_stop()
     return {"ok": True}
 
