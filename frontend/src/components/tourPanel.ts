@@ -4,8 +4,10 @@ import type { LabTourData, TourStatus, TourStopData } from "../types";
 export function renderTourPanel(
   tour: LabTourData | null,
   tourStatus: TourStatus | null,
-  editingStopId: string | null
+  editingStopId: string | null,
+  options?: { pageMode?: boolean }
 ): string {
+  const pageMode = options?.pageMode ?? false;
   const running = tourStatus?.state === "running";
   const stops = tour?.stops ?? [];
   const editing = editingStopId
@@ -13,9 +15,9 @@ export function renderTourPanel(
     : null;
 
   return `
-    <section class="tour-panel card">
-      <div class="tour-panel__header">
-        <h2>Visite guidée</h2>
+    <section class="tour-panel card${pageMode ? " tour-panel--page" : ""}">
+      <div class="tour-panel__header${pageMode ? " tour-panel__header--solo" : ""}">
+        ${pageMode ? "" : "<h2>Visite guidée</h2>"}
         <span class="tour-panel__badge tour-panel__badge--${tourStatus?.state ?? "idle"}">
           ${tourStatusLabel(tourStatus)}
         </span>
@@ -144,6 +146,10 @@ function renderStopForm(stop: TourStopData | null): string {
       <label class="tour-form__field">
         <span>Zone / nom (FR)</span>
         <input id="tour-name-fr" type="text" value="${v("name_fr")}" />
+      </label>
+      <label class="tour-form__field">
+        <span>Phrase d'approche (FR, optionnel)</span>
+        <textarea id="tour-approach-fr" rows="2" placeholder="Ex. : Direction le routeur CNC…">${v("approach_speech_fr")}</textarea>
       </label>
       <label class="tour-form__field">
         <span>Présentation vocale (FR)</span>

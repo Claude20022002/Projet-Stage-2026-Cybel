@@ -101,7 +101,7 @@ export interface SpeechStatus {
   mock: boolean;
 }
 
-export type AppPage = "dashboard" | "settings";
+export type AppPage = "dashboard" | "tour" | "settings";
 
 export interface TourStopData {
   id: string;

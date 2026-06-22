@@ -143,7 +143,7 @@ class MockRobot:
         theta: float | None = None,
     ) -> Point:
         point = Point(
-            id=f"p{len(self.points) + 1}",
+            id=f"local-{len(self.points) + 1}",
             name=name,
             type=type,  # type: ignore[arg-type]
             x=x if x is not None else self.pose.x,
@@ -155,6 +155,20 @@ class MockRobot:
         await self._emit("points", {"points": [p.model_dump() for p in self.points]})
         await self._emit("event", {"message": f"Point '{name}' ajouté"})
         return point
+
+    async def delete_point(self, name: str) -> bool:
+        index = next((i for i, p in enumerate(self.points) if p.name == name), None)
+        if index is None:
+            return False
+        if not self.points[index].id.startswith("local-"):
+            return False
+        del self.points[index]
+        if self.navigating_to == name:
+            self.navigating_to = None
+            self.status.navigating_to = None
+        await self._emit("points", {"points": [p.model_dump() for p in self.points]})
+        await self._emit("event", {"message": f"Point '{name}' supprimé"})
+        return True
 
     def get_map(self) -> MapData | None:
         return self.map_data.model_copy(deep=True)

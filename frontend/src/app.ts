@@ -2,13 +2,14 @@ import { api } from "./api";
 import { renderControls, renderEventsLog } from "./components/controls";
 import { renderLayout } from "./components/layout";
 import { canvasToWorld, computeScaleMetersPerPixel, drawMap, getCellValue, renderMapCanvas } from "./components/mapView";
-import { renderMapInfoCard } from "./components/legend";
 import { renderPointsList } from "./components/pointsList";
 import { renderReceptionPanel } from "./components/receptionPanel";
+import { renderTourBanner } from "./components/tourBanner";
 import { renderTourPanel } from "./components/tourPanel";
 import { renderRobotCard, renderStatusBar } from "./components/statusBar";
 import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
+import { renderTourPage } from "./pages/tour";
 import { connectTelemetry } from "./telemetry";
 import {
   state,
@@ -24,6 +25,7 @@ import {
   setTourStatus,
   pushEvent,
 } from "./state";
+import type { AppPage } from "./types";
 
 const MOVE_SPEED = 0.2;
 const ROTATE_SPEED = 0.5;
@@ -40,6 +42,7 @@ let pingStartedAt: number | null = null;
 let tourPollTimer: number | null = null;
 let pingRaf: number | null = null;
 let lastTourPanelKey = "";
+let lastTourBannerKey = "";
 
 function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
@@ -52,9 +55,8 @@ function renderDashboardContent(): string {
         <div class="dashboard__left">
           <div id="robot-card-container">${renderRobotCard(state.status, state.wsConnected)}</div>
           <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
-          <div id="legend-card-container">${renderMapInfoCard(state.map)}</div>
           <div id="reception-panel-container">${renderReceptionPanel(state.actions, state.voiceListening, state.speech)}</div>
-          <div id="tour-panel-container">${renderTourPanel(state.tour, state.tourStatus, state.tourEditingStopId)}</div>
+          <div id="tour-banner-container">${renderTourBanner(state.tour, state.tourStatus)}</div>
         </div>
         <div id="map-panel-container">${renderMapCanvas(state.map, softEstop)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
@@ -70,9 +72,13 @@ function renderApp(): void {
   const content =
     state.page === "settings"
       ? renderSettingsPage(state.settings)
-      : renderDashboardContent();
+      : state.page === "tour"
+        ? renderTourPage(state.tour, state.tourStatus, state.tourEditingStopId)
+        : renderDashboardContent();
 
-  app.innerHTML = renderLayout(state.page, content);
+  app.innerHTML = renderLayout(state.page, content, {
+    tourActive: state.tourStatus?.state === "running",
+  });
   lastPage = state.page;
   controlsBound = false;
 
@@ -80,10 +86,12 @@ function renderApp(): void {
   if (state.page === "dashboard") {
     bindPointEvents();
     bindReceptionEvents();
-    bindTourEvents();
+    bindTourBannerEvents();
     bindControlEvents();
     bindMapToolbarEvents();
     updateMapCanvas();
+  } else if (state.page === "tour") {
+    bindTourEvents();
   } else {
     bindSettingsEvents(() => api.getSettings().then(setSettings).catch(() => {}));
   }
@@ -92,7 +100,7 @@ function renderApp(): void {
 function bindLayoutEvents(): void {
   document.querySelectorAll("[data-page]").forEach((el) => {
     el.addEventListener("click", () => {
-      const page = (el as HTMLElement).dataset.page as "dashboard" | "settings";
+      const page = (el as HTMLElement).dataset.page as AppPage;
       if (page && page !== state.page) setPage(page);
     });
   });
@@ -149,8 +157,6 @@ function updateMapPanel(force = false): void {
       el.innerHTML = renderMapCanvas(state.map, softEstop);
       bindMapToolbarEvents();
     }
-    const legendEl = document.getElementById("legend-card-container");
-    if (legendEl) legendEl.innerHTML = renderMapInfoCard(state.map);
   }
   updateMapCanvas();
 }
@@ -307,7 +313,7 @@ function bindReceptionEvents(): void {
 }
 
 function updateTourPanel(force = false): void {
-  if (state.page !== "dashboard") return;
+  if (state.page !== "tour") return;
   const key = JSON.stringify({
     stops: state.tour?.stops?.map((s) => s.id).join(","),
     state: state.tourStatus?.state,
@@ -321,9 +327,48 @@ function updateTourPanel(force = false): void {
 
   const el = document.getElementById("tour-panel-container");
   if (el) {
-    el.innerHTML = renderTourPanel(state.tour, state.tourStatus, state.tourEditingStopId);
+    el.innerHTML = renderTourPanel(state.tour, state.tourStatus, state.tourEditingStopId, {
+      pageMode: true,
+    });
     bindTourEvents();
   }
+}
+
+function updateTourBanner(force = false): void {
+  if (state.page !== "dashboard") return;
+  const key = JSON.stringify({
+    stops: state.tour?.stops?.length,
+    state: state.tourStatus?.state,
+    index: state.tourStatus?.current_index,
+    equipment: state.tourStatus?.current_equipment,
+  });
+  if (!force && key === lastTourBannerKey) return;
+  lastTourBannerKey = key;
+
+  const el = document.getElementById("tour-banner-container");
+  if (el) {
+    el.innerHTML = renderTourBanner(state.tour, state.tourStatus);
+    bindTourBannerEvents();
+  }
+}
+
+function bindTourBannerEvents(): void {
+  document.querySelectorAll("#tour-banner-container [data-page]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const page = (el as HTMLElement).dataset.page as AppPage;
+      if (page) setPage(page);
+    });
+  });
+
+  document.getElementById("btn-tour-banner-halt")?.addEventListener("click", async () => {
+    try {
+      await api.haltTour();
+      pushEvent("Arrêt total : visite et robot interrompus");
+      setTourStatus(await api.getTourStatus());
+    } catch (err) {
+      pushEvent(`Erreur arrêt total : ${(err as Error).message}`);
+    }
+  });
 }
 
 function bindTourEvents(): void {
@@ -414,6 +459,7 @@ function bindTourEvents(): void {
       equipment_fr: equipment,
       name_fr: (document.getElementById("tour-name-fr") as HTMLInputElement).value.trim() || equipment,
       speech_fr: (document.getElementById("tour-speech-fr") as HTMLTextAreaElement).value.trim(),
+      approach_speech_fr: (document.getElementById("tour-approach-fr") as HTMLTextAreaElement).value.trim() || undefined,
       x: parseFloat((document.getElementById("tour-x") as HTMLInputElement).value),
       y: parseFloat((document.getElementById("tour-y") as HTMLInputElement).value),
       theta: parseFloat((document.getElementById("tour-theta") as HTMLInputElement).value) || 0,
@@ -484,6 +530,27 @@ function bindPointEvents(): void {
     });
   });
 
+  document.querySelectorAll("[data-delete-point]").forEach((el) => {
+    el.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const name = (el as HTMLElement).dataset.deletePoint;
+      if (!name) return;
+      if (!window.confirm(`Supprimer le point « ${name} » ?`)) return;
+      try {
+        await api.deletePoint(name);
+        const points = await api.getPoints();
+        setPoints(points);
+        if (state.selectedPoint === name) {
+          setSelectedPoint(points[0]?.name ?? null);
+        }
+        pushEvent(`Point « ${name} » supprimé`);
+        updatePointsPanel(true);
+      } catch (err) {
+        pushEvent(`Erreur suppression : ${(err as Error).message}`);
+      }
+    });
+  });
+
   document.getElementById("btn-navigate")?.addEventListener("click", async () => {
     if (!state.selectedPoint) return;
     try {
@@ -513,6 +580,16 @@ function bindPointEvents(): void {
       pushEvent(`Point '${point.name}' ajouté à la position actuelle`);
     } catch (err) {
       pushEvent(`Erreur ajout point : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-refresh-points")?.addEventListener("click", async () => {
+    try {
+      setPoints(await api.getPoints());
+      pushEvent("Liste des points actualisée");
+      updatePointsPanel(true);
+    } catch (err) {
+      pushEvent(`Erreur actualisation points : ${(err as Error).message}`);
     }
   });
 }
@@ -632,7 +709,7 @@ function onStateChange(): void {
     }
     updateMapPanel();
     updateMapCanvas();
-    updateTourPanel();
+    updateTourBanner();
     updateEventsLog();
 
     const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
@@ -647,6 +724,8 @@ function onStateChange(): void {
         Boolean(document.getElementById("btn-release-estop")) !== newEstop;
       if (needsRerender) updateControls();
     }
+  } else if (state.page === "tour") {
+    updateTourPanel();
   }
 }
 

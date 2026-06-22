@@ -30,8 +30,28 @@ async def add_point(command: AddPointCommand) -> Point:
     )
 
 
+@router.delete("/points/{point_name}")
+async def delete_point(point_name: str) -> dict:
+    success = await robot_service.delete_point(point_name)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Impossible de supprimer « {point_name} » "
+                "(introuvable ou point carte robot non supprimable)"
+            ),
+        )
+    return {"ok": True, "point": point_name}
+
+
 @router.post("/goto")
 async def navigate_to(command: NavigateCommand) -> dict:
+    status = robot_service.get_status()
+    if not status.connected:
+        raise HTTPException(
+            status_code=503,
+            detail="Navigation impossible : liaison rosbridge coupée (reconnexion en cours)",
+        )
     success = await robot_service.navigate_to_point(command.point_name)
     if not success:
         raise HTTPException(status_code=404, detail=f"Point '{command.point_name}' introuvable")
@@ -40,9 +60,18 @@ async def navigate_to(command: NavigateCommand) -> dict:
 
 @router.post("/goto-coordinate")
 async def navigate_to_coordinate(command: NavigateCoordinateCommand) -> dict:
+    status = robot_service.get_status()
+    if not status.connected:
+        raise HTTPException(
+            status_code=503,
+            detail="Navigation impossible : liaison rosbridge coupée (reconnexion en cours)",
+        )
     success = await robot_service.navigate_to_coordinate(command.x, command.y, command.theta)
     if not success:
-        raise HTTPException(status_code=400, detail="Navigation impossible (robot non connecté)")
+        raise HTTPException(
+            status_code=400,
+            detail="Navigation impossible : destination inaccessible (obstacle ou hors carte)",
+        )
     return {"ok": True, "x": command.x, "y": command.y}
 
 

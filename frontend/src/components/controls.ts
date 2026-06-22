@@ -11,7 +11,11 @@ export function renderControls(manualMode: boolean, softEstop: boolean): string 
           <span class="toggle__label">Mode manuel</span>
         </label>
         <p class="controls-panel__hint">
-          Activez le mode manuel pour piloter le robot à la main.
+          ${
+            manualMode
+              ? "Maintenez les flèches pour déplacer le robot."
+              : "Activez le <strong>mode manuel</strong> pour piloter le robot à la télécommande."
+          }
         </p>
       </div>
 

@@ -143,25 +143,44 @@ class RealRobot:
 
     async def start(self) -> None:
         self._client.on_message(self._on_ros_message)
+        self._client.on_disconnect(self._on_ros_disconnect)
+        self._ensure_reconnect_loop()
         connected = await self._client.connect()
         self.status.connected = connected
 
         if not connected:
             await self._emit("event", {"message": "Robot inaccessible — vérifiez le WiFi"})
             await self._emit("status", self.status.model_dump())
-            self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return
 
+        await self._after_connect(announce=True)
+
+    def _ensure_reconnect_loop(self) -> None:
+        if self._reconnect_task and not self._reconnect_task.done():
+            return
+        self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+
+    async def _after_connect(self, *, announce: bool = False) -> None:
         await self._subscribe_topics()
         await self._load_points()
         await self._load_map()
-        await self._emit("event", {"message": "Connecté au robot"})
+        if announce:
+            await self._emit("event", {"message": "Connecté au robot"})
         await self._emit("status", self.status.model_dump())
         await self._emit("pose", self.pose.model_dump())
         if self.map_data:
             await self._emit("map", self.map_data.model_dump())
         if self._auto_relocalize_on_connect:
+            if self._relocalize_task and not self._relocalize_task.done():
+                self._relocalize_task.cancel()
             self._relocalize_task = asyncio.create_task(self._auto_relocalize_if_needed())
+
+    async def _on_ros_disconnect(self) -> None:
+        if self.status.connected:
+            self.status.connected = False
+            await self._emit("event", {"message": "Connexion robot perdue — reconnexion…"})
+            await self._emit("status", self.status.model_dump())
+        self._ensure_reconnect_loop()
 
     async def _auto_relocalize_if_needed(self) -> None:
         await asyncio.sleep(2.0)
@@ -200,11 +219,8 @@ class RealRobot:
 
             if await self._client.connect():
                 self.status.connected = True
-                await self._subscribe_topics()
-                await self._load_points()
-                await self._load_map()
+                await self._after_connect()
                 await self._emit("event", {"message": "Robot reconnecté"})
-                await self._emit("status", self.status.model_dump())
 
     async def _subscribe_topics(self) -> None:
         for topic, throttle in (
@@ -413,6 +429,7 @@ class RealRobot:
             await self._emit("points", {"points": [p.model_dump() for p in self._points]})
 
     def get_status(self) -> RobotStatus:
+        self.status.connected = self._client.connected
         return self.status.model_copy(deep=True)
 
     def get_pose(self) -> Pose:
@@ -474,10 +491,13 @@ class RealRobot:
         mode = 0 if enabled else 1
         await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": mode})
         self._manual_mode = enabled
+        self.status.nav_mode = "manual" if enabled else "auto_navi"
+        self.status.nav_mode_label = nav_mode_label(self.status.nav_mode)
         await self._emit(
             "event",
             {"message": "Mode manuel activé" if enabled else "Mode automatique activé"},
         )
+        await self._emit("status", self.status.model_dump())
 
     async def global_localization(self) -> bool:
         """Relance la relocalisation globale (recalage du lidar sur la carte).
@@ -632,6 +652,33 @@ class RealRobot:
         await self._emit("points", {"points": [p.model_dump() for p in self._points]})
         await self._emit("event", {"message": f"Point '{name}' ajouté"})
         return point
+
+    async def delete_point(self, name: str) -> bool:
+        index = next((i for i, p in enumerate(self._points) if p.name == name), None)
+        if index is None:
+            return False
+
+        point = self._points[index]
+        if not point.id.startswith("local-"):
+            return False
+
+        if self._client.connected:
+            for command in ("delete", "remove", "del"):
+                try:
+                    await self._client.call_service(
+                        ROS_SERVICES["poi"],
+                        {"name": name, "point_name": name, "command": command},
+                    )
+                    break
+                except Exception:
+                    pass
+
+        del self._points[index]
+        if self.status.navigating_to == name:
+            self.status.navigating_to = None
+        await self._emit("points", {"points": [p.model_dump() for p in self._points]})
+        await self._emit("event", {"message": f"Point '{name}' supprimé"})
+        return True
 
     async def navigate_to_point(self, point_name: str) -> bool:
         target = next((p for p in self._points if p.name == point_name), None)

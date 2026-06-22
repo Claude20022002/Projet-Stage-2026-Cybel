@@ -37,6 +37,7 @@ class RobotBackend(Protocol):
         self, name: str, type: str = "common", x: float | None = None,
         y: float | None = None, theta: float | None = None
     ) -> Point: ...
+    async def delete_point(self, name: str) -> bool: ...
     def get_speech_status(self) -> SpeechStatus: ...
     async def speak(self, text: str, interrupt: bool = True) -> dict: ...
     async def wait_for_speech(self, text: str) -> None: ...
@@ -152,6 +153,9 @@ class RobotService:
         y: float | None = None, theta: float | None = None
     ) -> Point:
         return await self._require().add_point(name, type=type, x=x, y=y, theta=theta)
+
+    async def delete_point(self, name: str) -> bool:
+        return await self._require().delete_point(name)
 
     def get_speech_status(self) -> SpeechStatus:
         return self._require().get_speech_status()

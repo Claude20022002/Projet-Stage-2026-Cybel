@@ -1,8 +1,12 @@
 import { icons } from "../icons";
+import type { AppPage } from "../types";
 
-export type AppPage = "dashboard" | "settings";
-
-export function renderLayout(activePage: AppPage, content: string): string {
+export function renderLayout(
+  activePage: AppPage,
+  content: string,
+  options?: { tourActive?: boolean }
+): string {
+  const tourActive = options?.tourActive ?? false;
   return `
     <div class="app-shell">
       <aside class="sidebar">
@@ -18,6 +22,15 @@ export function renderLayout(activePage: AppPage, content: string): string {
           >
             ${icons.map("icon", 18)}
             <span>Contrôle</span>
+          </button>
+          <button
+            class="sidebar__link ${activePage === "tour" ? "sidebar__link--active" : ""}"
+            data-page="tour"
+            type="button"
+          >
+            ${icons.route("icon", 18)}
+            <span>Visite</span>
+            ${tourActive ? '<span class="sidebar__link-dot" aria-hidden="true"></span>' : ""}
           </button>
           <button
             class="sidebar__link ${activePage === "settings" ? "sidebar__link--active" : ""}"

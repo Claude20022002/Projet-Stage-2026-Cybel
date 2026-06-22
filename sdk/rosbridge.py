@@ -20,6 +20,7 @@ class RosbridgeClient:
         self._handlers: list[MessageHandler] = []
         self._pending_services: dict[str, asyncio.Future] = {}
         self._connected = False
+        self._disconnect_handlers: list[Callable[[], Awaitable[None]]] = []
 
     @property
     def connected(self) -> bool:
@@ -27,6 +28,9 @@ class RosbridgeClient:
 
     def on_message(self, handler: MessageHandler) -> None:
         self._handlers.append(handler)
+
+    def on_disconnect(self, handler: Callable[[], Awaitable[None]]) -> None:
+        self._disconnect_handlers.append(handler)
 
     async def connect(self, timeout: float = 5.0) -> bool:
         try:
@@ -83,6 +87,11 @@ class RosbridgeClient:
         except Exception as exc:
             logger.warning("Écoute rosbridge interrompue: %s", exc)
             self._connected = False
+            for handler in self._disconnect_handlers:
+                try:
+                    await handler()
+                except Exception as handler_exc:
+                    logger.warning("Handler déconnexion rosbridge: %s", handler_exc)
 
     async def _send(self, payload: dict[str, Any]) -> None:
         if not self._ws:

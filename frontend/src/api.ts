@@ -49,6 +49,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(command),
     }),
+  deletePoint: (name: string) =>
+    request<{ ok: boolean; point: string }>(
+      `/api/navigation/points/${encodeURIComponent(name)}`,
+      { method: "DELETE" }
+    ),
   getMap: () => request<MapData>("/api/map/current"),
   move: (command: MoveCommand) =>
     request("/api/robot/move", {
