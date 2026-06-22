@@ -267,7 +267,9 @@ class MockRobot:
             await asyncio.sleep(0.2)
         return False
 
-    async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
+    async def navigate_to_coordinate(
+        self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
+    ) -> bool:
         if self._navigation_task:
             self._navigation_task.cancel()
 

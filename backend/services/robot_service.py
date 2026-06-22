@@ -140,8 +140,12 @@ class RobotService:
     async def navigate_to_point(self, point_name: str) -> bool:
         return await self._require().navigate_to_point(point_name)
 
-    async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
-        return await self._require().navigate_to_coordinate(x, y, theta)
+    async def navigate_to_coordinate(
+        self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
+    ) -> bool:
+        return await self._require().navigate_to_coordinate(
+            x, y, theta, check_map=check_map
+        )
 
     async def add_point(
         self, name: str, type: str = "common", x: float | None = None,
