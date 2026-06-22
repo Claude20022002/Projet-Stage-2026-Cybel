@@ -580,6 +580,29 @@ body {
     color: #991b1b;
 }
 
+.tour-panel__live {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.tour-panel__phase {
+  font-size: 0.85rem;
+  color: var(--color-accent);
+}
+
+.tour-panel__error {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  font-size: 0.88rem;
+}
+
+.tour-panel__controls {
+  margin-bottom: 0.75rem;
+}
+
 .tour-panel__hint,
 .tour-panel__live {
     font-size: 0.75rem;

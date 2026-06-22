@@ -325,6 +325,18 @@ function updateTourPanel(force = false): void {
 }
 
 function bindTourEvents(): void {
+  document.getElementById("btn-tour-start")?.addEventListener("click", async () => {
+    try {
+      const result = await api.startTour("fr");
+      if (result.status) setTourStatus(result.status);
+      pushEvent("Visite guidée démarrée");
+      startTourPolling();
+      updateTourPanel(true);
+    } catch (err) {
+      pushEvent(`Visite : ${(err as Error).message}`);
+    }
+  });
+
   document.getElementById("btn-tour-halt")?.addEventListener("click", async () => {
     try {
       await api.haltTour();
@@ -432,6 +444,10 @@ function startTourPolling(): void {
     try {
       const status = await api.getTourStatus();
       setTourStatus(status);
+      updateTourPanel();
+      if (status.state === "error" && status.error) {
+        pushEvent(`Visite : ${status.error}`);
+      }
       if (status.state !== "running" && tourPollTimer !== null) {
         window.clearInterval(tourPollTimer);
         tourPollTimer = null;
