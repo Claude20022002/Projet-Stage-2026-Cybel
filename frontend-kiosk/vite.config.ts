@@ -1,19 +1,36 @@
-import legacy from "@vitejs/plugin-legacy";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 
-/** WebView Android 7.x (Chrome ~51) : pas de ES modules ni syntaxe récente. */
+/** Retire type="module" — incompatible WebView Android 7.1 */
+function stripModuleType(): Plugin {
+  return {
+    name: "strip-module-type",
+    transformIndexHtml(html) {
+      return html
+        .replace(/\s*type="module"\s*/g, " ")
+        .replace(/\s*crossorigin\s*/g, " ");
+    },
+  };
+}
+
+/**
+ * WebView Android 7.1 (Chrome ~51) : un seul bundle IIFE, sans ES modules.
+ */
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/kiosk/" : "/",
+  plugins: [stripModuleType()],
   build: {
-    target: "es2015",
+    target: "chrome49",
+    cssTarget: "chrome49",
     modulePreload: false,
+    rollupOptions: {
+      output: {
+        format: "iife",
+        entryFileNames: "assets/app.js",
+        assetFileNames: "assets/[name][extname]",
+        inlineDynamicImports: true,
+      },
+    },
   },
-  plugins: [
-    legacy({
-      targets: ["chrome >= 49", "android >= 7"],
-      renderModernChunks: false,
-    }),
-  ],
   server: {
     port: 5174,
     proxy: {

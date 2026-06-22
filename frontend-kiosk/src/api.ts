@@ -1,4 +1,4 @@
-import type { FaqEntry, Lang, ReceptionAction } from "./types";
+import type { LabTourInfo, Lang, TourStatus } from "./types";
 
 const API_BASE = "";
 
@@ -15,16 +15,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getActions: () => request<ReceptionAction[]>("/api/reception/actions"),
-  executeAction: (actionId: string, lang: Lang) =>
-    request<{ ok: boolean; events?: string[] }>(
-      `/api/reception/actions/${actionId}/execute?lang=${lang}`,
-      { method: "POST" }
-    ),
-  getFaq: () => request<FaqEntry[]>("/api/knowledge/faq"),
-  speak: (text: string, interrupt = true) =>
-    request<{ ok: boolean; method?: string }>("/api/speech/say", {
+  getTour: () => request<LabTourInfo>("/api/tour"),
+  getTourStatus: () => request<TourStatus>("/api/tour/status"),
+  startTour: (lang: Lang) =>
+    request<{ ok: boolean; status?: TourStatus }>(`/api/tour/start?lang=${lang}`, {
       method: "POST",
-      body: JSON.stringify({ text, interrupt }),
     }),
+  stopTour: () =>
+    request<{ ok: boolean; status?: TourStatus }>("/api/tour/stop", { method: "POST" }),
 };

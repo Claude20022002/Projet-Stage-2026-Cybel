@@ -1,0 +1,78 @@
+{
+  "id": "labo_principal",
+  "title_fr": "Visite du laboratoire",
+  "title_en": "Laboratory tour",
+  "subtitle_fr": "Découvrez nos équipements en suivant le robot",
+  "subtitle_en": "Discover our equipment by following the robot",
+  "intro_speech_fr": "Bienvenue dans notre laboratoire. Je vais vous faire découvrir nos équipements. Suivez-moi, la visite est entièrement guidée.",
+  "intro_speech_en": "Welcome to our laboratory. I will show you our equipment. Please follow me for a fully guided tour.",
+  "outro_speech_fr": "La visite du laboratoire est terminée. Merci de votre attention. Je reste disponible si vous avez des questions.",
+  "outro_speech_en": "The laboratory tour is complete. Thank you for your attention. I remain available if you have any questions.",
+  "stops": [
+    {
+      "id": "entree",
+      "name_fr": "Entrée du laboratoire",
+      "name_en": "Lab entrance",
+      "equipment_fr": "Zone d'accueil",
+      "equipment_en": "Reception area",
+      "target_point": "Accueil",
+      "approach_speech_fr": "Commençons par l'entrée du laboratoire.",
+      "approach_speech_en": "Let's start at the laboratory entrance.",
+      "speech_fr": "Vous êtes à l'entrée de notre laboratoire. Cet espace accueille visiteurs, étudiants et projets de recherche appliquée.",
+      "speech_en": "You are at the entrance of our laboratory. This area welcomes visitors, students, and applied research projects.",
+      "dwell_seconds": 10
+    },
+    {
+      "id": "robotique",
+      "name_fr": "Plateau robotique",
+      "name_en": "Robotics area",
+      "equipment_fr": "Robot mobile d'accueil",
+      "equipment_en": "Mobile reception robot",
+      "target_point": "Robotique",
+      "approach_speech_fr": "Direction le plateau robotique.",
+      "approach_speech_en": "Heading to the robotics area.",
+      "speech_fr": "Voici notre plateau robotique. Ce robot mobile illustre la navigation autonome, la synthèse vocale et l'interaction avec les visiteurs.",
+      "speech_en": "This is our robotics area. This mobile robot demonstrates autonomous navigation, speech synthesis, and visitor interaction.",
+      "dwell_seconds": 12
+    },
+    {
+      "id": "impression_3d",
+      "name_fr": "Atelier prototypage",
+      "name_en": "Prototyping workshop",
+      "equipment_fr": "Imprimante 3D",
+      "equipment_en": "3D printer",
+      "target_point": "Impression3D",
+      "approach_speech_fr": "Nous allons maintenant voir l'atelier de prototypage.",
+      "approach_speech_en": "We will now visit the prototyping workshop.",
+      "speech_fr": "Cette imprimante 3D permet de fabriquer rapidement des pièces pour les projets étudiants et les prototypes de recherche.",
+      "speech_en": "This 3D printer is used to quickly manufacture parts for student projects and research prototypes.",
+      "dwell_seconds": 12
+    },
+    {
+      "id": "automate",
+      "name_fr": "Automatisme industriel",
+      "name_en": "Industrial automation",
+      "equipment_fr": "Cellule automatisée",
+      "equipment_en": "Automated cell",
+      "target_point": "Automate",
+      "approach_speech_fr": "Continuons vers la cellule d'automatisme.",
+      "approach_speech_en": "Let's continue to the automation cell.",
+      "speech_fr": "Cette cellule automatisée présente les capteurs, actionneurs et la programmation de systèmes industriels.",
+      "speech_en": "This automated cell showcases sensors, actuators, and programming of industrial systems.",
+      "dwell_seconds": 12
+    },
+    {
+      "id": "salle_projet",
+      "name_fr": "Espace projets",
+      "name_en": "Project space",
+      "equipment_fr": "Bancs d'expérimentation",
+      "equipment_en": "Experiment benches",
+      "target_point": "Salle A",
+      "approach_speech_fr": "Pour finir, direction l'espace projets.",
+      "approach_speech_en": "Finally, let's head to the project space.",
+      "speech_fr": "Cet espace accueille les travaux pratiques et les projets d'équipe. Les étudiants y conçoivent, testent et valident leurs solutions.",
+      "speech_en": "This space hosts practical work and team projects. Students design, test, and validate their solutions here.",
+      "dwell_seconds": 10
+    }
+  ]
+}

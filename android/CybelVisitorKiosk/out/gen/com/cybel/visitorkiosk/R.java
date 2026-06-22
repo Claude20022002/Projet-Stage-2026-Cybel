@@ -12,4 +12,7 @@ public final class R {
     public static final int ic_launcher=0x7f010000;
     public static final int ic_launcher_round=0x7f010001;
   }
+  public static final class xml {
+    public static final int network_security_config=0x7f020000;
+  }
 }

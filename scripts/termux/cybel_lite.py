@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import uvicorn
@@ -19,7 +20,13 @@ from starlette.staticfiles import StaticFiles
 CYBEL_HOME = Path(os.environ.get("CYBEL_HOME", Path.home() / "cybel"))
 ACTIONS_PATH = CYBEL_HOME / "scripts" / "termux" / "actions.json"
 FAQ_PATH = CYBEL_HOME / "data" / "hestim_knowledge_base.json"
+TOUR_PATH = CYBEL_HOME / "data" / "lab_tour.json"
 KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
+
+if str(CYBEL_HOME) not in sys.path:
+    sys.path.insert(0, str(CYBEL_HOME))
+
+from sdk.lab_tour import TourEngine, load_lab_tour, tour_public_payload
 
 ROBOT_HOST = os.environ.get("ROBOT_HOST", "192.168.20.22")
 ROBOT_WS_PORT = int(os.environ.get("ROBOT_WS_PORT", "9090"))
@@ -153,6 +160,54 @@ async def execute_action(action_id: str, lang: str) -> dict:
     return {"ok": True, "action": action_id, "events": events}
 
 
+_tour_engine: TourEngine | None = None
+
+
+def get_tour_engine() -> TourEngine:
+    global _tour_engine
+    if _tour_engine is None:
+        tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+
+        async def speak(text: str) -> None:
+            if not speak_local(text):
+                raise RuntimeError("TTS échoué")
+            await asyncio.sleep(0.3)
+
+        async def navigate(point: str) -> None:
+            await navigate_to_point(point)
+
+        async def stop_motion() -> None:
+            await stop_robot()
+
+        _tour_engine = TourEngine(tour, speak, navigate, stop_motion)
+    return _tour_engine
+
+
+async def tour_info(_: Request) -> JSONResponse:
+    tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    return JSONResponse(tour_public_payload(tour))
+
+
+async def tour_status(_: Request) -> JSONResponse:
+    return JSONResponse(get_tour_engine().get_status().to_dict())
+
+
+async def tour_start(request: Request) -> JSONResponse:
+    lang = request.query_params.get("lang", "fr")
+    try:
+        result = await get_tour_engine().start(lang)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
+    if not result.get("ok"):
+        return JSONResponse(result, status_code=409)
+    return JSONResponse(result)
+
+
+async def tour_stop(_: Request) -> JSONResponse:
+    result = await get_tour_engine().stop()
+    return JSONResponse(result)
+
+
 async def health(_: Request) -> JSONResponse:
     return JSONResponse(
         {
@@ -208,6 +263,10 @@ def build_app() -> Starlette:
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
+        Route("/api/tour", tour_info, methods=["GET"]),
+        Route("/api/tour/status", tour_status, methods=["GET"]),
+        Route("/api/tour/start", tour_start, methods=["POST"]),
+        Route("/api/tour/stop", tour_stop, methods=["POST"]),
         Route("/api/speech/say", say, methods=["POST"]),
         Route("/api/speech/stop", stop_speech, methods=["POST"]),
     ]

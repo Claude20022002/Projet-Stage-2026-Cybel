@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
-from routers import knowledge, map, navigation, reception, robot, settings as settings_router, speech
+from routers import knowledge, map, navigation, reception, robot, settings as settings_router, speech, tour
 from services.robot_service import robot_service
 from websocket.manager import ws_manager
 
@@ -50,6 +50,7 @@ app.include_router(settings_router.router)
 app.include_router(reception.router)
 app.include_router(speech.router)
 app.include_router(knowledge.router)
+app.include_router(tour.router)
 
 
 KIOSK_DIST = ROOT / "frontend-kiosk" / "dist"

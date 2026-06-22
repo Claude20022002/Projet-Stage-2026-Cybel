@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CYBEL — test réseau</title>
+  <style>
+    body { background: #2e7d32; color: #fff; font-family: sans-serif; padding: 24px; margin: 0; }
+    #log { background: #111; padding: 16px; font-family: monospace; font-size: 14px; white-space: pre-wrap; }
+    .err { color: #ffcdd2; }
+  </style>
+</head>
+<body>
+  <h1>Test réseau CYBEL</h1>
+  <p>Si cet écran s'affiche, la WebView joint le backend Termux.</p>
+  <div id="log">Initialisation…</div>
+  <script>
+    var log = document.getElementById('log');
+    function line(msg) { log.textContent += msg + '\n'; }
+    line('JS ES5 OK');
+    line('URL: ' + window.location.href);
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/health', true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status === 200) {
+        line('API /api/health: 200');
+        line(xhr.responseText);
+      } else {
+        line('API erreur: ' + xhr.status);
+      }
+    };
+    xhr.onerror = function () { line('API: échec réseau (XHR)'); };
+    xhr.send();
+  </script>
+</body>
+</html>

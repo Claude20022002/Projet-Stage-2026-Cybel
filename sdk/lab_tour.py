@@ -1,0 +1,269 @@
+"""Parcours de visite du laboratoire — chargement et exécution séquentielle."""
+from __future__ import annotations
+
+import asyncio
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Awaitable, Callable, Literal
+
+TourPhase = Literal["", "intro", "navigating", "presenting", "dwell", "outro"]
+TourStateName = Literal["idle", "running", "completed", "stopped", "error"]
+
+
+@dataclass
+class TourStop:
+    id: str
+    name_fr: str
+    name_en: str
+    equipment_fr: str
+    equipment_en: str
+    target_point: str
+    speech_fr: str
+    speech_en: str
+    approach_speech_fr: str | None = None
+    approach_speech_en: str | None = None
+    dwell_seconds: float = 10.0
+
+
+@dataclass
+class LabTour:
+    id: str
+    title_fr: str
+    title_en: str
+    subtitle_fr: str
+    subtitle_en: str
+    intro_speech_fr: str
+    intro_speech_en: str
+    outro_speech_fr: str
+    outro_speech_en: str
+    stops: list[TourStop]
+
+
+@dataclass
+class TourStatus:
+    state: TourStateName = "idle"
+    lang: str = "fr"
+    current_index: int = -1
+    total_stops: int = 0
+    current_stop_id: str | None = None
+    current_stop_name: str = ""
+    current_equipment: str = ""
+    phase: TourPhase = ""
+    message: str = ""
+    error: str | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "state": self.state,
+            "lang": self.lang,
+            "current_index": self.current_index,
+            "total_stops": self.total_stops,
+            "current_stop_id": self.current_stop_id,
+            "current_stop_name": self.current_stop_name,
+            "current_equipment": self.current_equipment,
+            "phase": self.phase,
+            "message": self.message,
+            "error": self.error,
+        }
+
+
+SpeakFn = Callable[[str], Awaitable[None]]
+NavigateFn = Callable[[str], Awaitable[None]]
+StopMotionFn = Callable[[], Awaitable[None]]
+
+
+def default_tour_path() -> Path:
+    return Path(__file__).resolve().parent.parent / "data" / "lab_tour.json"
+
+
+def load_lab_tour(path: Path | None = None) -> LabTour:
+    tour_path = path or default_tour_path()
+    with open(tour_path, encoding="utf-8") as f:
+        raw = json.load(f)
+    stops = [
+        TourStop(
+            id=str(s["id"]),
+            name_fr=str(s["name_fr"]),
+            name_en=str(s.get("name_en", s["name_fr"])),
+            equipment_fr=str(s["equipment_fr"]),
+            equipment_en=str(s.get("equipment_en", s["equipment_fr"])),
+            target_point=str(s["target_point"]),
+            speech_fr=str(s["speech_fr"]),
+            speech_en=str(s.get("speech_en", s["speech_fr"])),
+            approach_speech_fr=s.get("approach_speech_fr"),
+            approach_speech_en=s.get("approach_speech_en"),
+            dwell_seconds=float(s.get("dwell_seconds", 10)),
+        )
+        for s in raw.get("stops", [])
+    ]
+    return LabTour(
+        id=str(raw.get("id", "lab_tour")),
+        title_fr=str(raw.get("title_fr", "Visite du laboratoire")),
+        title_en=str(raw.get("title_en", "Laboratory tour")),
+        subtitle_fr=str(raw.get("subtitle_fr", "")),
+        subtitle_en=str(raw.get("subtitle_en", "")),
+        intro_speech_fr=str(raw.get("intro_speech_fr", "")),
+        intro_speech_en=str(raw.get("intro_speech_en", "")),
+        outro_speech_fr=str(raw.get("outro_speech_fr", "")),
+        outro_speech_en=str(raw.get("outro_speech_en", "")),
+        stops=stops,
+    )
+
+
+def tour_public_payload(tour: LabTour) -> dict:
+    return {
+        "id": tour.id,
+        "title_fr": tour.title_fr,
+        "title_en": tour.title_en,
+        "subtitle_fr": tour.subtitle_fr,
+        "subtitle_en": tour.subtitle_en,
+        "stops": [
+            {
+                "id": s.id,
+                "name_fr": s.name_fr,
+                "name_en": s.name_en,
+                "equipment_fr": s.equipment_fr,
+                "equipment_en": s.equipment_en,
+                "target_point": s.target_point,
+            }
+            for s in tour.stops
+        ],
+    }
+
+
+class TourEngine:
+    def __init__(
+        self,
+        tour: LabTour,
+        speak: SpeakFn,
+        navigate: NavigateFn,
+        stop_motion: StopMotionFn,
+    ) -> None:
+        self.tour = tour
+        self._speak = speak
+        self._navigate = navigate
+        self._stop_motion = stop_motion
+        self._status = TourStatus(total_stops=len(tour.stops))
+        self._task: asyncio.Task | None = None
+        self._cancel = False
+
+    def get_status(self) -> TourStatus:
+        return self._status
+
+    def is_running(self) -> bool:
+        return self._status.state == "running"
+
+    async def start(self, lang: str = "fr") -> dict:
+        if self.is_running():
+            return {"ok": False, "error": "Une visite est déjà en cours"}
+
+        self._cancel = False
+        self._status = TourStatus(
+            state="running",
+            lang=lang,
+            total_stops=len(self.tour.stops),
+            message="Démarrage de la visite…",
+        )
+        self._task = asyncio.create_task(self._run(lang))
+        return {"ok": True, "status": self._status.to_dict()}
+
+    async def stop(self) -> dict:
+        self._cancel = True
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        try:
+            await self._stop_motion()
+        except Exception:
+            pass
+        self._status.state = "stopped"
+        self._status.phase = ""
+        self._status.message = "Visite interrompue"
+        self._task = None
+        return {"ok": True, "status": self._status.to_dict()}
+
+    def _pick(self, fr: str, en: str | None, lang: str) -> str:
+        if lang == "en" and en:
+            return en
+        return fr
+
+    async def _run(self, lang: str) -> None:
+        try:
+            self._status.phase = "intro"
+            self._status.message = "Introduction"
+            intro = self._pick(
+                self.tour.intro_speech_fr, self.tour.intro_speech_en, lang
+            )
+            if intro:
+                await self._speak(intro)
+            if self._cancel:
+                return
+
+            for index, stop in enumerate(self.tour.stops):
+                if self._cancel:
+                    return
+
+                name = self._pick(stop.name_fr, stop.name_en, lang)
+                equipment = self._pick(stop.equipment_fr, stop.equipment_en, lang)
+                self._status.current_index = index
+                self._status.current_stop_id = stop.id
+                self._status.current_stop_name = name
+                self._status.current_equipment = equipment
+
+                approach = self._pick(
+                    stop.approach_speech_fr or "",
+                    stop.approach_speech_en,
+                    lang,
+                )
+                if approach:
+                    self._status.phase = "presenting"
+                    self._status.message = approach
+                    await self._speak(approach)
+                    if self._cancel:
+                        return
+
+                self._status.phase = "navigating"
+                self._status.message = f"Direction {equipment}"
+                await self._navigate(stop.target_point)
+                if self._cancel:
+                    return
+
+                presentation = self._pick(stop.speech_fr, stop.speech_en, lang)
+                self._status.phase = "presenting"
+                self._status.message = presentation
+                await self._speak(presentation)
+                if self._cancel:
+                    return
+
+                self._status.phase = "dwell"
+                self._status.message = "Observation des équipements"
+                await asyncio.sleep(max(stop.dwell_seconds, 0))
+
+            if self._cancel:
+                return
+
+            self._status.phase = "outro"
+            outro = self._pick(
+                self.tour.outro_speech_fr, self.tour.outro_speech_en, lang
+            )
+            if outro:
+                self._status.message = "Fin de visite"
+                await self._speak(outro)
+
+            self._status.state = "completed"
+            self._status.phase = ""
+            self._status.message = "Visite terminée"
+        except asyncio.CancelledError:
+            self._status.state = "stopped"
+            self._status.message = "Visite interrompue"
+            raise
+        except Exception as exc:
+            self._status.state = "error"
+            self._status.error = str(exc)
+            self._status.message = "Erreur pendant la visite"
+        finally:
+            self._task = None
