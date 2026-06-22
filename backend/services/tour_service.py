@@ -20,6 +20,7 @@ from sdk.lab_tour import (
     tour_public_payload,
     validate_stop_dict,
 )
+from sdk.map_utils import is_coordinate_navigable
 from services.robot_service import robot_service
 
 
@@ -40,6 +41,12 @@ class TourService:
 
         async def navigate(stop: TourStop) -> None:
             if stop.has_coordinates():
+                map_data = robot_service.get_map()
+                if map_data and not is_coordinate_navigable(map_data, stop.x, stop.y):
+                    raise RuntimeError(
+                        f"Arrêt '{stop.equipment_fr}' inaccessible "
+                        f"({stop.x}, {stop.y}) : obstacle ou hors carte"
+                    )
                 success = await robot_service.navigate_to_coordinate(
                     stop.x, stop.y, stop.theta or 0.0
                 )
@@ -47,11 +54,22 @@ class TourService:
                     raise RuntimeError(
                         f"Navigation impossible vers ({stop.x}, {stop.y})"
                     )
+                arrived = await robot_service.wait_for_navigation_arrival()
+                if not arrived:
+                    raise RuntimeError(
+                        f"Le robot n'est pas arrivé à {stop.equipment_fr} "
+                        "(navigation interrompue ou délai dépassé)"
+                    )
             elif stop.target_point:
                 success = await robot_service.navigate_to_point(stop.target_point)
                 if not success:
                     raise RuntimeError(
                         f"Point '{stop.target_point}' introuvable sur la carte"
+                    )
+                arrived = await robot_service.wait_for_navigation_arrival()
+                if not arrived:
+                    raise RuntimeError(
+                        f"Le robot n'est pas arrivé au point '{stop.target_point}'"
                     )
             else:
                 raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
@@ -79,6 +97,18 @@ class TourService:
         return self._ensure_engine().get_status().to_dict()
 
     async def start(self, lang: str = "fr") -> dict:
+        if not robot_service.is_mock:
+            localized = await robot_service.ensure_localization(
+                settings.localization_min_percent
+            )
+            if not localized:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Localisation insuffisante (< {settings.localization_min_percent:.0f} %). "
+                        "Placez le robot dans une zone connue et relancez la relocalisation."
+                    ),
+                }
         return await self._ensure_engine().start(lang)
 
     async def stop(self) -> dict:

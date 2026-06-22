@@ -231,6 +231,32 @@ class MockRobot:
         await self._emit("status", self.status.model_dump())
         return True
 
+    async def wait_for_localization(
+        self,
+        min_percent: float | None = None,
+        timeout: float = 45.0,
+    ) -> bool:
+        target = min_percent if min_percent is not None else 60.0
+        return self.status.localization_percent >= target
+
+    async def ensure_localization(
+        self,
+        min_percent: float | None = None,
+        timeout: float = 45.0,
+    ) -> bool:
+        return await self.wait_for_localization(min_percent, timeout)
+
+    async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool:
+        limit = timeout if timeout is not None else 300.0
+        deadline = asyncio.get_running_loop().time() + limit
+        while asyncio.get_running_loop().time() < deadline:
+            if self.status.nav_status == 603:
+                return True
+            if self.status.nav_status == 604:
+                return False
+            await asyncio.sleep(0.2)
+        return self.status.nav_status == 603
+
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
         if self._navigation_task:
             self._navigation_task.cancel()

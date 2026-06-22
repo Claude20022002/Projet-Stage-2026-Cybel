@@ -6,7 +6,7 @@ from typing import Any, Awaitable, Callable
 
 from sdk.constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
 from sdk.lidar_utils import parse_laser_scan
-from sdk.map_utils import parse_map_metadata, parse_occupancy_grid
+from sdk.map_utils import is_coordinate_navigable, parse_map_metadata, parse_occupancy_grid
 from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus, SpeechStatus
 from sdk.rosbridge import RosbridgeClient
 from sdk.speech import RobotSpeech
@@ -22,6 +22,15 @@ def localization_label(percent: float) -> str:
     if percent < 80:
         return "Moyenne"
     return "Bonne"
+
+
+def normalize_localization_percent(value: float) -> float:
+    """Normalise matching_degree (0–1 ou 0–100) en pourcentage."""
+    if value <= 0:
+        return 0.0
+    if value <= 1.0:
+        return value * 100.0
+    return value
 
 
 def nav_mode_label(mode: str) -> str:
@@ -80,6 +89,9 @@ class RealRobot:
         speech_http_path: str = "",
         speech_adb_serial: str = "",
         speech_local_broadcast: bool = False,
+        localization_min_percent: float = 60.0,
+        auto_relocalize_on_connect: bool = True,
+        navigation_wait_timeout: float = 300.0,
     ) -> None:
         self._host = host
         self._chassis_id = chassis_id
@@ -112,6 +124,10 @@ class RealRobot:
         self._points: list[Point] = []
         self._manual_mode = False
         self._localization_percent = 0.0
+        self._localization_min_percent = localization_min_percent
+        self._auto_relocalize_on_connect = auto_relocalize_on_connect
+        self._navigation_wait_timeout = navigation_wait_timeout
+        self._relocalize_task: asyncio.Task | None = None
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -139,8 +155,29 @@ class RealRobot:
         await self._emit("pose", self.pose.model_dump())
         if self.map_data:
             await self._emit("map", self.map_data.model_dump())
+        if self._auto_relocalize_on_connect:
+            self._relocalize_task = asyncio.create_task(self._auto_relocalize_if_needed())
+
+    async def _auto_relocalize_if_needed(self) -> None:
+        await asyncio.sleep(2.0)
+        if not self._client.connected:
+            return
+        if self._localization_percent >= self._localization_min_percent:
+            return
+        await self._emit(
+            "event",
+            {
+                "message": (
+                    f"Localisation faible ({self._localization_percent:.0f} %) "
+                    "— relocalisation automatique…"
+                )
+            },
+        )
+        await self.ensure_localization(self._localization_min_percent)
 
     async def stop(self) -> None:
+        if self._relocalize_task:
+            self._relocalize_task.cancel()
         if self._reconnect_task:
             self._reconnect_task.cancel()
         await self._client.disconnect()
@@ -226,7 +263,9 @@ class RealRobot:
             )
 
         elif topic == ROS_TOPICS["localization_confidence"]:
-            self._localization_percent = float(msg.get("data") or 0.0) * 100
+            self._localization_percent = normalize_localization_percent(
+                float(msg.get("data") or 0.0)
+            )
             self.status.localization_percent = self._localization_percent
             self.status.localization_label = localization_label(self._localization_percent)
             await self._emit("status", self.status.model_dump())
@@ -313,11 +352,13 @@ class RealRobot:
                 theta=float(goal_raw.get("theta") or 0.0),
             )
 
-        self._localization_percent = float(
-            msg.get("matching_degree")
-            or msg.get("localization_percent")
-            or msg.get("match_degree")
-            or self._localization_percent
+        self._localization_percent = normalize_localization_percent(
+            float(
+                msg.get("matching_degree")
+                or msg.get("localization_percent")
+                or msg.get("match_degree")
+                or self._localization_percent
+            )
         )
 
         self.status = RobotStatus(
@@ -443,8 +484,54 @@ class RealRobot:
         await self._emit("event", {"message": "Relocalisation globale lancée"})
         return True
 
+    async def wait_for_localization(
+        self,
+        min_percent: float | None = None,
+        timeout: float = 45.0,
+    ) -> bool:
+        target = min_percent if min_percent is not None else self._localization_min_percent
+        deadline = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < deadline:
+            if self._localization_percent >= target:
+                return True
+            await asyncio.sleep(0.5)
+        return self._localization_percent >= target
+
+    async def ensure_localization(
+        self,
+        min_percent: float | None = None,
+        timeout: float = 45.0,
+    ) -> bool:
+        target = min_percent if min_percent is not None else self._localization_min_percent
+        if self._localization_percent >= target:
+            return True
+        if not await self.global_localization():
+            return False
+        return await self.wait_for_localization(target, timeout=timeout)
+
+    async def wait_for_navigation_arrival(
+        self,
+        timeout: float | None = None,
+    ) -> bool:
+        limit = timeout if timeout is not None else self._navigation_wait_timeout
+        deadline = asyncio.get_running_loop().time() + limit
+        while asyncio.get_running_loop().time() < deadline:
+            if self.status.nav_status == 603:
+                return True
+            if self.status.nav_status == 604:
+                return False
+            await asyncio.sleep(0.4)
+        return False
+
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
         if not self._client.connected:
+            return False
+
+        if self.map_data and not is_coordinate_navigable(self.map_data, x, y):
+            await self._emit(
+                "event",
+                {"message": f"Destination ({x:.2f}, {y:.2f}) inaccessible (obstacle ou hors carte)"},
+            )
             return False
 
         await self._client.publish(

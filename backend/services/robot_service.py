@@ -26,6 +26,9 @@ class RobotBackend(Protocol):
     async def release_emergency_stop(self) -> None: ...
     async def set_manual_mode(self, enabled: bool) -> None: ...
     async def global_localization(self) -> bool: ...
+    async def wait_for_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
+    async def ensure_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
+    async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool: ...
     async def navigate_to_point(self, point_name: str) -> bool: ...
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool: ...
     async def add_point(
@@ -68,6 +71,9 @@ class RobotService:
                 speech_http_path=settings.speech_http_path,
                 speech_adb_serial=settings.speech_adb_serial,
                 speech_local_broadcast=settings.speech_local_broadcast,
+                localization_min_percent=settings.localization_min_percent,
+                auto_relocalize_on_connect=settings.auto_relocalize_on_connect,
+                navigation_wait_timeout=settings.navigation_wait_timeout,
             )
         await self._backend.start()
 
@@ -114,6 +120,19 @@ class RobotService:
 
     async def global_localization(self) -> bool:
         return await self._require().global_localization()
+
+    async def wait_for_localization(
+        self, min_percent: float | None = None, timeout: float = 45.0
+    ) -> bool:
+        return await self._require().wait_for_localization(min_percent, timeout)
+
+    async def ensure_localization(
+        self, min_percent: float | None = None, timeout: float = 45.0
+    ) -> bool:
+        return await self._require().ensure_localization(min_percent, timeout)
+
+    async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool:
+        return await self._require().wait_for_navigation_arrival(timeout)
 
     async def navigate_to_point(self, point_name: str) -> bool:
         return await self._require().navigate_to_point(point_name)

@@ -43,6 +43,33 @@ def parse_occupancy_grid(msg: dict) -> MapData | None:
     )
 
 
+OCCUPANCY_OBSTACLE_THRESHOLD = 65
+
+
+def get_cell_value(map_data: MapData | None, x: float, y: float) -> int | None:
+    """Valeur de cellule (-1 inconnu, 0 libre, 100 occupé), ou None hors carte."""
+    if not map_data:
+        return None
+    meta = map_data.metadata
+    gx = int((x - meta.origin_x) / meta.resolution)
+    gy = int((y - meta.origin_y) / meta.resolution)
+    if gx < 0 or gy < 0 or gx >= meta.width or gy >= meta.height:
+        return None
+    return map_data.data[gy * meta.width + gx]
+
+
+def is_coordinate_navigable(
+    map_data: MapData | None,
+    x: float,
+    y: float,
+    threshold: int = OCCUPANCY_OBSTACLE_THRESHOLD,
+) -> bool:
+    cell = get_cell_value(map_data, x, y)
+    if cell is None:
+        return False
+    return 0 <= cell < threshold
+
+
 def parse_map_metadata(msg: dict) -> MapMetadata | None:
     if not msg:
         return None

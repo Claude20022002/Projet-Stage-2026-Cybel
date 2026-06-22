@@ -92,9 +92,9 @@ class RobotSpeech:
                 },
             )
 
-    async def _adb_device_ready(self) -> bool:
-        if not self._adb_serial:
-            return False
+    async def _resolve_adb_serial(self) -> str | None:
+        """Retourne le serial ADB à utiliser (configuré ou premier appareil USB)."""
+        configured = self._adb_serial
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
@@ -103,14 +103,27 @@ class RobotSpeech:
                 timeout=2.0,
                 text=True,
             )
-            output = result.stdout or ""
-            serial = self._adb_serial
-            return any(
-                line.startswith(serial) and "\tdevice" in line
-                for line in output.splitlines()
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return False
+            connected = [
+                line.split("\t")[0].strip()
+                for line in (result.stdout or "").splitlines()[1:]
+                if "\tdevice" in line
+            ]
+            if configured and configured in connected:
+                return configured
+            if connected:
+                if configured:
+                    logger.info(
+                        "ADB %s absent — utilisation de %s (USB)",
+                        configured,
+                        connected[0],
+                    )
+                return connected[0]
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.debug("Liste adb devices échouée: %s", exc)
+        return configured or None
+
+    async def _adb_device_ready(self) -> bool:
+        return bool(await self._resolve_adb_serial())
 
     async def speak(self, text: str, interrupt: bool = True) -> dict[str, Any]:
         text = text.strip()
@@ -125,13 +138,14 @@ class RobotSpeech:
             return {"ok": True, "method": "mock", "text": text}
 
         # ADB en premier : canal fiable (CybelTTSBridge) sur la tête Android.
-        if self._adb_serial and await self._adb_device_ready():
-            adb_method = await self._try_adb_speak(text)
+        adb_serial = await self._resolve_adb_serial()
+        if adb_serial:
+            adb_method = await self._try_adb_speak(text, adb_serial)
             if adb_method:
                 return {"ok": True, "method": adb_method, "text": text}
             await self._clear_pending_speech()
         elif self._adb_serial:
-            logger.warning("TTS ADB ignoré : %s absent de `adb devices`", self._adb_serial)
+            logger.warning("TTS ADB ignoré : aucun appareil dans `adb devices`")
 
         if self._client and self._client.connected:
             try:
@@ -233,8 +247,9 @@ class RobotSpeech:
 
         return None
 
-    async def _try_adb_speak(self, text: str) -> str | None:
-        if not self._adb_serial:
+    async def _try_adb_speak(self, text: str, adb_serial: str | None = None) -> str | None:
+        serial = adb_serial or self._adb_serial
+        if not serial:
             return None
 
         # am broadcast --es passe par le shell distant : on échappe pour
@@ -248,13 +263,13 @@ class RobotSpeech:
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
-                ["adb", "-s", self._adb_serial, "shell", remote_cmd],
+                ["adb", "-s", serial, "shell", remote_cmd],
                 capture_output=True,
                 timeout=5.0,
             )
             if result.returncode == 0:
                 await self._notify(text, "done", "adb-tts")
-                logger.info("TTS via adb broadcast (%s)", self._adb_serial)
+                logger.info("TTS via adb broadcast (%s)", serial)
                 return "adb-tts"
             stderr = result.stderr.decode(errors="ignore").strip()
             logger.warning(

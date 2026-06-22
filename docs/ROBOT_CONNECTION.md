@@ -93,32 +93,32 @@ les commandes de déplacement échoueront — voir §6.
 
 ## 4. Procédure de (re)connexion ADB à la tête Android
 
-À faire **une fois par session** (ou après un redémarrage du robot, voir
-§5). Nécessite un accès physique temporaire (câble USB-C) côté tête Android.
+À faire **à chaque session** sur le robot CIOT TY1251D du labo : la tête
+Android n'expose ADB **que via câble USB** (pas de `adb connect` Wi-Fi sur
+cet appareil). Branchez le câble sur le PC qui exécute le backend, puis :
 
 ```bash
-# 1. Brancher le câble USB-C -> USB sur la tête Android (mode Host/OTG côté robot)
-adb devices                                   # doit lister un device USB, ex: 1f4311e7d7
+# 1. Brancher le câble USB-C -> USB sur la tête Android
+adb devices   # doit lister un device USB, ex: 1f4311e7d7
 
-# 2. Basculer adbd en écoute TCP
-adb -s <serial_usb> tcpip 5555
-
-# 3. Récupérer l'IP Wi-Fi actuelle de la tête Android
-export MSYS_NO_PATHCONV=1
-adb -s <serial_usb> shell ip addr show wlan0  # cherche "inet x.x.x.x/.."
-
-# 4. Se connecter en Wi-Fi (le câble peut être débranché après cette étape)
-adb connect <ip_wifi>:5555
-
-# 5. Vérifier
-adb devices   # doit lister "<ip_wifi>:5555  device"
+# 2. Test TTS direct
+adb shell "am broadcast -n com.cybel.ttsbridge/.SpeakReceiver -a com.cybel.ttsbridge.SPEAK --es text 'Test vocal'"
 ```
 
-Si `<ip_wifi>` ≠ `172.16.0.194`, mettre à jour :
-- `SPEECH_ADB_SERIAL` dans `sdk/constants.py` (valeur par défaut), **et/ou**
-- `SPEECH_ADB_SERIAL=<ip_wifi>:5555` dans `backend/.env`
-- `SPEECH_HTTP_HOST` (même IP, autre constante) si on veut garder le fallback
-  HTTP cohérent.
+Dans `backend/.env`, laissez `SPEECH_ADB_SERIAL` vide : Cybel utilise
+automatiquement le premier appareil USB listé par `adb devices`.
+
+<details>
+<summary>Autres robots : ADB Wi-Fi (optionnel)</summary>
+
+Sur certains modèles, on peut basculer en TCP après une première connexion USB :
+
+```bash
+adb -s <serial_usb> tcpip 5555
+adb connect <ip_wifi>:5555
+```
+
+</details>
 
 ## 5. Checklist après un redémarrage du robot
 
@@ -128,9 +128,8 @@ plusieurs canaux :
 | Symptôme | Cause probable | Action |
 |----------|------------------|--------|
 | Déplacement KO, carte ne charge plus | rosbridge (`10.42.0.1:9090`) pas encore prêt ou robot pas reconnecté au Wi-Fi | Attendre le démarrage complet, vérifier `ping 10.42.0.1`, redémarrer le backend |
-| TTS muet, `adb devices` ne liste plus `<ip>:5555` | `adbd` a perdu le mode `tcpip` (redémarre en USB-only par défaut) | Refaire la procédure §4 (câble requis) |
-| TTS muet mais `adb devices` OK | IP Wi-Fi de la tête a changé (DHCP) | `adb shell ip addr show wlan0` en USB, mettre à jour `SPEECH_ADB_SERIAL`/`SPEECH_HTTP_HOST` |
-| `am broadcast` ne déclenche rien | App `CybelTTSBridge` désinstallée (reset usine) | Réinstaller : `adb -s <ip>:5555 install -r android/CybelTTSBridge/out/CybelTTSBridge.apk` |
+| TTS muet, `adb devices` vide | Câble USB non branché sur le PC backend | Brancher USB, vérifier `adb devices` |
+| TTS muet, device USB listé | App `CybelTTSBridge` absente ou TTS Android | Voir §6, réinstaller l'APK si besoin |
 
 ## 6. Débogage
 
