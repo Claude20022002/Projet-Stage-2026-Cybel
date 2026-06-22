@@ -76,6 +76,42 @@ class RobotSpeech:
                 },
             )
 
+    async def _clear_pending_speech(self) -> None:
+        """Évite de bloquer l'UI si une tentative de canal échoue."""
+        if not self._status.speaking:
+            return
+        self._status.speaking = False
+        if self._emit:
+            await self._emit(
+                "speech",
+                {
+                    "text": self._status.last_text,
+                    "status": "pending",
+                    "method": self._status.last_method,
+                    "speaking": False,
+                },
+            )
+
+    async def _adb_device_ready(self) -> bool:
+        if not self._adb_serial:
+            return False
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["adb", "devices"],
+                capture_output=True,
+                timeout=2.0,
+                text=True,
+            )
+            output = result.stdout or ""
+            serial = self._adb_serial
+            return any(
+                line.startswith(serial) and "\tdevice" in line
+                for line in output.splitlines()
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
     async def speak(self, text: str, interrupt: bool = True) -> dict[str, Any]:
         text = text.strip()
         if not text:
@@ -88,27 +124,46 @@ class RobotSpeech:
             self._speech_task = asyncio.create_task(self._mock_speak(text))
             return {"ok": True, "method": "mock", "text": text}
 
+        # ADB en premier : canal fiable (CybelTTSBridge) sur la tête Android.
+        if self._adb_serial and await self._adb_device_ready():
+            adb_method = await self._try_adb_speak(text)
+            if adb_method:
+                return {"ok": True, "method": adb_method, "text": text}
+            await self._clear_pending_speech()
+        elif self._adb_serial:
+            logger.warning("TTS ADB ignoré : %s absent de `adb devices`", self._adb_serial)
+
         if self._client and self._client.connected:
-            method = await self._try_real_speak(text)
+            try:
+                method = await asyncio.wait_for(self._try_real_speak(text), timeout=8.0)
+            except asyncio.TimeoutError:
+                logger.warning("TTS ROS : délai dépassé")
+                method = None
             if method:
                 return {"ok": True, "method": method, "text": text}
-
-        adb_method = await self._try_adb_speak(text)
-        if adb_method:
-            return {"ok": True, "method": adb_method, "text": text}
+            await self._clear_pending_speech()
 
         local_method = await self._try_local_broadcast_speak(text)
         if local_method:
             return {"ok": True, "method": local_method, "text": text}
+        await self._clear_pending_speech()
 
-        http_method = await self._try_http_speak(text)
+        try:
+            http_method = await asyncio.wait_for(self._try_http_speak(text), timeout=12.0)
+        except asyncio.TimeoutError:
+            logger.warning("TTS HTTP : délai dépassé sur %s", self._http_host)
+            http_method = None
         if http_method:
             return {"ok": True, "method": http_method, "text": text}
+        await self._clear_pending_speech()
 
         await self._notify(text, "failed", "none")
         return {
             "ok": False,
-            "error": "Aucun canal TTS (ROS/ADB/HTTP) — lancez scripts/speech_explore.py ou http_speech_explore.py",
+            "error": (
+                "Aucun canal TTS (ADB/ROS/HTTP) — vérifiez adb connect "
+                f"{self._adb_serial or SPEECH_ADB_SERIAL} ou scripts/speech_explore.py"
+            ),
             "text": text,
         }
 
@@ -125,7 +180,7 @@ class RobotSpeech:
     async def _topic_has_subscribers(self, topic: str) -> bool:
         try:
             resp = await self._client.call_service(
-                "/rosapi/subscribers", {"topic": topic}, timeout=2.0
+                "/rosapi/subscribers", {"topic": topic}, timeout=1.0
             )
             subscribers = (resp.get("values") or {}).get("subscribers") or []
             return len(subscribers) > 0
@@ -145,8 +200,6 @@ class RobotSpeech:
     async def _try_real_speak(self, text: str) -> str | None:
         topics = ([self._preferred_topic] if self._preferred_topic else []) + SPEECH_PUBLISH_TOPICS
         services = ([self._preferred_service] if self._preferred_service else []) + SPEECH_SERVICES
-
-        await self._notify(text, "speaking", "rosbridge")
 
         for topic in dict.fromkeys(topics):
             if not topic:
@@ -192,7 +245,6 @@ class RobotSpeech:
             f"--es text '{escaped}'"
         )
 
-        await self._notify(text, "speaking", "adb-tts")
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
@@ -204,13 +256,14 @@ class RobotSpeech:
                 await self._notify(text, "done", "adb-tts")
                 logger.info("TTS via adb broadcast (%s)", self._adb_serial)
                 return "adb-tts"
-            logger.debug(
+            stderr = result.stderr.decode(errors="ignore").strip()
+            logger.warning(
                 "TTS via adb échoué (code %s): %s",
                 result.returncode,
-                result.stderr.decode(errors="ignore"),
+                stderr or "pas de stderr",
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            logger.debug("TTS via adb échoué: %s", exc)
+            logger.warning("TTS via adb échoué: %s", exc)
 
         return None
 
@@ -229,7 +282,6 @@ class RobotSpeech:
             ["sh", "-c", f"su -c '{broadcast}'"],
         ]
 
-        await self._notify(text, "speaking", "local-broadcast")
         for cmd in commands:
             try:
                 result = await asyncio.to_thread(
@@ -264,7 +316,8 @@ class RobotSpeech:
             {"tts": text},
         )
 
-        async with httpx.AsyncClient(timeout=2.5) as client:
+        timeout = httpx.Timeout(2.0, connect=0.8)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             for port in ports:
                 base = f"http://{self._http_host}:{port}"
                 for path in paths:

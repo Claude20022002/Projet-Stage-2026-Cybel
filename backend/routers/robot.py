@@ -37,7 +37,7 @@ async def move(command: MoveCommand) -> dict:
 
 @router.post("/stop")
 async def stop() -> dict:
-    await tour_service.halt()
+    await robot_service.stop()
     return {"ok": True}
 
 
