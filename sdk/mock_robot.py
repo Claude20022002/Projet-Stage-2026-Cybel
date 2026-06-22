@@ -241,6 +241,13 @@ class MockRobot:
         )
         await self._emit("status", self.status.model_dump())
 
+    async def ensure_automatic_navigation(self) -> bool:
+        self.manual_mode = False
+        self.status.control_state = 30
+        self.status.nav_mode = "auto_navi"
+        self.status.nav_mode_label = nav_mode_label("auto_navi")
+        return True
+
     async def global_localization(self) -> bool:
         self.status.localization_percent = 95.0
         self.status.localization_label = "Bonne"

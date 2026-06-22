@@ -141,7 +141,15 @@ class RealRobot:
 
     async def _emit(self, event_type: str, payload: dict) -> None:
         for callback in self._telemetry_callbacks:
+            asyncio.create_task(self._invoke_telemetry(callback, event_type, payload))
+
+    async def _invoke_telemetry(
+        self, callback: TelemetryCallback, event_type: str, payload: dict
+    ) -> None:
+        try:
             await callback(event_type, payload)
+        except Exception as exc:
+            logger.warning("Callback télémétrie (%s): %s", event_type, exc)
 
     async def start(self) -> None:
         self._client.on_message(self._on_ros_message)
@@ -149,6 +157,7 @@ class RealRobot:
         self._ensure_reconnect_loop()
         connected = await self._client.connect()
         self.status.connected = connected
+        self._last_ros_message_at = time.monotonic()
 
         if not connected:
             await self._emit("event", {"message": "Robot inaccessible — vérifiez le WiFi"})
@@ -212,10 +221,7 @@ class RealRobot:
     async def _reconnect_loop(self) -> None:
         while True:
             await asyncio.sleep(5.0)
-            stale = (
-                self._last_ros_message_at > 0
-                and (time.monotonic() - self._last_ros_message_at) > 10.0
-            )
+            stale = (time.monotonic() - self._last_ros_message_at) > 10.0
             if self._client.connected and not stale:
                 continue
 
@@ -477,14 +483,19 @@ class RealRobot:
     async def stop_speech(self) -> dict:
         return await self._speech.stop()
 
-    async def move(self, linear_x: float, angular_z: float) -> None:
+    async def _cancel_navigation(self) -> None:
+        if self._client.connected:
+            await self._client.publish(ROS_TOPICS["cancel_nav"], {})
+        await self._publish_velocity(0.0, 0.0)
+        self.status.navigating_to = None
+        self.status.current_goal = None
+        self._nav_saw_active = False
+        if self.status.nav_status in (602, 604):
+            self.status.nav_status = 601
+            self.status.nav_status_label = nav_status_label(601)
+
+    async def _publish_velocity(self, linear_x: float, angular_z: float) -> None:
         if not self._client.connected:
-            return
-        if self.status.control_state == 30 and self.status.nav_mode != "manual":
-            await self._emit(
-                "event",
-                {"message": "Téléopération refusée — activez le mode manuel"},
-            )
             return
         await self._client.publish(
             ROS_TOPICS["velocity_cmd"],
@@ -494,8 +505,81 @@ class RealRobot:
             },
         )
 
+    async def _wait_control_mode(self, *, manual: bool, timeout: float = 5.0) -> bool:
+        deadline = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < deadline:
+            if manual:
+                if self.status.control_state != 30 or self.status.nav_mode == "manual":
+                    return True
+            elif self.status.control_state == 30 and self.status.nav_mode != "manual":
+                return True
+            await asyncio.sleep(0.25)
+        return False
+
+    async def ensure_automatic_navigation(self) -> bool:
+        """Passe en mode auto et annule une navigation bloquée avant un objectif."""
+        if not self._client.connected:
+            return False
+
+        await self._cancel_navigation()
+        await asyncio.sleep(0.3)
+
+        if self.status.control_state == 30 and self.status.nav_mode != "manual":
+            return True
+
+        await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": 1})
+        self._manual_mode = False
+        if await self._wait_control_mode(manual=False):
+            self.status.nav_mode = "auto_navi"
+            self.status.control_state = 30
+            self.status.nav_mode_label = nav_mode_label("auto_navi")
+            await self._emit("event", {"message": "Mode navigation automatique activé"})
+            await self._emit("status", self.status.model_dump())
+            return True
+
+        await self._emit(
+            "event",
+            {"message": "Le robot n'a pas confirmé le mode navigation automatique"},
+        )
+        return False
+
+    async def _ensure_manual_control(self) -> bool:
+        if not self._client.connected:
+            return False
+        if self.status.control_state != 30 and self.status.nav_mode == "manual":
+            return True
+        await self._cancel_navigation()
+        await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": 0})
+        self._manual_mode = True
+        if await self._wait_control_mode(manual=True):
+            self.status.nav_mode = "manual"
+            self.status.control_state = 0
+            self.status.nav_mode_label = nav_mode_label("manual")
+            await self._emit("status", self.status.model_dump())
+            return True
+        return False
+
+    async def move(self, linear_x: float, angular_z: float) -> None:
+        if not self._client.connected:
+            return
+        if self.status.control_state == 30 and self.status.nav_mode != "manual":
+            if self._manual_mode:
+                if not await self._ensure_manual_control():
+                    await self._emit(
+                        "event",
+                        {"message": "Téléopération refusée — mode manuel non confirmé"},
+                    )
+                    return
+            else:
+                await self._emit(
+                    "event",
+                    {"message": "Téléopération refusée — activez le mode manuel"},
+                )
+                return
+        await self._publish_velocity(linear_x, angular_z)
+
     async def stop(self) -> None:
-        await self.move(0.0, 0.0)
+        await self._publish_velocity(0.0, 0.0)
         if self._client.connected:
             await self._client.publish(ROS_TOPICS["cancel_nav"], {})
         self.status.navigating_to = None
@@ -519,22 +603,36 @@ class RealRobot:
         if not self._client.connected:
             await self._emit("event", {"message": "Robot non connecté — mode manuel impossible"})
             return
+
         if enabled:
-            await self.stop()
+            await self._cancel_navigation()
             await asyncio.sleep(0.3)
-        mode = 0 if enabled else 1
-        response = await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": mode})
-        if enabled and response.get("result") is False:
-            await self._emit("event", {"message": "Échec du passage en mode manuel (service ROS)"})
-            return
-        self._manual_mode = enabled
+            await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": 0})
+            self._manual_mode = True
+            confirmed = await self._wait_control_mode(manual=True)
+        else:
+            await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": 1})
+            self._manual_mode = False
+            confirmed = await self._wait_control_mode(manual=False)
+
         self.status.nav_mode = "manual" if enabled else "auto_navi"
         self.status.control_state = 0 if enabled else 30
         self.status.nav_mode_label = nav_mode_label(self.status.nav_mode)
-        await self._emit(
-            "event",
-            {"message": "Mode manuel activé" if enabled else "Mode automatique activé"},
-        )
+        if not confirmed:
+            await self._emit(
+                "event",
+                {
+                    "message": (
+                        f"Mode {'manuel' if enabled else 'automatique'} demandé "
+                        "— en attente de confirmation robot"
+                    )
+                },
+            )
+        else:
+            await self._emit(
+                "event",
+                {"message": "Mode manuel activé" if enabled else "Mode automatique activé"},
+            )
         await self._emit("status", self.status.model_dump())
 
     async def global_localization(self) -> bool:
@@ -615,6 +713,16 @@ class RealRobot:
         self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
     ) -> bool:
         if not self._client.connected:
+            return False
+
+        if not await self.ensure_automatic_navigation():
+            return False
+
+        if self.status.nav_status == 600:
+            await self._emit(
+                "event",
+                {"message": "Navigation refusée — robot non localisé (nav_status 600)"},
+            )
             return False
 
         if (
@@ -721,6 +829,16 @@ class RealRobot:
     async def navigate_to_point(self, point_name: str) -> bool:
         target = next((p for p in self._points if p.name == point_name), None)
         if not target and not self._client.connected:
+            return False
+
+        if not await self.ensure_automatic_navigation():
+            return False
+
+        if self.status.nav_status == 600:
+            await self._emit(
+                "event",
+                {"message": "Navigation refusée — robot non localisé (nav_status 600)"},
+            )
             return False
 
         if self._client.connected:

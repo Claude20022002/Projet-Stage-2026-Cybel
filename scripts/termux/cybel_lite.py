@@ -112,7 +112,20 @@ async def ros_call_service(service: str, args: dict, timeout: float = 5.0) -> di
                 raise RuntimeError(data.get("msg", "rosbridge error"))
 
 
+async def ensure_auto_navigation() -> bool:
+    """Annule la nav en cours et passe le châssis en mode automatique."""
+    try:
+        await stop_robot()
+        await ros_call_service("/change_location_mode", {"mode": 1})
+        await asyncio.sleep(0.5)
+        return True
+    except Exception:
+        return False
+
+
 async def navigate_to_point(point_name: str) -> None:
+    if not await ensure_auto_navigation():
+        raise RuntimeError("Impossible d'activer le mode navigation automatique")
     await ros_call_service(
         "/poi",
         {"name": point_name, "point_name": point_name, "command": "go"},
@@ -120,6 +133,8 @@ async def navigate_to_point(point_name: str) -> None:
 
 
 async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None:
+    if not await ensure_auto_navigation():
+        raise RuntimeError("Impossible d'activer le mode navigation automatique")
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
     async with websockets.connect(uri, open_timeout=5) as ws:
         await ws.send(
@@ -303,6 +318,11 @@ async def tour_status(_: Request) -> JSONResponse:
 
 async def tour_start(request: Request) -> JSONResponse:
     lang = request.query_params.get("lang", "fr")
+    if not await ensure_auto_navigation():
+        return JSONResponse(
+            {"ok": False, "error": "Impossible d'activer le mode navigation automatique"},
+            status_code=409,
+        )
     try:
         result = await get_tour_engine().start(lang)
     except Exception as exc:

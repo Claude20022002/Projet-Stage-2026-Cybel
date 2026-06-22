@@ -22,8 +22,9 @@ async def lifespan(app: FastAPI):
     async def on_telemetry(event_type: str, payload: dict) -> None:
         await ws_manager.broadcast(event_type, payload)
 
-    await robot_service.connect()
+    # Télémétrie enregistrée avant connect pour être rattachée au backend.
     robot_service.on_telemetry(on_telemetry)
+    await robot_service.connect()
     yield
     await robot_service.disconnect()
 

@@ -256,6 +256,7 @@ function bindMapCanvasEvents(): void {
     const theta = state.pose ? Math.atan2(y - state.pose.y, x - state.pose.x) : 0;
 
     try {
+      await api.setManualMode(false);
       await api.goToCoordinate(x, y, theta);
       pushEvent(`Navigation vers (${x.toFixed(2)}, ${y.toFixed(2)})`);
     } catch (err) {
@@ -553,6 +554,7 @@ function bindPointEvents(): void {
   document.getElementById("btn-navigate")?.addEventListener("click", async () => {
     if (!state.selectedPoint) return;
     try {
+      await api.setManualMode(false);
       await api.navigateTo(state.selectedPoint);
     } catch (err) {
       pushEvent(`Erreur navigation : ${(err as Error).message}`);

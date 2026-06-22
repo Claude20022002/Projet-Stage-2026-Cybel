@@ -87,7 +87,10 @@ class RosbridgeClient:
 
                 msg = data.get("msg", {})
                 for handler in self._handlers:
-                    await handler(topic, msg)
+                    try:
+                        await handler(topic, msg)
+                    except Exception as exc:
+                        logger.warning("Handler rosbridge (%s): %s", topic, exc)
         except asyncio.CancelledError:
             raise
         except Exception as exc:

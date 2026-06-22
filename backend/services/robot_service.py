@@ -25,6 +25,7 @@ class RobotBackend(Protocol):
     async def emergency_stop(self) -> None: ...
     async def release_emergency_stop(self) -> None: ...
     async def set_manual_mode(self, enabled: bool) -> None: ...
+    async def ensure_automatic_navigation(self) -> bool: ...
     async def global_localization(self) -> bool: ...
     async def wait_for_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
     async def ensure_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
@@ -49,6 +50,7 @@ class RobotService:
         self._backend: RobotBackend | None = None
         self._use_mock = settings.robot_mock
         self._settings = RobotSettings()
+        self._telemetry_callbacks: list = []
 
     @property
     def is_mock(self) -> bool:
@@ -62,6 +64,8 @@ class RobotService:
         return self.get_settings()
 
     async def connect(self) -> None:
+        if self._backend:
+            await self.disconnect()
         if self._use_mock:
             self._backend = MockRobot()
         else:
@@ -80,6 +84,8 @@ class RobotService:
                 navigation_wait_timeout=settings.navigation_wait_timeout,
             )
         await self._backend.start()
+        for callback in self._telemetry_callbacks:
+            self._backend.on_telemetry(callback)
 
     async def disconnect(self) -> None:
         if self._backend:
@@ -92,6 +98,7 @@ class RobotService:
         return self._backend
 
     def on_telemetry(self, callback) -> None:
+        self._telemetry_callbacks.append(callback)
         if self._backend:
             self._backend.on_telemetry(callback)
 
@@ -121,6 +128,9 @@ class RobotService:
 
     async def set_manual_mode(self, enabled: bool) -> None:
         await self._require().set_manual_mode(enabled)
+
+    async def ensure_automatic_navigation(self) -> bool:
+        return await self._require().ensure_automatic_navigation()
 
     async def global_localization(self) -> bool:
         return await self._require().global_localization()

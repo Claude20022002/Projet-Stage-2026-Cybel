@@ -54,7 +54,16 @@ async def navigate_to(command: NavigateCommand) -> dict:
         )
     success = await robot_service.navigate_to_point(command.point_name)
     if not success:
-        raise HTTPException(status_code=404, detail=f"Point '{command.point_name}' introuvable")
+        status = robot_service.get_status()
+        if status.nav_status == 600:
+            raise HTTPException(
+                status_code=400,
+                detail="Navigation impossible : robot non localisé — utilisez Relocaliser",
+            )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Navigation impossible vers « {command.point_name} » (mode auto ou point)",
+        )
     return {"ok": True, "point": command.point_name}
 
 
