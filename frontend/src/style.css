@@ -580,9 +580,15 @@ body {
     color: #991b1b;
 }
 
+.tour-panel__hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
 .tour-panel__live {
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
+    font-size: 0.9rem;
+    color: var(--primary);
+    font-weight: 600;
 }
 
 .tour-panel__phase {
@@ -601,17 +607,6 @@ body {
 
 .tour-panel__controls {
   margin-bottom: 0.75rem;
-}
-
-.tour-panel__hint,
-.tour-panel__live {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.tour-panel__live {
-    color: var(--primary);
-    font-weight: 600;
 }
 
 .tour-panel__halt {

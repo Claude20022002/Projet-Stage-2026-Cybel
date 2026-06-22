@@ -312,6 +312,8 @@ function updateTourPanel(force = false): void {
     stops: state.tour?.stops?.map((s) => s.id).join(","),
     state: state.tourStatus?.state,
     index: state.tourStatus?.current_index,
+    phase: state.tourStatus?.phase,
+    error: state.tourStatus?.error,
     edit: state.tourEditingStopId,
   });
   if (!force && key === lastTourPanelKey) return;
