@@ -37,6 +37,7 @@ class RobotBackend(Protocol):
     ) -> Point: ...
     def get_speech_status(self) -> SpeechStatus: ...
     async def speak(self, text: str, interrupt: bool = True) -> dict: ...
+    async def wait_for_speech(self, text: str) -> None: ...
     async def stop_speech(self) -> dict: ...
 
 
@@ -151,6 +152,9 @@ class RobotService:
 
     async def speak(self, text: str, interrupt: bool = True) -> dict:
         return await self._require().speak(text, interrupt=interrupt)
+
+    async def wait_for_speech(self, text: str) -> None:
+        await self._require().wait_for_speech(text)
 
     async def stop_speech(self) -> dict:
         return await self._require().stop_speech()

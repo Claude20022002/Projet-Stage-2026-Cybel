@@ -37,7 +37,7 @@ class TourService:
             result = await robot_service.speak(text)
             if not result.get("ok"):
                 raise RuntimeError(result.get("error", "TTS échoué"))
-            await asyncio.sleep(0.3)
+            await robot_service.wait_for_speech(text)
 
         async def navigate(stop: TourStop) -> None:
             if stop.has_coordinates():
@@ -109,6 +109,7 @@ class TourService:
                         "Placez le robot dans une zone connue et relancez la relocalisation."
                     ),
                 }
+            await robot_service.set_manual_mode(False)
         return await self._ensure_engine().start(lang)
 
     async def stop(self) -> dict:

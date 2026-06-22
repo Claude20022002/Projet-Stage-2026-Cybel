@@ -292,6 +292,12 @@ class TourEngine:
                 self._status.current_stop_name = name
                 self._status.current_equipment = equipment
 
+                self._status.phase = "navigating"
+                self._status.message = f"Direction {equipment}"
+                await self._navigate(stop)
+                if self._cancel:
+                    return
+
                 approach = self._pick(
                     stop.approach_speech_fr or "",
                     stop.approach_speech_en,
@@ -303,12 +309,6 @@ class TourEngine:
                     await self._speak(approach)
                     if self._cancel:
                         return
-
-                self._status.phase = "navigating"
-                self._status.message = f"Direction {equipment}"
-                await self._navigate(stop)
-                if self._cancel:
-                    return
 
                 presentation = self._pick(stop.speech_fr, stop.speech_en, lang)
                 self._status.phase = "presenting"

@@ -373,6 +373,24 @@ class RobotSpeech:
 
         return None
 
+    async def wait_for_completion(self, text: str, timeout: float = 90.0) -> None:
+        """Attend la fin probable de l'annonce (TTS fire-and-forget)."""
+        if self._mock and self._speech_task:
+            try:
+                await asyncio.wait_for(asyncio.shield(self._speech_task), timeout=timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+            return
+
+        estimated = min(max(len(text.strip()) * 0.055, 1.5), timeout)
+        deadline = asyncio.get_running_loop().time() + estimated
+        while asyncio.get_running_loop().time() < deadline:
+            if not self._status.speaking:
+                await asyncio.sleep(0.35)
+                return
+            await asyncio.sleep(0.15)
+        await asyncio.sleep(0.25)
+
     async def stop(self) -> dict[str, Any]:
         if self._speech_task:
             self._speech_task.cancel()
