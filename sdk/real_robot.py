@@ -45,6 +45,10 @@ def nav_status_label(code: int) -> str:
     return NAV_STATUS_LABELS.get(code, f"Code {code}")
 
 
+def _pose_near_goal(pose: Pose, goal: Coordinate, tolerance: float = 0.45) -> bool:
+    return math.hypot(pose.x - goal.x, pose.y - goal.y) <= tolerance
+
+
 def _parse_point_type(raw: str) -> str:
     key = (raw or "common").lower().replace(" ", "_")
     return MARKER_TYPE_MAP.get(key, "common")
@@ -128,6 +132,7 @@ class RealRobot:
         self._auto_relocalize_on_connect = auto_relocalize_on_connect
         self._navigation_wait_timeout = navigation_wait_timeout
         self._relocalize_task: asyncio.Task | None = None
+        self._nav_saw_active = False
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -514,11 +519,33 @@ class RealRobot:
         timeout: float | None = None,
     ) -> bool:
         limit = timeout if timeout is not None else self._navigation_wait_timeout
-        deadline = asyncio.get_running_loop().time() + limit
-        while asyncio.get_running_loop().time() < deadline:
-            if self.status.nav_status == 603:
-                return True
-            if self.status.nav_status == 604:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + limit
+        goal = self.status.current_goal
+        activation_deadline = loop.time() + 12.0
+
+        if goal and _pose_near_goal(self.pose, goal):
+            return True
+
+        self._nav_saw_active = False
+
+        while loop.time() < deadline:
+            nav_status = self.status.nav_status
+            if nav_status == 602:
+                self._nav_saw_active = True
+            if nav_status == 604:
+                return False
+            if self._nav_saw_active and nav_status == 603:
+                if goal is None or _pose_near_goal(self.pose, goal):
+                    vel = self.status.velocity
+                    if abs(vel[0]) < 0.05 and abs(vel[1]) < 0.05:
+                        return True
+            if not self._nav_saw_active and loop.time() > activation_deadline:
+                logger.warning(
+                    "Navigation non démarrée (nav_status=%s, goal=%s)",
+                    nav_status,
+                    goal,
+                )
                 return False
             await asyncio.sleep(0.4)
         return False
@@ -554,6 +581,7 @@ class RealRobot:
         self.status.current_goal = Coordinate(x=x, y=y, theta=theta)
         self.status.nav_status = 602
         self.status.nav_status_label = "En navigation"
+        self._nav_saw_active = False
         await self._emit("event", {"message": f"Navigation vers ({x:.2f}, {y:.2f})"})
         await self._emit("status", self.status.model_dump())
         return True
@@ -612,6 +640,7 @@ class RealRobot:
             self.status.current_goal = Coordinate(x=target.x, y=target.y, theta=target.theta)
         self.status.nav_status = 602
         self.status.nav_status_label = "En navigation"
+        self._nav_saw_active = False
         await self._emit("event", {"message": f"Navigation vers {point_name}"})
         await self._emit("status", self.status.model_dump())
         return True
