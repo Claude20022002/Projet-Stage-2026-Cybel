@@ -103,6 +103,51 @@ export interface SpeechStatus {
 
 export type AppPage = "dashboard" | "settings";
 
+export interface TourStopData {
+  id: string;
+  name_fr: string;
+  name_en?: string;
+  equipment_fr: string;
+  equipment_en?: string;
+  speech_fr: string;
+  speech_en?: string;
+  target_point?: string;
+  x?: number;
+  y?: number;
+  theta?: number;
+  approach_speech_fr?: string;
+  approach_speech_en?: string;
+  dwell_seconds?: number;
+}
+
+export interface LabTourData {
+  id: string;
+  title_fr: string;
+  title_en: string;
+  subtitle_fr?: string;
+  subtitle_en?: string;
+  intro_speech_fr?: string;
+  intro_speech_en?: string;
+  outro_speech_fr?: string;
+  outro_speech_en?: string;
+  stops: TourStopData[];
+}
+
+export type TourState = "idle" | "running" | "completed" | "stopped" | "error";
+
+export interface TourStatus {
+  state: TourState;
+  lang: string;
+  current_index: number;
+  total_stops: number;
+  current_stop_id: string | null;
+  current_stop_name: string;
+  current_equipment: string;
+  phase: string;
+  message: string;
+  error: string | null;
+}
+
 export interface AppState {
   page: AppPage;
   status: RobotStatus | null;
@@ -114,6 +159,9 @@ export interface AppState {
   points: Point[];
   selectedPoint: string | null;
   settings: RobotSettings | null;
+  tour: LabTourData | null;
+  tourStatus: TourStatus | null;
+  tourEditingStopId: string | null;
   events: string[];
   wsConnected: boolean;
   voiceListening: boolean;

@@ -2,6 +2,7 @@ import type {
   AppPage,
   AppState,
   DetectedPerson,
+  LabTourData,
   LidarPoint,
   MapData,
   Point,
@@ -10,6 +11,7 @@ import type {
   RobotSettings,
   RobotStatus,
   SpeechStatus,
+  TourStatus,
 } from "./types";
 
 type Listener = () => void;
@@ -27,6 +29,9 @@ export const state: AppState = {
   points: [],
   selectedPoint: null,
   settings: null,
+  tour: null,
+  tourStatus: null,
+  tourEditingStopId: null,
   events: [],
   wsConnected: false,
   voiceListening: false,
@@ -101,6 +106,21 @@ export function setPoints(points: Point[]): void {
 
 export function setSelectedPoint(name: string | null): void {
   state.selectedPoint = name;
+  notify();
+}
+
+export function setTour(tour: LabTourData | null): void {
+  state.tour = tour;
+  notify();
+}
+
+export function setTourStatus(status: TourStatus | null): void {
+  state.tourStatus = status;
+  notify();
+}
+
+export function setTourEditingStopId(id: string | null): void {
+  state.tourEditingStopId = id;
   notify();
 }
 

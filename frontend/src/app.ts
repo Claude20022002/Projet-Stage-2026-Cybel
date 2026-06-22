@@ -5,6 +5,7 @@ import { canvasToWorld, computeScaleMetersPerPixel, drawMap, getCellValue, rende
 import { renderMapInfoCard } from "./components/legend";
 import { renderPointsList } from "./components/pointsList";
 import { renderReceptionPanel } from "./components/receptionPanel";
+import { renderTourPanel } from "./components/tourPanel";
 import { renderRobotCard, renderStatusBar } from "./components/statusBar";
 import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
@@ -18,6 +19,9 @@ import {
   setPoints,
   setSelectedPoint,
   setSettings,
+  setTour,
+  setTourEditingStopId,
+  setTourStatus,
   pushEvent,
 } from "./state";
 
@@ -33,7 +37,9 @@ let lastVoiceListening = false;
 let lastSpeechSpeaking = false;
 let lastPeopleCount = 0;
 let pingStartedAt: number | null = null;
+let tourPollTimer: number | null = null;
 let pingRaf: number | null = null;
+let lastTourPanelKey = "";
 
 function renderDashboardContent(): string {
   const manualMode = state.status?.nav_mode === "manual";
@@ -48,6 +54,7 @@ function renderDashboardContent(): string {
           <div id="points-panel-container">${renderPointsList(state.points, state.selectedPoint)}</div>
           <div id="legend-card-container">${renderMapInfoCard(state.map)}</div>
           <div id="reception-panel-container">${renderReceptionPanel(state.actions, state.voiceListening, state.speech)}</div>
+          <div id="tour-panel-container">${renderTourPanel(state.tour, state.tourStatus, state.tourEditingStopId)}</div>
         </div>
         <div id="map-panel-container">${renderMapCanvas(state.map, softEstop)}</div>
         <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
@@ -73,6 +80,7 @@ function renderApp(): void {
   if (state.page === "dashboard") {
     bindPointEvents();
     bindReceptionEvents();
+    bindTourEvents();
     bindControlEvents();
     bindMapToolbarEvents();
     updateMapCanvas();
@@ -201,6 +209,7 @@ function bindMapToolbarEvents(): void {
 
   document.getElementById("btn-map-estop")?.addEventListener("click", () => {
     stopMoveLoop();
+    api.haltTour().catch((err) => pushEvent(`Erreur : ${err.message}`));
     api.emergencyStop().catch((err) => pushEvent(`Erreur : ${err.message}`));
   });
 
@@ -297,6 +306,142 @@ function bindReceptionEvents(): void {
   });
 }
 
+function updateTourPanel(force = false): void {
+  if (state.page !== "dashboard") return;
+  const key = JSON.stringify({
+    stops: state.tour?.stops?.map((s) => s.id).join(","),
+    state: state.tourStatus?.state,
+    index: state.tourStatus?.current_index,
+    edit: state.tourEditingStopId,
+  });
+  if (!force && key === lastTourPanelKey) return;
+  lastTourPanelKey = key;
+
+  const el = document.getElementById("tour-panel-container");
+  if (el) {
+    el.innerHTML = renderTourPanel(state.tour, state.tourStatus, state.tourEditingStopId);
+    bindTourEvents();
+  }
+}
+
+function bindTourEvents(): void {
+  document.getElementById("btn-tour-halt")?.addEventListener("click", async () => {
+    try {
+      await api.haltTour();
+      pushEvent("Arrêt total : visite et robot interrompus");
+      setTourStatus(await api.getTourStatus());
+    } catch (err) {
+      pushEvent(`Erreur arrêt total : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-tour-stop")?.addEventListener("click", async () => {
+    try {
+      await api.stopTour();
+      pushEvent("Visite guidée interrompue");
+      setTourStatus(await api.getTourStatus());
+    } catch (err) {
+      pushEvent(`Erreur : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-tour-add")?.addEventListener("click", () => {
+    setTourEditingStopId(null);
+    updateTourPanel(true);
+  });
+
+  document.querySelectorAll("[data-tour-edit]").forEach((el) => {
+    el.addEventListener("click", () => {
+      setTourEditingStopId((el as HTMLElement).dataset.tourEdit ?? null);
+      updateTourPanel(true);
+    });
+  });
+
+  document.querySelectorAll("[data-tour-delete]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const stopId = (el as HTMLElement).dataset.tourDelete;
+      if (!stopId) return;
+      if (!window.confirm(`Supprimer l'arrêt « ${stopId} » ?`)) return;
+      try {
+        const result = await api.deleteTourStop(stopId);
+        setTour(result.tour);
+        if (state.tourEditingStopId === stopId) setTourEditingStopId(null);
+        pushEvent(`Arrêt « ${stopId} » supprimé`);
+        updateTourPanel(true);
+      } catch (err) {
+        pushEvent(`Erreur : ${(err as Error).message}`);
+      }
+    });
+  });
+
+  document.getElementById("btn-tour-use-pose")?.addEventListener("click", async () => {
+    try {
+      const pose = state.pose ?? (await api.getPose());
+      (document.getElementById("tour-x") as HTMLInputElement).value = pose.x.toFixed(2);
+      (document.getElementById("tour-y") as HTMLInputElement).value = pose.y.toFixed(2);
+      (document.getElementById("tour-theta") as HTMLInputElement).value = pose.theta.toFixed(2);
+      pushEvent("Position du robot copiée dans le formulaire");
+    } catch (err) {
+      pushEvent(`Pose indisponible : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-tour-cancel-edit")?.addEventListener("click", () => {
+    setTourEditingStopId(null);
+    updateTourPanel(true);
+  });
+
+  document.getElementById("tour-stop-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const equipment = (document.getElementById("tour-equipment-fr") as HTMLInputElement).value.trim();
+    if (!equipment) return;
+
+    const payload = {
+      equipment_fr: equipment,
+      name_fr: (document.getElementById("tour-name-fr") as HTMLInputElement).value.trim() || equipment,
+      speech_fr: (document.getElementById("tour-speech-fr") as HTMLTextAreaElement).value.trim(),
+      x: parseFloat((document.getElementById("tour-x") as HTMLInputElement).value),
+      y: parseFloat((document.getElementById("tour-y") as HTMLInputElement).value),
+      theta: parseFloat((document.getElementById("tour-theta") as HTMLInputElement).value) || 0,
+      dwell_seconds: parseFloat((document.getElementById("tour-dwell") as HTMLInputElement).value) || 12,
+    };
+
+    if (Number.isNaN(payload.x) || Number.isNaN(payload.y)) {
+      pushEvent("Coordonnées X et Y requises");
+      return;
+    }
+
+    const existingId = (document.getElementById("tour-stop-id") as HTMLInputElement).value.trim();
+    try {
+      const result = existingId
+        ? await api.updateTourStop(existingId, payload)
+        : await api.addTourStop(payload);
+      setTour(result.tour);
+      setTourEditingStopId(null);
+      pushEvent(existingId ? "Arrêt mis à jour" : "Arrêt ajouté au parcours");
+      updateTourPanel(true);
+    } catch (err) {
+      pushEvent(`Erreur enregistrement : ${(err as Error).message}`);
+    }
+  });
+}
+
+function startTourPolling(): void {
+  if (tourPollTimer !== null) return;
+  tourPollTimer = window.setInterval(async () => {
+    try {
+      const status = await api.getTourStatus();
+      setTourStatus(status);
+      if (status.state !== "running" && tourPollTimer !== null) {
+        window.clearInterval(tourPollTimer);
+        tourPollTimer = null;
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 1500);
+}
+
 function updateControls(): void {
   if (state.page !== "dashboard") return;
   const el = document.getElementById("controls-panel-container");
@@ -369,11 +514,12 @@ function bindControlEvents(): void {
 
   document.getElementById("btn-stop")?.addEventListener("click", () => {
     stopMoveLoop();
-    api.stop().catch((err) => pushEvent(`Erreur : ${err.message}`));
+    api.haltTour().catch((err) => pushEvent(`Erreur : ${err.message}`));
   });
 
   document.getElementById("btn-estop")?.addEventListener("click", () => {
     stopMoveLoop();
+    api.haltTour().catch((err) => pushEvent(`Erreur : ${err.message}`));
     api.emergencyStop().catch((err) => pushEvent(`Erreur : ${err.message}`));
   });
 
@@ -468,6 +614,7 @@ function onStateChange(): void {
     }
     updateMapPanel();
     updateMapCanvas();
+    updateTourPanel();
     updateEventsLog();
 
     const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
@@ -511,6 +658,14 @@ export async function initApp(): Promise<void> {
       setActions(await api.getActions());
     } catch {
       pushEvent("Actions d'accueil non chargées");
+    }
+    try {
+      setTour(await api.getTourFull());
+      const tourStatus = await api.getTourStatus();
+      setTourStatus(tourStatus);
+      if (tourStatus.state === "running") startTourPolling();
+    } catch {
+      pushEvent("Parcours de visite non chargé");
     }
     if (state.points.length > 0) {
       setSelectedPoint(state.points[0].name);

@@ -1,4 +1,5 @@
 import type {
+  LabTourData,
   MapData,
   Point,
   PointType,
@@ -7,6 +8,8 @@ import type {
   RobotSettings,
   RobotStatus,
   SpeechStatus,
+  TourStatus,
+  TourStopData,
 } from "./types";
 
 export interface AddPointCommand {
@@ -99,4 +102,22 @@ export const api = {
       body: JSON.stringify({ text, interrupt }),
     }),
   stopSpeech: () => request("/api/speech/stop", { method: "POST" }),
+  getTourFull: () => request<LabTourData>("/api/tour/full"),
+  getTourStatus: () => request<TourStatus>("/api/tour/status"),
+  haltTour: () => request("/api/tour/halt", { method: "POST" }),
+  stopTour: () => request("/api/tour/stop", { method: "POST" }),
+  addTourStop: (stop: Partial<TourStopData>) =>
+    request<{ ok: boolean; tour: LabTourData }>("/api/tour/stops", {
+      method: "POST",
+      body: JSON.stringify(stop),
+    }),
+  updateTourStop: (stopId: string, stop: Partial<TourStopData>) =>
+    request<{ ok: boolean; tour: LabTourData }>(`/api/tour/stops/${stopId}`, {
+      method: "PUT",
+      body: JSON.stringify(stop),
+    }),
+  deleteTourStop: (stopId: string) =>
+    request<{ ok: boolean; tour: LabTourData }>(`/api/tour/stops/${stopId}`, {
+      method: "DELETE",
+    }),
 };

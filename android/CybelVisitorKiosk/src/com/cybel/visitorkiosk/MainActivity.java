@@ -88,6 +88,13 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 Log.i(TAG, "onPageFinished: " + url);
                 retryHandler.removeCallbacksAndMessages(null);
+                int topInset = getStatusBarInsetPx();
+                if (topInset > 0) {
+                    view.evaluateJavascript(
+                            "document.documentElement.style.setProperty('--android-safe-top','"
+                                    + topInset + "px');",
+                            null);
+                }
             }
 
             @Override
@@ -116,6 +123,7 @@ public class MainActivity extends Activity {
         });
 
         setContentView(webView);
+        hideSystemUi();
         refreshUrlCandidates();
         loadKiosk();
     }
@@ -267,6 +275,14 @@ public class MainActivity extends Activity {
         if (hasFocus) {
             hideSystemUi();
         }
+    }
+
+    private int getStatusBarInsetPx() {
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            return getResources().getDimensionPixelSize(resourceId);
+        }
+        return 24;
     }
 
     private void hideSystemUi() {
