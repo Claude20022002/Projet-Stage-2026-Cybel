@@ -26,6 +26,7 @@ import {
   pushEvent,
 } from "./state";
 import type { AppPage } from "./types";
+import { isTeleopEnabled } from "./robotUi";
 
 const MOVE_SPEED = 0.2;
 const ROTATE_SPEED = 0.5;
@@ -45,7 +46,6 @@ let lastTourPanelKey = "";
 let lastTourBannerKey = "";
 
 function renderDashboardContent(): string {
-  const manualMode = state.status?.nav_mode === "manual";
   const softEstop = state.status?.soft_estop ?? false;
 
   return `
@@ -59,7 +59,7 @@ function renderDashboardContent(): string {
           <div id="tour-banner-container">${renderTourBanner(state.tour, state.tourStatus)}</div>
         </div>
         <div id="map-panel-container">${renderMapCanvas(state.map, softEstop)}</div>
-        <div id="controls-panel-container">${renderControls(manualMode, softEstop)}</div>
+        <div id="controls-panel-container">${renderControls(state.status, softEstop)}</div>
       </main>
     </div>
   `;
@@ -511,9 +511,8 @@ function updateControls(): void {
   const el = document.getElementById("controls-panel-container");
   if (!el) return;
 
-  const manualMode = state.status?.nav_mode === "manual";
   const softEstop = state.status?.soft_estop ?? false;
-  el.innerHTML = renderControls(manualMode, softEstop);
+  el.innerHTML = renderControls(state.status, softEstop);
   controlsBound = false;
   bindControlEvents();
 }
@@ -599,10 +598,15 @@ function bindControlEvents(): void {
   controlsBound = true;
 
   document.getElementById("toggle-manual")?.addEventListener("change", async (e) => {
-    const enabled = (e.target as HTMLInputElement).checked;
+    const input = e.target as HTMLInputElement;
+    const enabled = input.checked;
     try {
       await api.setManualMode(enabled);
+      if (enabled && !isTeleopEnabled(state.status)) {
+        pushEvent("Mode manuel demandé — en attente de confirmation du robot…");
+      }
     } catch (err) {
+      input.checked = !enabled;
       pushEvent(`Erreur mode manuel : ${(err as Error).message}`);
     }
   });
@@ -635,7 +639,10 @@ function bindControlEvents(): void {
     const direction = (el as HTMLElement).dataset.move!;
 
     const start = () => {
-      if (state.status?.nav_mode !== "manual") return;
+      if (!isTeleopEnabled(state.status)) {
+        pushEvent("Activez le mode manuel pour déplacer le robot");
+        return;
+      }
       stopMoveLoop();
       const cmd = getMoveCommand(direction);
       if (!cmd) return;
@@ -713,13 +720,17 @@ function onStateChange(): void {
     updateEventsLog();
 
     const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
-    const newManual = state.status?.nav_mode === "manual";
+    const teleopReady = isTeleopEnabled(state.status);
+    const prevTeleopReady = prevManual
+      ? !document.querySelector(".controls-panel__dpad--disabled")
+      : false;
     const newEstop = state.status?.soft_estop ?? false;
     const container = document.getElementById("controls-panel-container");
     if (container) {
       const needsRerender =
         !prevManual ||
-        prevManual.checked !== newManual ||
+        prevManual.checked !== (state.status?.nav_mode === "manual") ||
+        teleopReady !== prevTeleopReady ||
         Boolean(document.getElementById("btn-estop")) === newEstop ||
         Boolean(document.getElementById("btn-release-estop")) !== newEstop;
       if (needsRerender) updateControls();

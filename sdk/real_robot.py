@@ -156,6 +156,7 @@ class RealRobot:
             return
 
         await self._after_connect(announce=True)
+        self._last_ros_message_at = time.monotonic()
 
     def _ensure_reconnect_loop(self) -> None:
         if self._reconnect_task and not self._reconnect_task.done():
