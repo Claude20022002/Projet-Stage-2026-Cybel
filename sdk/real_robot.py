@@ -2,9 +2,10 @@ import asyncio
 import json
 import logging
 import math
+import time
 from typing import Any, Awaitable, Callable
 
-from sdk.constants import MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
+from sdk.constants import LIDAR_TOPICS, MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
 from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import is_coordinate_navigable, parse_map_metadata, parse_occupancy_grid
 from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus, SpeechStatus
@@ -133,6 +134,7 @@ class RealRobot:
         self._navigation_wait_timeout = navigation_wait_timeout
         self._relocalize_task: asyncio.Task | None = None
         self._nav_saw_active = False
+        self._last_ros_message_at = 0.0
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -209,6 +211,21 @@ class RealRobot:
     async def _reconnect_loop(self) -> None:
         while True:
             await asyncio.sleep(5.0)
+            stale = (
+                self._last_ros_message_at > 0
+                and (time.monotonic() - self._last_ros_message_at) > 10.0
+            )
+            if self._client.connected and not stale:
+                continue
+
+            if self._client.connected and stale:
+                logger.warning("rosbridge silencieux depuis 10 s — reconnexion")
+                await self._client.disconnect()
+                if self.status.connected:
+                    self.status.connected = False
+                    await self._emit("event", {"message": "Connexion robot perdue — reconnexion…"})
+                    await self._emit("status", self.status.model_dump())
+
             if self._client.connected:
                 continue
 
@@ -219,6 +236,7 @@ class RealRobot:
 
             if await self._client.connect():
                 self.status.connected = True
+                self._last_ros_message_at = time.monotonic()
                 await self._after_connect()
                 await self._emit("event", {"message": "Robot reconnecté"})
 
@@ -228,11 +246,12 @@ class RealRobot:
             (ROS_TOPICS["status"], 500),
             (ROS_TOPICS["current_map"], 2000),
             (ROS_TOPICS["map_metadata"], 2000),
-            (ROS_TOPICS["lidar"], 200),
             (ROS_TOPICS["people"], 500),
             (ROS_TOPICS["localization_confidence"], 500),
         ):
             await self._client.subscribe(topic, throttle_rate=throttle)
+        for topic in LIDAR_TOPICS:
+            await self._client.subscribe(topic, throttle_rate=100)
 
     async def _load_map(self) -> None:
         response = await self._client.call_service(ROS_SERVICES["static_map"], {})
@@ -245,6 +264,8 @@ class RealRobot:
             await self._emit("map", parsed.model_dump())
 
     async def _on_ros_message(self, topic: str, msg: dict[str, Any]) -> None:
+        self._last_ros_message_at = time.monotonic()
+
         if topic == ROS_TOPICS["pose"]:
             self.pose = Pose(
                 x=float(msg.get("x") or 0.0),
@@ -268,7 +289,7 @@ class RealRobot:
                 self.map_data.metadata = meta
                 await self._emit("map", self.map_data.model_dump())
 
-        elif topic == ROS_TOPICS["lidar"]:
+        elif topic in LIDAR_TOPICS:
             points = parse_laser_scan(msg, self.pose)
             if points:
                 await self._emit(
@@ -362,6 +383,8 @@ class RealRobot:
         nav_status = int(msg.get("nav_status") or msg.get("nav_internal_status") or 600)
         control_state = int(msg.get("control_state") or 30)
         nav_mode = str(msg.get("nav_mode") or "auto_navi")
+        if control_state != 30:
+            nav_mode = "manual"
         velocity = msg.get("velocity") or [0.0, 0.0]
 
         goal_raw = msg.get("current_goal_coordinate")
@@ -383,7 +406,7 @@ class RealRobot:
         )
 
         self.status = RobotStatus(
-            connected=True,
+            connected=self._client.connected,
             mock=False,
             chassis_id=self._chassis_id,
             battery=battery,
@@ -456,6 +479,12 @@ class RealRobot:
     async def move(self, linear_x: float, angular_z: float) -> None:
         if not self._client.connected:
             return
+        if self.status.control_state == 30 and self.status.nav_mode != "manual":
+            await self._emit(
+                "event",
+                {"message": "Téléopération refusée — activez le mode manuel"},
+            )
+            return
         await self._client.publish(
             ROS_TOPICS["velocity_cmd"],
             {
@@ -487,11 +516,19 @@ class RealRobot:
 
     async def set_manual_mode(self, enabled: bool) -> None:
         if not self._client.connected:
+            await self._emit("event", {"message": "Robot non connecté — mode manuel impossible"})
             return
+        if enabled:
+            await self.stop()
+            await asyncio.sleep(0.3)
         mode = 0 if enabled else 1
-        await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": mode})
+        response = await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": mode})
+        if enabled and response.get("result") is False:
+            await self._emit("event", {"message": "Échec du passage en mode manuel (service ROS)"})
+            return
         self._manual_mode = enabled
         self.status.nav_mode = "manual" if enabled else "auto_navi"
+        self.status.control_state = 0 if enabled else 30
         self.status.nav_mode_label = nav_mode_label(self.status.nav_mode)
         await self._emit(
             "event",

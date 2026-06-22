@@ -24,7 +24,11 @@ class RosbridgeClient:
 
     @property
     def connected(self) -> bool:
-        return self._connected and self._ws is not None
+        if not self._connected or self._ws is None:
+            return False
+        if self._listener_task is None or self._listener_task.done():
+            return False
+        return True
 
     def on_message(self, handler: MessageHandler) -> None:
         self._handlers.append(handler)
@@ -33,6 +37,8 @@ class RosbridgeClient:
         self._disconnect_handlers.append(handler)
 
     async def connect(self, timeout: float = 5.0) -> bool:
+        if self._ws is not None:
+            await self.disconnect()
         try:
             self._ws = await asyncio.wait_for(
                 websockets.connect(self.url, open_timeout=timeout),

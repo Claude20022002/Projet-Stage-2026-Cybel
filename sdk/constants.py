@@ -14,6 +14,11 @@ ROS_TOPICS = {
     "navi_goal": "/navi_goal",
 }
 
+LIDAR_TOPICS = [
+    "/scan_filter",
+    "/scan",
+]
+
 ROS_SERVICES = {
     "change_mode": "/change_location_mode",
     "poi": "/poi",

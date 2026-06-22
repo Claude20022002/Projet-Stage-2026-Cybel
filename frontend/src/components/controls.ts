@@ -1,6 +1,11 @@
 import { icons } from "../icons";
+import { isTeleopEnabled, teleopHint } from "../robotUi";
+import type { RobotStatus } from "../types";
 
-export function renderControls(manualMode: boolean, softEstop: boolean): string {
+export function renderControls(status: RobotStatus | null, softEstop: boolean): string {
+  const teleopReady = isTeleopEnabled(status);
+  const manualMode = status?.nav_mode === "manual";
+
   return `
     <section class="controls-panel">
       <div class="controls-panel__section">
@@ -10,16 +15,10 @@ export function renderControls(manualMode: boolean, softEstop: boolean): string 
           <span class="toggle__track"></span>
           <span class="toggle__label">Mode manuel</span>
         </label>
-        <p class="controls-panel__hint">
-          ${
-            manualMode
-              ? "Maintenez les flèches pour déplacer le robot."
-              : "Activez le <strong>mode manuel</strong> pour piloter le robot à la télécommande."
-          }
-        </p>
+        <p class="controls-panel__hint">${teleopHint(status)}</p>
       </div>
 
-      <div class="controls-panel__dpad ${manualMode ? "" : "controls-panel__dpad--disabled"}">
+      <div class="controls-panel__dpad ${teleopReady ? "" : "controls-panel__dpad--disabled"}">
         <button class="dpad__btn dpad__btn--up" data-move="forward" type="button" title="Avancer">
           ${icons.arrowUp("icon", 20)}
         </button>
