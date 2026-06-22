@@ -42,6 +42,10 @@ def _load_lab_tour_module():
 _lab_tour = _load_lab_tour_module()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
+load_tour_data = _lab_tour.load_tour_data
+save_tour_data = _lab_tour.save_tour_data
+validate_stop_dict = _lab_tour.validate_stop_dict
+slugify = _lab_tour.slugify
 tour_public_payload = _lab_tour.tour_public_payload
 
 ROBOT_HOST = os.environ.get("ROBOT_HOST", "192.168.20.22")
@@ -204,6 +208,11 @@ async def execute_action(action_id: str, lang: str) -> dict:
 _tour_engine: TourEngine | None = None
 
 
+def reset_tour_engine() -> None:
+    global _tour_engine
+    _tour_engine = None
+
+
 def get_tour_engine() -> TourEngine:
     global _tour_engine
     if _tour_engine is None:
@@ -252,6 +261,80 @@ async def tour_start(request: Request) -> JSONResponse:
 async def tour_stop(_: Request) -> JSONResponse:
     result = await get_tour_engine().stop()
     return JSONResponse(result)
+
+
+async def tour_halt(_: Request) -> JSONResponse:
+    await get_tour_engine().stop()
+    await stop_robot()
+    return JSONResponse({"ok": True, "message": "Arrêt total effectué"})
+
+
+async def tour_full(_: Request) -> JSONResponse:
+    return JSONResponse(load_tour_data(TOUR_PATH))
+
+
+async def tour_save_full(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    try:
+        stops = [validate_stop_dict(s) for s in body.get("stops", [])]
+        payload = {**body, "stops": stops}
+        save_tour_data(payload, TOUR_PATH)
+        reset_tour_engine()
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+    return JSONResponse({"ok": True, "tour": payload})
+
+
+async def tour_add_stop(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+        data = load_tour_data(TOUR_PATH)
+        validated = validate_stop_dict(body)
+        if any(s.get("id") == validated["id"] for s in data.get("stops", [])):
+            return JSONResponse(
+                {"ok": False, "error": f"id '{validated['id']}' déjà utilisé"},
+                status_code=400,
+            )
+        data.setdefault("stops", []).append(validated)
+        save_tour_data(data, TOUR_PATH)
+        reset_tour_engine()
+    except (json.JSONDecodeError, ValueError) as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+    return JSONResponse({"ok": True, "tour": data})
+
+
+async def tour_update_stop(request: Request) -> JSONResponse:
+    stop_id = request.path_params["stop_id"]
+    try:
+        body = await request.json()
+        data = load_tour_data(TOUR_PATH)
+        stops = data.get("stops", [])
+        index = next((i for i, s in enumerate(stops) if s.get("id") == stop_id), None)
+        if index is None:
+            return JSONResponse({"ok": False, "error": "Arrêt introuvable"}, status_code=404)
+        stops[index] = validate_stop_dict({**stops[index], **body, "id": stop_id})
+        data["stops"] = stops
+        save_tour_data(data, TOUR_PATH)
+        reset_tour_engine()
+    except (json.JSONDecodeError, ValueError) as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+    return JSONResponse({"ok": True, "tour": data})
+
+
+async def tour_delete_stop(request: Request) -> JSONResponse:
+    stop_id = request.path_params["stop_id"]
+    data = load_tour_data(TOUR_PATH)
+    stops = data.get("stops", [])
+    filtered = [s for s in stops if s.get("id") != stop_id]
+    if len(filtered) == len(stops):
+        return JSONResponse({"ok": False, "error": "Arrêt introuvable"}, status_code=404)
+    data["stops"] = filtered
+    save_tour_data(data, TOUR_PATH)
+    reset_tour_engine()
+    return JSONResponse({"ok": True, "tour": data})
 
 
 async def health(_: Request) -> JSONResponse:
@@ -310,9 +393,15 @@ def build_app() -> Starlette:
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),
+        Route("/api/tour/full", tour_full, methods=["GET"]),
+        Route("/api/tour/full", tour_save_full, methods=["PUT"]),
         Route("/api/tour/status", tour_status, methods=["GET"]),
         Route("/api/tour/start", tour_start, methods=["POST"]),
         Route("/api/tour/stop", tour_stop, methods=["POST"]),
+        Route("/api/tour/halt", tour_halt, methods=["POST"]),
+        Route("/api/tour/stops", tour_add_stop, methods=["POST"]),
+        Route("/api/tour/stops/{stop_id}", tour_update_stop, methods=["PUT"]),
+        Route("/api/tour/stops/{stop_id}", tour_delete_stop, methods=["DELETE"]),
         Route("/api/speech/say", say, methods=["POST"]),
         Route("/api/speech/stop", stop_speech, methods=["POST"]),
     ]
