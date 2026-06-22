@@ -165,6 +165,9 @@ class MockRobot:
     async def speak(self, text: str, interrupt: bool = True) -> dict:
         return await self._speech.speak(text, interrupt=interrupt)
 
+    async def wait_for_speech(self, text: str) -> None:
+        await self._speech.wait_for_completion(text)
+
     async def stop_speech(self) -> dict:
         return await self._speech.stop()
 
@@ -248,14 +251,21 @@ class MockRobot:
 
     async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool:
         limit = timeout if timeout is not None else 300.0
-        deadline = asyncio.get_running_loop().time() + limit
-        while asyncio.get_running_loop().time() < deadline:
-            if self.status.nav_status == 603:
-                return True
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + limit
+        saw_active = False
+        activation_deadline = loop.time() + 12.0
+        while loop.time() < deadline:
+            if self.status.nav_status == 602:
+                saw_active = True
             if self.status.nav_status == 604:
                 return False
+            if saw_active and self.status.nav_status == 603:
+                return True
+            if not saw_active and loop.time() > activation_deadline:
+                return False
             await asyncio.sleep(0.2)
-        return self.status.nav_status == 603
+        return False
 
     async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
         if self._navigation_task:

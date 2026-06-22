@@ -26,9 +26,27 @@ export function renderTourPanel(
           ? `<p class="tour-panel__live">
               Étape ${Math.max((tourStatus?.current_index ?? 0) + 1, 1)} / ${tourStatus?.total_stops ?? stops.length}
               — ${tourStatus?.current_equipment ?? "…"}
+              <br /><span class="tour-panel__phase">${tourPhaseHint(tourStatus)}</span>
             </p>`
           : `<p class="tour-panel__hint">${stops.length} arrêt(s) configuré(s) sur le parcours.</p>`
       }
+
+      ${
+        tourStatus?.state === "error" && tourStatus.error
+          ? `<p class="tour-panel__error" role="alert">${tourStatus.error}</p>`
+          : ""
+      }
+
+      <div class="tour-panel__controls">
+        <button
+          id="btn-tour-start"
+          class="btn btn--primary btn--block"
+          type="button"
+          ${running ? "disabled" : ""}
+        >
+          Démarrer la visite
+        </button>
+      </div>
 
       <div class="tour-panel__halt">
         <button id="btn-tour-halt" class="btn btn--danger btn--block btn--with-icon" type="button">
@@ -80,7 +98,7 @@ export function renderTourPanel(
 function tourStatusLabel(status: TourStatus | null): string {
   switch (status?.state) {
     case "running":
-      return "En cours";
+      return status.phase === "navigating" ? "En déplacement" : "En cours";
     case "completed":
       return "Terminée";
     case "stopped":
@@ -90,6 +108,18 @@ function tourStatusLabel(status: TourStatus | null): string {
     default:
       return "Au repos";
   }
+}
+
+function tourPhaseHint(status: TourStatus | null): string {
+  if (!status || status.state !== "running") return "";
+  if (status.phase === "navigating") {
+    return `Déplacement vers ${status.current_equipment || "l'arrêt suivant"}…`;
+  }
+  if (status.phase === "presenting") return "Présentation en cours…";
+  if (status.phase === "dwell") return "Pause d'observation…";
+  if (status.phase === "intro") return "Introduction…";
+  if (status.phase === "outro") return "Conclusion…";
+  return status.message || "";
 }
 
 function formatCoords(stop: TourStopData): string {

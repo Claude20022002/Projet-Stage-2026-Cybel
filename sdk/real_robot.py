@@ -430,6 +430,9 @@ class RealRobot:
     async def speak(self, text: str, interrupt: bool = True) -> dict:
         return await self._speech.speak(text, interrupt=interrupt)
 
+    async def wait_for_speech(self, text: str) -> None:
+        await self._speech.wait_for_completion(text)
+
     async def stop_speech(self) -> dict:
         return await self._speech.stop()
 
