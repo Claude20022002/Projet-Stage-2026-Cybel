@@ -1,0 +1,21 @@
+%% Séquence — diffusion télémétrie temps réel
+%% Export : sequence_telemetry.png
+sequenceDiagram
+    participant ROS as rosbridge :9090
+    participant SDK as RealRobot
+    participant API as Backend FastAPI
+    participant WS as WebSocket Manager
+    participant UI as Frontend opérateur
+
+    Note over ROS,SDK: Connexion persistante WebSocket JSON
+    ROS-->>SDK: /robot_pose (~10 Hz)
+    ROS-->>SDK: /robot_status (~2 Hz)
+    ROS-->>SDK: /scan_filter LiDAR (~25 Hz)
+    ROS-->>SDK: /detected_people_array (~2 Hz)
+
+    SDK->>API: callbacks mise à jour état
+    API->>WS: broadcast événements
+    WS-->>UI: message JSON (pose, status, lidar, people)
+    UI->>UI: state.ts → re-render carte / barre statut
+
+    Note over UI: Actions opérateur passent par REST,<br/>pas par ce flux WebSocket

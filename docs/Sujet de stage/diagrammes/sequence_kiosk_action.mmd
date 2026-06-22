@@ -1,0 +1,23 @@
+%% Séquence — action visiteur depuis le kiosque
+%% Export : sequence_kiosk_action.png
+sequenceDiagram
+    actor Visiteur
+    participant KUI as frontend-kiosk
+    participant API as cybel_lite :8000
+    participant REC as ReceptionService
+    participant SDK as RealRobot
+    participant ROS as rosbridge
+    participant TTS as CybelTTSBridge
+
+    Visiteur->>KUI: Touche action « Accueillir »
+    KUI->>API: POST /api/reception/actions/welcome_guest/execute?lang=fr
+    API->>REC: execute(action, lang)
+    REC->>SDK: speak(annonce FR/EN)
+    SDK->>TTS: am broadcast SPEAK
+    TTS-->>Visiteur: Annonce vocale
+  opt navigation associée
+        REC->>SDK: navigate_to_point(Accueil)
+        SDK->>ROS: publish /navi_goal ou service /poi
+    end
+    API-->>KUI: 200 OK
+    KUI-->>Visiteur: Toast « C'est fait ! »

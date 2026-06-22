@@ -1,0 +1,26 @@
+%% Séquence — navigation par clic sur la carte
+%% Export : sequence_navigation.png
+sequenceDiagram
+    actor Operateur
+    participant UI as Frontend opérateur
+    participant API as Backend FastAPI
+    participant SDK as RealRobot
+    participant ROS as rosbridge :9090
+
+    Operateur->>UI: Clic sur la carte (cx, cy)
+    UI->>UI: canvasToWorld → (x, y)
+    UI->>UI: Vérification cellule carte
+    alt destination accessible
+        UI->>API: POST /api/navigation/goto-coordinate
+        API->>SDK: navigate_to_coordinate(x, y, θ)
+        SDK->>ROS: publish /navi_goal (PoseStamped)
+        ROS-->>SDK: acquittement implicite
+        SDK-->>API: succès
+        API-->>UI: 200 OK
+        ROS-->>SDK: /navi_status (mises à jour)
+        SDK-->>API: événement status
+        API-->>UI: WebSocket /ws/telemetry
+        UI-->>Operateur: Mise à jour position / statut
+    else obstacle ou zone inconnue
+        UI-->>Operateur: Message « destination inaccessible »
+    end

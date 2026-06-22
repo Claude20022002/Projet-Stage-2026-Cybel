@@ -1,0 +1,26 @@
+%% Cas d'utilisation — export : cas_utilisation_cybel.png
+%% Version complète : opérateur + visiteur + système
+graph TD
+    Operateur((Opérateur))
+    Visiteur((Visiteur))
+    Systeme((Système CYBEL))
+
+  %% Opérateur
+    Operateur --> UC1[Superviser télémétrie]
+    Operateur --> UC2[Naviguer vers un point nommé]
+    Operateur --> UC3[Naviguer vers une coordonnée]
+    Operateur --> UC4[Téléopérer le robot]
+    Operateur --> UC5[Déclencher TTS / accueil]
+    Operateur --> UC6[Commande vocale opérateur]
+    Operateur --> UC7[Arrêt d'urgence]
+    Operateur --> UC8[Configurer paramètres]
+
+  %% Visiteur
+    Visiteur --> UC11[Consulter actions d'accueil]
+    Visiteur --> UC12[Exécuter une action tactile]
+    Visiteur --> UC13[Consulter FAQ / S'informer]
+    Visiteur --> UC14[Basculer langue FR/EN]
+
+  %% Système
+    Systeme --> UC9[Reconnexion automatique]
+    Systeme --> UC10[Diffuser télémétrie WebSocket]

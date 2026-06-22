@@ -1,0 +1,56 @@
+%% Diagramme de classes SDK / backend
+%% Export : diagramme_classes_sdk.png
+classDiagram
+    class RobotBackend {
+        <<Protocol>>
+        +get_status()
+        +get_pose()
+        +move(linear_x, angular_z)
+        +stop()
+        +navigate_to_point(name)
+        +navigate_to_coordinate(x, y, theta)
+        +cancel_navigation()
+        +get_map()
+    }
+
+    class RobotService {
+        -backend: RobotBackend
+        +navigate_to_coordinate()
+        +get_status()
+    }
+
+    class ReceptionService {
+        +execute(action_id, lang)
+        +list_actions()
+    }
+
+    class MockRobot {
+        +navigate_to_coordinate()
+        -_simulate_navigation()
+    }
+
+    class RealRobot {
+        -client: RosbridgeClient
+        -speech: RobotSpeech
+        +navigate_to_coordinate()
+        -_reconnect_loop()
+    }
+
+    class RosbridgeClient {
+        +connect()
+        +subscribe(topic)
+        +publish(topic, msg)
+        +call_service(service, args)
+    }
+
+    class RobotSpeech {
+        +speak(text)
+        -_try_broadcast_speak()
+    }
+
+    RobotBackend <|.. MockRobot
+    RobotBackend <|.. RealRobot
+    RobotService --> RobotBackend
+    ReceptionService --> RobotService
+    RealRobot --> RosbridgeClient
+    RealRobot --> RobotSpeech

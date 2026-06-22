@@ -1,0 +1,39 @@
+%% Architecture en couches — export : architecture_couches.png
+flowchart TB
+    subgraph PRESENTATION["Couche présentation"]
+        FE["frontend/ — opérateur"]
+        KFE["frontend-kiosk/ — visiteur"]
+        KAPP["CybelVisitorKiosk APK"]
+    end
+
+    subgraph API_LAYER["Couche API"]
+        FAST["FastAPI — poste dev"]
+        LITE["cybel_lite — Termux"]
+        WS["WebSocket /ws/telemetry"]
+    end
+
+    subgraph SDK_LAYER["Couche SDK"]
+        MOCK["MockRobot"]
+        REAL["RealRobot"]
+        RBCLIENT["RosbridgeClient"]
+        SPEECH["RobotSpeech"]
+    end
+
+    subgraph ANDROID_LAYER["Couche Android native"]
+        TTS["CybelTTSBridge"]
+    end
+
+    subgraph ROBOT_LAYER["Couche robot"]
+        ROS["ROS / move_base / capteurs"]
+    end
+
+    FE --> FAST
+    KFE --> LITE
+    KAPP --> KFE
+    FAST --> MOCK
+    FAST --> REAL
+    LITE --> REAL
+    REAL --> RBCLIENT
+    REAL --> SPEECH
+    SPEECH --> TTS
+    RBCLIENT --> ROS

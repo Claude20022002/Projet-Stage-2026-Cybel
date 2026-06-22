@@ -1,0 +1,44 @@
+%% Architecture générale CYBEL — export PNG pour Overleaf
+%% Fichier : diagrammes/architecture_generale_cybel.png
+flowchart TB
+    subgraph UTILISATEURS["Utilisateurs"]
+        OP((Opérateur))
+        VIS((Visiteur))
+    end
+
+    subgraph INTERFACES["Interfaces utilisateur"]
+        FE["Interface opérateur\nfrontend/ — navigateur :5173"]
+        KFE["Interface visiteur\nfrontend-kiosk/ — WebView /kiosk/"]
+    end
+
+    subgraph BACKEND["Backend CYBEL"]
+        API["API FastAPI ou cybel_lite\nREST + WebSocket — :8000"]
+        SDK["SDK Python\nMockRobot / RealRobot"]
+    end
+
+    subgraph ANDROID["Applications Android — tête RK3399"]
+        TTS["CybelTTSBridge\nsynthèse vocale"]
+        KAPP["CybelVisitorKiosk\nWebView plein écran"]
+        TERMUX["Termux — cybel_lite.py\n(déploiement embarqué)"]
+    end
+
+    subgraph ROBOT["Robot CIOT TY1251D-03195"]
+        CHASSIS["Châssis Linux / ROS\nrosbridge :9090 — 10.42.0.1"]
+        MQTT["Broker MQTT :1883"]
+        TABLETTE["Upper body Android 7.1\nécran tactile 15,6\""]
+    end
+
+    OP --> FE
+    VIS --> KFE
+    FE <-->|REST + WS| API
+    KFE <-->|HTTP /kiosk/| TERMUX
+    KAPP --> KFE
+    TERMUX --> API
+    API --> SDK
+    SDK <-->|WebSocket JSON| CHASSIS
+    SDK -.->|broadcast TTS| TTS
+    SDK -.-> MQTT
+    TTS --> TABLETTE
+    KAPP --> TABLETTE
+    TERMUX --> TABLETTE
+    CHASSIS --- TABLETTE

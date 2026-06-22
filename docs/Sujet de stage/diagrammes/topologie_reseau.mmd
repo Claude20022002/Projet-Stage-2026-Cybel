@@ -1,0 +1,21 @@
+%% Topologie réseau du robot — export : topologie_reseau.png
+flowchart LR
+    subgraph PC["Poste développeur"]
+        DEV["PC opérateur\n10.42.0.x"]
+    end
+
+    subgraph WIFI["Wi-Fi TY1251D-03195"]
+        CHASSIS_WIFI["Châssis\n10.42.0.1\nrosbridge :9090"]
+        TETE_WIFI["Tête Android wlan0\n172.16.0.0/16\n(DHCP)"]
+    end
+
+    subgraph ETH0["Lien interne eth0"]
+        TETE_ETH["Tête\n192.168.20.1"]
+        CHASSIS_ETH["Châssis\n192.168.20.22\nrosbridge :9090"]
+    end
+
+    DEV <-->|NAT asymétrique| TETE_WIFI
+    DEV <-->|Wi-Fi| CHASSIS_WIFI
+    TETE_WIFI --- TETE_ETH
+    TETE_ETH <-->|ping OK depuis Termux| CHASSIS_ETH
+    TETE_WIFI -.->|pas de route retour| DEV

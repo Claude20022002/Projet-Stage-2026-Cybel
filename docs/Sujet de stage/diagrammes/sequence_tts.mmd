@@ -1,0 +1,24 @@
+%% Séquence — synthèse vocale via CybelTTSBridge
+%% Export : sequence_tts.png
+sequenceDiagram
+    actor Operateur
+    participant UI as Frontend opérateur
+    participant API as Backend FastAPI
+    participant SDK as RobotSpeech
+    participant ADB as ADB / su local
+    participant TTS as CybelTTSBridge
+    participant ENG as Google TTS
+
+    Operateur->>UI: Saisie texte + « Faire parler »
+    UI->>API: POST /api/speech/say {text}
+    API->>SDK: speak(text)
+    Note over SDK: Aucun topic ROS TTS valide
+    SDK->>ADB: am broadcast SPEAK --es text
+    ADB->>TTS: SpeakReceiver
+    TTS->>TTS: SpeakService démarre
+    TTS->>ENG: TextToSpeech.speak()
+    ENG-->>TTS: audio haut-parleur robot
+    TTS-->>SDK: fin prononciation
+    SDK-->>API: {ok: true}
+    API-->>UI: 200 OK
+    UI-->>Operateur: Confirmation visuelle

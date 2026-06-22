@@ -1,0 +1,35 @@
+%% Diagramme de composants — export : diagramme_composants.png
+graph LR
+    subgraph Poste_Operateur["Poste opérateur (PC)"]
+        FE["Frontend opérateur\nVite/TS — :5173"]
+    end
+
+    subgraph Backend_CYBEL["Backend CYBEL"]
+        API["FastAPI / cybel_lite\n:8000"]
+        WS["WebSocket\n/ws/telemetry"]
+        KIOSK["/kiosk/\nfrontend-kiosk/dist"]
+        SDKM["SDK — MockRobot"]
+        SDKR["SDK — RealRobot"]
+    end
+
+    subgraph Tete_Android["Tête Android — Termux"]
+        TERMUX["cybel_lite.py"]
+        KAPP["CybelVisitorKiosk\nWebView"]
+        TTS["CybelTTSBridge"]
+    end
+
+    subgraph Robot_CIOT["Robot CIOT TY1251D-03195"]
+        RB["rosbridge :9090\nchâssis 192.168.20.22"]
+        MQTT["MQTT :1883"]
+    end
+
+    FE -- REST --> API
+    FE -- WebSocket --> WS
+    KAPP -- HTTP local --> TERMUX
+    TERMUX --> KIOSK
+    API --> SDKM
+    API --> SDKR
+    TERMUX --> SDKR
+    SDKR -- WebSocket JSON --> RB
+    SDKR -. broadcast TTS .-> TTS
+    SDKR -. MQTT .-> MQTT

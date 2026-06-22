@@ -4,7 +4,7 @@
 
 > Document de travail destiné à servir de base au rapport de stage (PFA, 3ᵉ année — Informatique et Intelligence Artificielle), réalisé dans le cadre du stage proposé par HESTIM Engineering & Business School (encadrant : Dr. Sridath Tula).
 >
-> Ce document suit le plan académique imposé. Les sections relevant de l'état d'avancement (Implémentation, Résultats, Analyse critique) reflètent l'état réel du projet au **12/06/2026**, soit le tout début du stage : elles décrivent un travail en cours et seront à compléter au fil de l'avancement, sans résultats inventés.
+> Ce document suit le plan académique imposé. Les sections relevant de l'état d'avancement (Implémentation, Résultats, Analyse critique) reflètent l'état réel du projet au **18/06/2026**, soit environ la moitié du stage : elles décrivent un travail substantiellement avancé, avec un blocage résiduel sur le déploiement terrain de l'interface visiteur sur la tablette Android.
 
 ---
 
@@ -12,21 +12,21 @@
 
 Les robots de service mobiles sont généralement livrés avec un écosystème logiciel fermé : application propriétaire, absence de documentation et de protocole de communication publié. Ce constat limite toute personnalisation par l'utilisateur final. Le projet **CYBEL**, mené dans le cadre d'un stage de fin d'année (PFA), vise à concevoir une plateforme de commande et d'interaction indépendante pour un robot de réception mobile **CIOT TY1251D-03195**, composé d'un châssis de navigation sous ROS et d'un « upper body » Android.
 
-La démarche adoptée repose sur une **rétro-ingénierie incrémentale et non destructive** du protocole de communication interne du robot : balayage des services réseau exposés, introspection des topics et services ROS via `rosbridge`/`rosapi`, et vérification systématique de l'effectivité de chaque commande avant de la considérer comme fonctionnelle. Sur cette base, une **architecture en trois couches** a été conçue — un SDK Python proposant une implémentation simulée (*mock*) et une implémentation réelle interchangeables, une API **FastAPI** (REST + WebSocket) et une interface web **Vite/TypeScript**.
+La démarche adoptée repose sur une **rétro-ingénierie incrémentale et non destructive** du protocole de communication interne du robot : balayage des services réseau exposés, introspection des topics et services ROS via `rosbridge`/`rosapi`, et vérification systématique de l'effectivité de chaque commande avant de la considérer comme fonctionnelle. Sur cette base, une **architecture en trois couches** a été conçue — un SDK Python proposant une implémentation simulée (*mock*) et une implémentation réelle interchangeables, une API **FastAPI** (REST + WebSocket) et une interface web **Vite/TypeScript** opérateur — complétée par une **interface visiteur kiosque** (`frontend-kiosk/`) et deux applications Android natives légères (`CybelTTSBridge`, `CybelVisitorKiosk`).
 
-À ce stade du stage, la connectivité avec le robot est établie, le protocole de télémétrie, de commande de vitesse et de navigation autonome (par point nommé et par clic sur la carte, avec prise en compte des obstacles) a été reconstruit et intégré, et un mode de simulation complet permet un développement déconnecté du robot physique. La principale difficulté en cours concerne le canal de synthèse vocale (TTS) du robot, non exposé par ROS et nécessitant probablement un accès complémentaire au sous-système Android. Ce rapport présente le contexte, la problématique, l'état de l'art, la conception, la méthodologie, l'implémentation réalisée, les résultats intermédiaires obtenus, ainsi qu'une analyse critique des limites et perspectives du projet.
+À ce stade du stage, la connectivité avec le robot est établie, le protocole de télémétrie, de commande de vitesse et de navigation autonome a été reconstruit et intégré, la synthèse vocale (TTS) fonctionne via une application Android dédiée déclenchée par `am broadcast`, une interface opérateur complète (carte SLAM, LiDAR, visiteurs détectés, actions d'accueil, commande vocale) est opérationnelle, et un déploiement embarqué sur Termux (backend lite + kiosque) a été mis en place. Le **dernier obstacle** concerne l'affichage de l'interface visiteur dans la WebView de la tablette (écran blanc malgré un backend local fonctionnel), pour lequel des correctifs techniques ont été identifiés (compatibilité WebView Android 7.1, isolation réseau Termux/WebView) mais restent à valider sur le matériel. Ce rapport présente le contexte, la problématique, l'état de l'art, la conception, la méthodologie, l'implémentation réalisée, les résultats intermédiaires obtenus, ainsi qu'une analyse critique des limites et perspectives du projet.
 
-**Mots-clés** : robotique de service, rétro-ingénierie de protocole, ROS, rosbridge, FastAPI, interface homme-robot, navigation autonome, synthèse vocale.
+**Mots-clés** : robotique de service, rétro-ingénierie de protocole, ROS, rosbridge, FastAPI, interface homme-robot, navigation autonome, synthèse vocale, Termux, WebView Android.
 
 ## Abstract
 
 Mobile service robots are typically delivered with a closed software ecosystem: proprietary application, no documentation, and no published communication protocol — which severely limits end-user customization. The **CYBEL** project, carried out as part of a final-year internship, aims to design an independent control and interaction platform for a **CIOT TY1251D-03195** mobile reception robot, composed of a ROS-based navigation chassis and an Android "upper body".
 
-The approach relies on **incremental, non-destructive reverse engineering** of the robot's internal communication protocol: scanning exposed network services, introspecting ROS topics and services via `rosbridge`/`rosapi`, and systematically verifying that a command has a real effect before considering it functional. Based on this analysis, a **three-layer architecture** was designed — a Python SDK providing interchangeable mock and real implementations, a **FastAPI** API (REST + WebSocket), and a **Vite/TypeScript** web interface.
+The approach relies on **incremental, non-destructive reverse engineering** of the robot's internal communication protocol: scanning exposed network services, introspecting ROS topics and services via `rosbridge`/`rosapi`, and systematically verifying that a command has a real effect before considering it functional. Based on this analysis, a **three-layer architecture** was designed — a Python SDK providing interchangeable mock and real implementations, a **FastAPI** API (REST + WebSocket), and an operator **Vite/TypeScript** web interface — extended with a **visitor kiosk interface** (`frontend-kiosk/`) and two lightweight native Android applications (`CybelTTSBridge`, `CybelVisitorKiosk`).
 
-At this stage of the internship, connectivity with the robot has been established, and the telemetry, velocity control, and autonomous navigation protocols (goal point and map-click navigation, with obstacle awareness) have been reconstructed and integrated; a full simulation mode enables development decoupled from the physical robot. The main remaining difficulty concerns the robot's text-to-speech (TTS) channel, which is not exposed via ROS and likely requires additional access to the Android subsystem. This report presents the context, problem statement, related work, design, methodology, current implementation, intermediate results, and a critical analysis of the project's limitations and outlook.
+At this stage of the internship, connectivity with the robot has been established; telemetry, velocity control, and autonomous navigation protocols have been reconstructed and integrated; text-to-speech (TTS) works via a dedicated Android app triggered by `am broadcast`; a full operator interface (SLAM map, LiDAR, detected visitors, reception actions, voice commands) is operational; and an embedded Termux deployment (lite backend + kiosk) has been set up. The **remaining blocker** concerns displaying the visitor interface in the tablet WebView (blank screen despite a working local backend), for which technical fixes have been identified (Android 7.1 WebView compatibility, Termux/WebView network isolation) but remain to be validated on hardware. This report presents the context, problem statement, related work, design, methodology, current implementation, intermediate results, and a critical analysis of the project's limitations and outlook.
 
-**Keywords**: service robotics, protocol reverse engineering, ROS, rosbridge, FastAPI, human-robot interaction, autonomous navigation, text-to-speech.
+**Keywords**: service robotics, protocol reverse engineering, ROS, rosbridge, FastAPI, human-robot interaction, autonomous navigation, text-to-speech, Termux, Android WebView.
 
 ---
 
@@ -68,7 +68,7 @@ Le robot étudié est un **robot de réception mobile** commercialisé sous la r
 - un **châssis de navigation** fonctionnant sous **Linux embarqué avec ROS** (Robot Operating System, distribution Noetic/Melodic), responsable de la localisation (SLAM), de la planification de trajectoire (`move_base`) et de l'exécution des commandes de mouvement ;
 - un **« upper body » Android 7.1** (SoC RK3399, 2 Go de RAM, 16 Go de stockage), équipé d'un écran tactile 15,6" (1920×1080), de caméras (reconnaissance faciale, surveillance) et de haut-parleurs, qui héberge l'application propriétaire d'accueil et l'interface utilisateur standard du robot.
 
-Le robot dispose d'un point d'accès WiFi propre (`TY1251D-03195`) permettant à un poste externe de rejoindre son réseau local et de communiquer avec le châssis (adresse `10.42.0.1`) et l'upper body Android (adresse `172.16.0.88`).
+Le robot dispose d'un point d'accès WiFi propre (`TY1251D-03195`) permettant à un poste externe de rejoindre son réseau local. La topologie réseau s'est révélée **plus complexe que prévu** : le châssis est joignable sur `10.42.0.1`, la tête Android sur un second segment `172.16.0.0/16` (IP DHCP variable), et un lien eth0 interne `192.168.20.0/24` relie la tête (`192.168.20.1`) au châssis (`192.168.20.22`).
 
 ### 2.2 Origine du besoin
 
@@ -110,9 +110,9 @@ Cette problématique se décline en plusieurs sous-questions :
 3. **Capturer et analyser le trafic réseau** afin de reconstituer les topics et services ROS pertinents (mouvement, navigation, télémétrie, capteurs).
 4. **Décoder et reconstruire les commandes de contrôle** du mouvement et de la navigation (vitesse, position cible, annulation de trajectoire).
 5. **Développer une interface de commande web** (backend FastAPI + frontend TypeScript) permettant la supervision temps réel et l'envoi de commandes.
-6. **Implémenter des fonctionnalités d'interaction homme-robot de base** : navigation par sélection de points/clic sur carte, retour vocal (TTS) et commande vocale opérateur.
+6. **Implémenter des fonctionnalités d'interaction homme-robot** : navigation par sélection de points/clic sur carte, retour vocal (TTS via pont Android), commande vocale opérateur, **interface visiteur kiosque** bilingue.
 7. **Mettre en place un mode de simulation (« mock »)** permettant de développer et tester l'interface sans dépendre de la disponibilité physique du robot.
-8. **Intégrer l'ensemble des composants** (SDK Python, API, interface web) dans un système cohérent et démontrable.
+8. **Intégrer l'ensemble des composants** (SDK Python, API, interfaces web, apps Android, déploiement Termux) dans un système cohérent et démontrable.
 
 ---
 
@@ -127,12 +127,15 @@ Le présent cahier des charges formalise le périmètre, les exigences et les co
 | Inclus dans le périmètre | Exclu du périmètre |
 |---|---|
 | Identification et documentation des canaux de communication du robot (`rosbridge`, MQTT, services réseau) | Modification du firmware ou du logiciel embarqué du robot |
-| Développement d'un SDK Python d'accès au robot (mode simulé et mode réel) | Développement d'une application Android de remplacement (optionnel, non engagé) |
-| Développement d'une API de commande/supervision (FastAPI) | Décompilation ou rétro-ingénierie de l'application Android propriétaire |
-| Développement d'une interface web opérateur (Vite/TypeScript) | Déploiement en production / hébergement distant |
-| Fonctionnalités de navigation (point nommé, clic sur carte, téléopération) | Comportements autonomes avancés (planification de mission, multi-robot) |
-| Interaction de base : synthèse vocale du robot (TTS) et commande vocale opérateur | Vision par caméra, reconnaissance faciale, chatbot (extensions optionnelles) |
-| Documentation technique et rapport de stage | Formation des utilisateurs finaux / exploitation au long cours |
+| Développement d'un SDK Python d'accès au robot (mode simulé et mode réel) | Décompilation ou rétro-ingénierie de l'application Android propriétaire |
+| Développement d'une API de commande/supervision (FastAPI) | Déploiement en production / hébergement distant |
+| Développement d'une interface web opérateur (Vite/TypeScript) | Comportements autonomes avancés (planification de mission, multi-robot) |
+| **Interface visiteur kiosque** (`frontend-kiosk/`) + app Android `CybelVisitorKiosk` | Vision par caméra avancée, reconnaissance faciale, chatbot (extensions optionnelles) |
+| **Pont TTS Android** (`CybelTTSBridge`) + déploiement Termux embarqué | Formation des utilisateurs finaux / exploitation au long cours |
+| Fonctionnalités de navigation (point nommé, clic sur carte, téléopération) | |
+| Interaction : TTS robot, commande vocale opérateur, actions d'accueil bilingues | |
+| Base de connaissances FAQ (HESTIM) | |
+| Documentation technique et rapport de stage | |
 
 ### 5.3 Acteurs et parties prenantes
 
@@ -159,6 +162,8 @@ Le recueil détaillé des besoins fonctionnels et non fonctionnels est présent�
 | EF-07 | Donner des commandes vocales à l'opérateur via le micro du navigateur | Souhaitable |
 | EF-08 | Configurer les paramètres de fonctionnement (vitesse, mode de déplacement) | Souhaitable |
 | EF-09 | Fonctionner en mode simulation complet sans robot connecté | Essentielle |
+| EF-10 | **Interface visiteur** tactile plein écran (actions d'accueil, FAQ, FR/EN) | Essentielle |
+| EF-11 | **Déploiement autonome** sur la tablette Android (sans PC développeur) | Essentielle |
 | ENF-01 | Latence d'affichage de la télémétrie de l'ordre de quelques centaines de ms maximum | Essentielle |
 | ENF-02 | Reconnexion automatique au robot après perte de connexion réseau | Essentielle |
 | ENF-03 | Séparation stricte entre couche d'accès robot (SDK), API et présentation | Essentielle |
@@ -177,11 +182,11 @@ Le recueil détaillé des besoins fonctionnels et non fonctionnels est présent�
 
 Conformément au sujet de stage, les livrables attendus en fin de projet sont :
 
-1. Une **interface de communication fonctionnelle** avec le robot (SDK + client `rosbridge`/MQTT).
-2. Un **système de contrôle du mouvement** opérationnel (téléopération + navigation).
-3. Une **interface utilisateur** web opérateur.
-4. Un **module d'interaction de base** (tactile et/ou vocal).
-5. Un **rapport technique** incluant l'architecture du système et l'analyse du protocole (le présent document).
+1. Une **interface de communication fonctionnelle** avec le robot (SDK + client `rosbridge`/MQTT). ✅
+2. Un **système de contrôle du mouvement** opérationnel (téléopération + navigation). ✅
+3. Une **interface utilisateur** web opérateur. ✅
+4. Un **module d'interaction de base** (tactile et vocal) : TTS robot ✅, interface visiteur kiosque ⚠️ (en validation).
+5. Un **rapport technique** incluant l'architecture du système et l'analyse du protocole (le présent document). 🔄 En cours de rédaction.
 
 ### 5.7 Critères de réception / validation
 
@@ -192,8 +197,9 @@ Conformément au sujet de stage, les livrables attendus en fin de projet sont :
 | Navigation vers un point/une coordonnée | Envoi d'une commande de navigation suivie d'un changement d'état (`/navi_status`) cohérent |
 | Téléopération et arrêt d'urgence | Test en mode simulation puis, si possible, sur robot réel à vitesse réduite |
 | Fonctionnement en mode simulation | Lancement de l'interface avec `ROBOT_MOCK=true`, toutes les fonctionnalités principales accessibles |
-| Interaction vocale | TTS robot **ou** solution de repli (voix opérateur via navigateur) fonctionnelle |
-| Documentation | Présence et cohérence de `README.md`, `docs/INTERFACE.md` et du présent rapport |
+| Interaction vocale | TTS robot via **CybelTTSBridge** fonctionnel (ADB ou broadcast local Termux) |
+| Interface visiteur | App **CYBEL Accueil** affichant `/kiosk/` — **en cours de validation** (écran blanc résiduel) |
+| Documentation | Présence et cohérence de `README.md`, `docs/INTERFACE.md`, `docs/VISITOR_KIOSK.md`, `docs/TTS_BRIDGE.md`, `docs/TERMUX_DEPLOY.md` et du présent rapport |
 
 ---
 
@@ -205,8 +211,9 @@ Le travail de rétro-ingénierie et de conception repose sur les hypothèses de 
 - **H2 — Stabilité et documentation indirecte du protocole rosbridge.** Le protocole `rosbridge_suite` étant un standard ouvert et documenté (Robot Web Tools), les messages observés sur le réseau peuvent être interprétés à l'aide de cette documentation générique, même si les *topics* et *types de messages* spécifiques au constructeur (préfixés `yutong_assistance`, etc.) restent, eux, propriétaires et à découvrir par introspection (`/rosapi/*`).
 - **H3 — Séparation possible entre commande de mouvement bas niveau et navigation haut niveau.** Le robot distingue un canal de téléopération directe (vitesse linéaire/angulaire) et un canal de navigation autonome (objectif de pose géré par une pile `move_base`), tous deux potentiellement accessibles via `rosbridge`.
 - **H4 — Le succès apparent d'une publication `rosbridge` ne garantit pas son traitement effectif.** Un message publié sur un topic sans abonné réel sera accepté par `rosbridge` sans erreur, ce qui impose de vérifier l'existence d'abonnés/services réels (via `/rosapi/subscribers`, `/rosapi/services`) avant de considérer une commande comme « exécutée ».
-- **H5 — L'interaction vocale (TTS) peut nécessiter un accès hors du périmètre ROS.** Si aucun topic ou service ROS ne correspond à une fonction de synthèse vocale, celle-ci est probablement gérée nativement par le sous-système Android (upper body), nécessitant un accès complémentaire (HTTP local, ADB, ou accès système) pour être déclenchée depuis la plateforme CYBEL.
-- **H6 — Une architecture « mock / réel » découplée permet un développement continu.** En isolant la logique métier derrière une interface commune (`RobotBackend`), il est possible de développer et de valider l'essentiel de l'interface utilisateur via un simulateur logiciel, indépendamment des contraintes d'accès physique au robot.
+- **H5 — L'interaction vocale (TTS) nécessite un accès hors du périmètre ROS.** Confirmée : aucun topic/service ROS TTS ; solution retenue via sous-système Android (`CybelTTSBridge` + `TextToSpeech` Google).
+- **H6 — Une architecture « mock / réel » découplée permet un développement continu.** Confirmée : développement mock-first puis portage `RealRobot` ; étendue au déploiement Termux (backend lite).
+- **H7 — Le déploiement sur la tablette Android est viable via Termux.** Partiellement confirmée : backend lite et TTS local fonctionnels ; affichage WebView kiosque en attente de validation.
 
 ---
 
@@ -219,7 +226,7 @@ Le travail de rétro-ingénierie et de conception repose sur les hypothèses de 
 | **Application propriétaire (upper body Android)** | Interface tactile fournie par le constructeur (CIOT/Yutong), gère accueil, navigation par points prédéfinis, TTS | Fermée, sans documentation, sans API |
 | **Interface de déploiement web (`:8082`, Vue.js)** | Interface web embarquée dédiée au scan/édition de cartes SLAM | Accessible sur le réseau du robot, non documentée, usage limité à la cartographie |
 | **Interface de debug CSST (`:8088`)** | Interface de diagnostic interne, en chinois | Accessible mais non documentée, fonction exacte non déterminée |
-| **rosbridge_suite + roslibjs / RViz / Foxglove Studio** | Outils génériques de l'écosystème ROS permettant de visualiser topics, services et de publier des messages | Open-source, documentés, mais génériques (pas de logique métier « accueil »bm, pas d'UI orientée opérateur) |
+| **rosbridge_suite + roslibjs / RViz / Foxglove Studio** | Outils génériques de l'écosystème ROS permettant de visualiser topics, services et de publier des messages | Open-source, documentés, mais génériques (pas de logique métier « accueil », pas d'UI orientée opérateur) |
 | **SDK/plateformes de robots de réception commerciaux (ex. Temi, OrionStar, Pepper)** | Plateformes propriétaires avec SDK officiel pour développeurs tiers | SDK documenté mais verrouillé à l'écosystème du fabricant, modèle différent (pas de rosbridge) |
 
 ### 7.2 Étude bibliographique
@@ -241,7 +248,9 @@ La conception de la plateforme s'appuie sur plusieurs corpus de référence :
 | Personnalisation des scénarios d'accueil | Non | Non (outil générique) | Oui (objectif du projet) |
 | Mode simulation sans robot | Non | Partiel (rejouer des enregistrements) | Oui (mode *mock* dédié) |
 | Navigation par clic sur carte | Oui (propriétaire) | Oui (générique, RViz) | Oui (développé, avec pré-vérification d'obstacles) |
-| Interaction vocale (TTS/voix opérateur) | Oui (propriétaire, fermé) | Non | Partiel / en cours (TTS robot non encore résolu, voix opérateur via Web Speech API fonctionnelle) |
+| Interaction vocale (TTS/voix opérateur) | Oui (propriétaire, fermé) | Non | **Oui** (CybelTTSBridge + Web Speech API opérateur) |
+| Interface visiteur autonome | Oui (propriétaire, fermé) | Non | **En cours** (frontend-kiosk + CybelVisitorKiosk) |
+| Déploiement sans PC développeur | Oui (natif) | Non | **En cours** (Termux + backend lite) |
 
 ### 7.4 Limites des solutions actuelles
 
@@ -395,29 +404,39 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph Poste Operateur
-        FE["Frontend Vite/TS - :5173"]
+        FE["Frontend opérateur - :5173"]
     end
 
     subgraph Backend CYBEL
-        API["FastAPI - :8000"]
+        API["FastAPI / cybel_lite - :8000"]
         WS["WebSocket /ws/telemetry"]
+        KIOSK["/kiosk/ - frontend-kiosk/dist"]
         SDKM["SDK - MockRobot"]
         SDKR["SDK - RealRobot"]
     end
 
+    subgraph Tete Android - Termux
+        TERMUX["cybel_lite.py"]
+        KAPP["CybelVisitorKiosk - WebView"]
+        TTS["CybelTTSBridge"]
+    end
+
     subgraph Robot CIOT TY1251D-03195
-        RB["rosbridge :9090 (ROS)"]
+        RB["rosbridge :9090 - châssis"]
         MQTT["Broker MQTT :1883"]
-        AND["Upper body Android :172.16.0.88"]
+        AND["Upper body Android 7.1"]
     end
 
     FE -- REST --> API
     FE -- WebSocket --> WS
+    KAPP -- HTTP local --> TERMUX
+    TERMUX --> KIOSK
     API --> SDKM
     API --> SDKR
+    TERMUX --> SDKR
     SDKR -- WebSocket JSON --> RB
+    SDKR -. broadcast TTS .-> TTS
     SDKR -. MQTT .-> MQTT
-    SDKR -. HTTP local non confirmé .-> AND
 ```
 
 ### 8.4 Architecture logicielle
@@ -435,9 +454,17 @@ L'architecture retenue est une architecture **en trois couches**, calquée sur l
    - un canal **WebSocket** (`/ws/telemetry`) pour la diffusion continue de l'état du robot ;
    - une façade `RobotService` qui sélectionne `MockRobot` ou `RealRobot` selon la configuration (`ROBOT_MOCK`).
 
-3. **Couche présentation (`frontend/`)** : application **Vite + TypeScript** (sans framework, rendu par templates HTML générés en chaînes de caractères), organisée autour d'un état global (`state.ts`) mis à jour par le flux WebSocket (`telemetry.ts`) et par les réponses REST (`api.ts`), avec des composants dédiés (carte, barre de statut, panneau d'accueil/TTS, contrôles de téléopération, page de paramètres).
+3. **Couche présentation** — deux interfaces web distinctes :
+   - **`frontend/`** : application opérateur **Vite + TypeScript** (port `5173`), avec état global (`state.ts`), télémétrie WebSocket (`telemetry.ts`), composants carte/LiDAR/accueil ;
+   - **`frontend-kiosk/`** : application visiteur minimaliste (port `5174` en dev), gros boutons tactiles, FAQ bilingue, servie en production sur `/kiosk/` par le backend.
 
-Ce découpage permet à la couche présentation et à la couche API d'être développées et testées **sans dépendance au robot physique** (via `MockRobot`), tandis que la couche `RealRobot` encapsule toute la complexité du protocole reconstruit par rétro-ingénierie.
+4. **Couche Android embarquée** (`android/`) — deux APK construits sans Gradle, via les outils CLI du SDK Android :
+   - **`CybelTTSBridge`** : `BroadcastReceiver` + `TextToSpeech` (moteur Google TTS) ;
+   - **`CybelVisitorKiosk`** : `WebView` plein écran chargeant `/kiosk/`, mode kiosque immersif.
+
+5. **Déploiement Termux** (`scripts/termux/`) — variante **backend lite** (`cybel_lite.py`, Starlette sans pydantic) pour l'exécution sur la tablette Android, avec scripts de bootstrap, démarrage et configuration embarquée (`cybel.env`).
+
+Ce découpage permet à la couche présentation et à la couche API d'être développées et testées **sans dépendance au robot physique** (via `MockRobot`), tandis que la couche `RealRobot` encapsule toute la complexité du protocole reconstruit par rétro-ingénierie. Le déploiement Termux étend cette architecture pour un fonctionnement **autonome sur la tablette**, sans PC développeur.
 
 ### 8.5 Choix technologiques
 
@@ -447,7 +474,11 @@ Ce découpage permet à la couche présentation et à la couche API d'être dév
 | **rosbridge (WebSocket JSON)** comme canal principal | Pont ROS custom, accès direct aux topics ROS via DDS | `rosbridge` est déjà exposé par le robot (port 9090) sans configuration supplémentaire ; protocole texte (JSON), facilement observable et débogable, documenté par `rosbridge_suite`. |
 | **TypeScript + Vite, sans framework UI** | React, Vue (recommandés initialement) | Réduction de la surface technique pour un projet porté par un développeur unique en début de stage ; démarrage à chaud quasi instantané (HMR Vite) ; suffisant pour le volume d'interactions de l'interface actuelle. Réévaluable si la complexité de l'UI augmente. |
 | **Architecture Mock/Réel via un `Protocol`** | Tests avec robot physique uniquement | Permet un développement continu indépendamment de la disponibilité du robot (contrainte forte en contexte de stage), et fournit un environnement de démonstration reproductible. |
-| **MQTT (paho-mqtt)** comme canal secondaire | Ignorer le broker MQTT | Le broker `:1883` étant déjà actif et non authentifié sur le robot, son observation passive permet de corroborer/enrichir la télémétrie obtenue via `rosbridge`. |
+| **Backend lite Starlette** (Termux) | FastAPI complet sur tablette | Python 3.13 Termux sans wheel `pydantic-core` ; compilation Rust impossible (espace disque limité) ; Starlette + uvicorn suffisent pour le kiosque |
+| **Build Vite legacy** (`@vitejs/plugin-legacy`) | Build ES modules standard | WebView Android 7.1 (Chrome ~51) ignore `type="module"` et la syntaxe ES2020 |
+| **Apps Android Java (sans Gradle)** | Kotlin / Android Studio | `kotlinc` indisponible ; `javac` + SDK CLI suffisants pour deux APK légers |
+| **TTS via broadcast Android** | Topics ROS ou HTTP | Aucun canal réseau TTS identifié ; `TextToSpeech` natif via `CybelTTSBridge` validé |
+| **MQTT (paho-mqtt)** comme canal secondaire | Ignorer le broker MQTT | Broker `:1883` actif ; observation passive pour corroborer la télémétrie |
 
 ---
 
@@ -491,96 +522,153 @@ La méthodologie de travail combine deux démarches complémentaires :
 | Backend | FastAPI, uvicorn, websockets, pydantic, pydantic-settings, httpx |
 | Frontend | Vite, TypeScript (sans framework UI), Web Speech API (navigateur) |
 | Communication robot | Protocole `rosbridge` (JSON/WebSocket), `paho-mqtt` |
-| Outils de rétro-ingénierie | scripts Python dédiés (sockets, `paramiko` pour diagnostics SSH, `ftplib`) |
-| Gestion de projet | Git / dépôt versionné, documentation Markdown (`README.md`, `docs/INTERFACE.md`) |
+| Outils de rétro-ingénierie | scripts Python (sockets, `paramiko`, `ftplib`), exploration ADB |
+| Déploiement embarqué | Termux (SSH `:8022`), scripts `deploy_termux.py`, backend lite Starlette |
+| Applications Android | SDK Android CLI (`aapt2`, `javac`, `d8`, `apksigner`) — sans Gradle |
+| Gestion de projet | Git, documentation Markdown (`docs/` — 6+ guides techniques) |
+| Assistance IA | Claude AI / Cursor — exploration protocole, code, documentation (sous validation étudiant) |
 
 ### 9.5 Planning prévisionnel
 
-Le planning ci-dessous reprend les quatre phases proposées dans le sujet de stage, sur une durée totale indicative de quatre mois (juin → septembre 2026). L'avancement réel à la date de rédaction (12/06/2026) se situe au tout début de la phase 2, certains éléments de la phase 3 ayant déjà été amorcés en parallèle (développement mock-first).
+Le planning ci-dessous reprend les quatre phases proposées dans le sujet de stage, sur une durée totale indicative de quatre mois (juin → septembre 2026). L'avancement réel à la date de rédaction (18/06/2026) se situe en **phase 3 avancée**, avec des éléments de la phase 4 déjà amorcés (déploiement Termux, apps Android).
 
-| Phase | Période indicative | Activités prévues | État au 12/06/2026 |
+| Phase | Période indicative | Activités prévues | État au 18/06/2026 |
 |---|---|---|---|
-| **Phase 1 — Connectivité** | Semaines 1–2 | Compréhension de l'architecture matérielle, connexion au réseau WiFi du robot, identification des hôtes et ports actifs | **Réalisée** : connectivité établie, ports 21/22/1883/9090 identifiés sur `10.42.0.1` |
-| **Phase 2 — Exploration protocolaire** | Semaines 2–6 | Introspection ROS (`rosapi`), identification des topics/services de mouvement, navigation, télémétrie ; exploration MQTT ; exploration des canaux d'interaction (TTS) | **En cours** : topics de navigation (`/navi_goal`, `/navi_status`), de télémétrie et de commande de vitesse identifiés ; canal TTS non encore localisé |
-| **Phase 3 — Développement de l'interface** | Semaines 5–12 | Backend FastAPI (SDK mock + réel), frontend Vite/TS, fonctionnalités de supervision, navigation, téléopération, interaction | **Amorcée en parallèle** : backend, frontend, supervision temps réel, navigation par point et par clic sur carte, mode mock opérationnels |
-| **Phase 4 — Intégration, tests, validation** | Semaines 12–16 | Intégration complète, tests sur robot réel, rédaction du rapport final, démonstration | **Non commencée** |
+| **Phase 1 — Connectivité** | Semaines 1–2 | Compréhension de l'architecture matérielle, connexion au réseau WiFi du robot, identification des hôtes et ports actifs | **Réalisée** : connectivité établie, ports identifiés ; topologie dual-stack documentée (`10.42.0.1` châssis, `172.16.0.x` tête Android, `192.168.20.22` lien eth0 interne) |
+| **Phase 2 — Exploration protocolaire** | Semaines 2–6 | Introspection ROS, identification topics/services, exploration MQTT, canaux d'interaction (TTS) | **Réalisée** : navigation, télémétrie, commande vitesse documentés ; TTS résolu via accès ADB + `CybelTTSBridge` |
+| **Phase 3 — Développement de l'interface** | Semaines 5–12 | Backend FastAPI, frontend opérateur, interface visiteur, supervision, navigation, interaction | **Largement réalisée** : dashboard opérateur, kiosque visiteur, actions d'accueil FR/EN, FAQ HESTIM, détection visiteurs, commande vocale ; déploiement Termux opérationnel |
+| **Phase 4 — Intégration, tests, validation** | Semaines 12–16 | Intégration complète, tests sur robot réel, rapport final, démonstration | **En cours** : validation terrain de l'app kiosque bloquée (écran blanc WebView) ; TTS et backend lite validés |
 
 ---
 
 ## 10. Implémentation
 
-### 10.1 Fonctionnalités développées (état au 12/06/2026)
+### 10.1 Fonctionnalités développées (état au 18/06/2026)
+
+#### 10.1.1 Plateforme opérateur (backend + `frontend/`)
 
 - **Connexion et reconnexion automatique au robot** via `rosbridge` (`RosbridgeClient`), avec gestion explicite de l'état de connexion et rechargement de la carte lors d'une reconnexion.
-- **Tableau de bord opérateur** : barre de statut (batterie, mode, vitesse, niveau de matching de localisation), panneau latéral (liste des points de navigation, journal d'événements), panneau carte.
-- **Carte SLAM interactive** : affichage de la grille d'occupation, overlay LiDAR, position du robot en temps réel, et **navigation par clic** :
-  - conversion des coordonnées écran → coordonnées monde (`canvasToWorld`) ;
-  - lecture de la valeur de la cellule de la grille d'occupation (`getCellValue`) et **rejet préventif** des clics sur obstacle (seuil `OCCUPANCY_OBSTACLE_THRESHOLD = 65`) ou zone inconnue (`-1`) ;
-  - calcul automatique de l'orientation cible à partir de la pose courante ;
-  - envoi de l'objectif via `POST /api/navigation/goto-coordinate`, publication ROS sur `/navi_goal` (`geometry_msgs/PoseStamped`), prise en charge de l'évitement d'obstacles dynamiques par la pile `move_base` du robot.
-- **Navigation par point nommé** (`/api/navigation/goto`) et **annulation de trajectoire** (`/api/navigation/cancel`).
-- **Téléopération manuelle** (vitesse linéaire/angulaire) avec gestion de l'arrêt d'urgence.
-- **Module de synthèse vocale (TTS) avec vérification d'effectivité** : la couche `RobotSpeech` tente plusieurs topics/services ROS connus, mais **ne les considère valides que s'ils possèdent un abonné ou un service réel** (`/rosapi/subscribers`, `/rosapi/services`), corrigeant un défaut initial où une publication sans effet était signalée comme un succès.
-- **Commande vocale opérateur** côté navigateur via la Web Speech API (`voice.ts`).
+- **Tableau de bord opérateur** : barre de statut (batterie, mode, vitesse, matching de localisation, compteur visiteurs), panneau latéral (points de navigation, journal d'événements), panneau carte.
+- **Carte SLAM interactive** : grille d'occupation, overlay LiDAR, position robot temps réel, **visiteurs détectés** (`/detected_people_array`, cercles violets + distance), navigation par clic avec rejet préventif des obstacles (seuil `65`) et zones inconnues (`-1`).
+- **Navigation** par point nommé, par coordonnée cliquée, annulation de trajectoire.
+- **Téléopération manuelle** avec arrêt d'urgence.
+- **Actions d'accueil** (`ReceptionService`, `sdk/reception_actions.py`) : catalogue d'actions (accueil, navigation salle, mode attente, visite guidée…) avec libellés et annonces **bilingues FR/EN**.
+- **Synthèse vocale (TTS)** via `CybelTTSBridge` : `RobotSpeech` déclenche `am broadcast` vers `com.cybel.ttsbridge.SPEAK` ; correction d'une race condition `TextToSpeech` dans `SpeakService.java`.
+- **Commande vocale opérateur** via Web Speech API (`voice.ts`).
 - **Page de paramètres** (vitesse, mode de déplacement).
-- **Mode simulation complet (`MockRobot`)** reproduisant la navigation, la télémétrie et la synthèse vocale pour le développement hors connexion au robot.
-- **Outillage de rétro-ingénierie versionné** (`scripts/`) : découverte de ports/services, introspection ROS, écoute MQTT passive, tests de connexion SSH/FTP/ADB pour les canaux non encore résolus (TTS, accès système).
+- **Mode simulation complet (`MockRobot`)** avec visiteurs simulés, LiDAR et navigation.
+- **Script de lancement unifié** `scripts/dev.py` (backend `:8000`, opérateur `:5173`, kiosque `:5174`).
+
+#### 10.1.2 Interface visiteur (`frontend-kiosk/` + `CybelVisitorKiosk`)
+
+- **Application web kiosque** séparée : gros boutons tactiles, écran FAQ « S'informer », bascule **FR/EN**.
+- **Actions visiteur** via `POST /api/reception/actions/{id}/execute?lang=fr|en`.
+- **FAQ HESTIM** servie par `GET /api/knowledge/faq` depuis `data/hestim_knowledge_base.json` ; toucher une question déclenche l'affichage et le TTS de la réponse.
+- **Build production** monté sur `/kiosk/` par `backend/main.py` et `cybel_lite.py`.
+- **Build legacy Vite** (`@vitejs/plugin-legacy`) pour compatibilité WebView Android 7.1.
+- **App Android `CybelVisitorKiosk`** : WebView plein écran, mode immersif, lecture URL depuis `/sdcard/Download/cybel_kiosk_url.txt`, fallbacks réseau, page d'erreur visible, logs `WebChromeClient`, `BootReceiver` au démarrage.
+
+#### 10.1.3 Déploiement embarqué Termux
+
+- **Backend lite** `scripts/termux/cybel_lite.py` (Starlette, uvicorn, websockets) — alternative au FastAPI complet, non viable sur Termux (Python 3.13, pas de wheel `pydantic-core`).
+- **Scripts de déploiement** : `deploy_termux.py`, `termux_lite_deploy.py`, `termux_explore.py`, `install_kiosk_apk.py`, `kiosk_network_probe.py`.
+- **Configuration embarquée** `cybel.env` : `ROBOT_HOST=192.168.20.22` (eth0 interne, pas `10.42.0.1`), `SPEECH_LOCAL_BROADCAST=true`.
+- **`start_cybel.sh`** : génère `cybel_kiosk_url.txt` avec l'IP Wi-Fi de la tablette pour la WebView.
+
+#### 10.1.4 Outillage de rétro-ingénierie (`scripts/`)
+
+Scripts versionnés conservés comme journal exécutable : `ros_explore.py`, `mqtt_listen.py`, `robot_status.py`, `introspect.py`, exploration SSH/ADB, scripts Termux (`bootstrap_lite.sh`, `free_disk.sh`, etc.).
 
 ### 10.2 Captures d'écran
 
 > *À insérer dans le rapport final :*
-> - capture du tableau de bord en mode simulation (`ROBOT_MOCK=true`) ;
-> - capture de la carte SLAM avec un clic de navigation en cours et le tracé vers la destination ;
-> - capture du panneau d'accueil / synthèse vocale ;
+> - capture du tableau de bord en mode simulation et en mode robot réel ;
+> - capture de la carte SLAM avec visiteurs détectés et navigation par clic ;
+> - capture du panneau d'accueil / actions d'accueil ;
+> - capture de l'interface visiteur kiosque (FR et EN) ;
+> - capture de l'app « CYBEL Accueil » sur la tablette (une fois l'écran blanc résolu) ;
 > - capture de la page de paramètres.
 >
-> Ces captures seront réalisées au fur et à mesure de la stabilisation de l'interface, en conditions réelles (robot connecté) et simulées.
+> Ces captures seront réalisées au fur et à mesure de la stabilisation, en conditions réelles et simulées.
 
 ### 10.3 Architecture finale (état courant)
 
 ```
 cybel/
-├── sdk/                # Couche robot réutilisable (mock + réel + protocole)
-├── backend/            # API FastAPI (REST + WebSocket /ws/telemetry)
-├── frontend/           # Interface opérateur (Vite + TypeScript)
-├── scripts/            # Journal exécutable de rétro-ingénierie
-└── docs/               # Documentation (README, guide interface, rapport)
+├── sdk/                    # Couche robot (mock + réel + protocole + speech)
+├── backend/                # API FastAPI (REST + WebSocket)
+├── frontend/               # Interface opérateur (Vite + TypeScript)
+├── frontend-kiosk/         # Interface visiteur (Vite + TypeScript, build legacy)
+├── android/
+│   ├── CybelTTSBridge/    # Pont TTS Android (broadcast + TextToSpeech)
+│   └── CybelVisitorKiosk/  # App kiosque (WebView plein écran)
+├── data/
+│   └── hestim_knowledge_base.json   # FAQ HESTIM (FR/EN)
+├── scripts/
+│   ├── dev.py              # Lancement dev (3 processus)
+│   ├── deploy_termux.py    # Déploiement SSH/SFTP
+│   └── termux/             # Backend lite + bootstrap + config embarquée
+└── docs/                   # Documentation technique (INTERFACE, TTS_BRIDGE,
+                            # VISITOR_KIOSK, TERMUX_DEPLOY, ROBOT_CONNECTION…)
 ```
 
-Cette architecture correspond à celle décrite en §8.4 ; elle n'a pas connu de remise en cause structurelle depuis le début du projet, seules de nouvelles fonctionnalités (navigation par clic, vérification d'effectivité TTS, reconnexion automatique) ayant été ajoutées dans le cadre existant — ce qui constitue un premier indicateur positif sur la pertinence du découpage initial.
+Cette architecture a évolué de manière **incrémentale** depuis le découpage initial SDK/API/UI : ajout de la couche visiteur, des apps Android et du déploiement Termux, sans remise en cause structurelle du cœur logiciel.
 
 ---
 
 ## 11. Résultats
 
-> Conformément aux consignes académiques, cette section décrit **uniquement l'état réellement constaté à ce jour** (12/06/2026), sans anticiper de résultats non obtenus. Le projet étant en phase initiale (début de la phase 2 sur 4), les résultats ci-dessous sont des **résultats intermédiaires**.
+> Cette section décrit l'état réellement constaté au **18/06/2026**. Le projet est en phase 3 avancée / début de phase 4 ; les résultats ci-dessous sont des **résultats intermédiaires substantiels**, avec un blocage résiduel sur la validation terrain de l'app kiosque.
 
 ### 11.1 Fonctionnalités obtenues
 
-- Connectivité réseau établie et caractérisée : 4 services actifs identifiés sur le châssis (`10.42.0.1`) — FTP (21), SSH (22), MQTT (1883), `rosbridge` (9090).
-- Protocole `rosbridge` exploité avec succès pour : la télémétrie (position, statut, batterie, LiDAR), la commande de vitesse, et la navigation vers un objectif de pose (`/navi_goal`, confirmé avec un abonné réel `/node_manager` via `/rosapi/subscribers`).
-- Pile de navigation `move_base` confirmée présente et fonctionnelle (gestion native de l'évitement d'obstacles), ce qui a permis de **ne pas développer de planificateur de trajectoire custom** côté CYBEL — la responsabilité de l'évitement dynamique reste côté robot, CYBEL se limitant à un filtrage préventif basé sur la carte statique.
-- Interface web fonctionnelle en mode simulation et en mode robot réel, avec bascule par variable d'environnement (`ROBOT_MOCK`).
-- Identification d'un défaut de conception initial (statut « connecté » non rafraîchi après perte effective de la connexion `rosbridge`) et correction apportée dans la boucle de reconnexion.
+**Protocole et connectivité**
+
+- Connectivité réseau établie et caractérisée : services actifs sur le châssis (`10.42.0.1`) et topologie dual-stack documentée (Wi-Fi `172.16.0.0/16`, eth0 `192.168.20.0/24`).
+- Protocole `rosbridge` exploité pour télémétrie, commande de vitesse et navigation (`/navi_goal`, abonné réel `/node_manager` confirmé).
+- Depuis Termux, rosbridge joignable via **`192.168.20.22:9090`** (pas `10.42.0.1`).
+
+**Interface opérateur**
+
+- Dashboard fonctionnel en mode simulation et robot réel (`ROBOT_MOCK`).
+- Carte SLAM avec LiDAR, visiteurs détectés, navigation par clic et par point.
+- Actions d'accueil bilingues FR/EN, commande vocale opérateur.
+
+**Synthèse vocale (TTS)**
+
+- Canal TTS **résolu** : application `CybelTTSBridge` installée sur la tête Android, déclenchée par `am broadcast` (depuis PC via ADB ou localement depuis Termux avec `su`).
+- Tests validés : le robot prononce un texte arbitraire via le moteur Google TTS.
+
+**Interface visiteur et déploiement embarqué**
+
+- Interface kiosque développée (`frontend-kiosk/`) : actions, FAQ HESTIM, FR/EN.
+- Backend lite Termux opérationnel : `curl http://127.0.0.1:8000/api/health` → **200**.
+- APK `CybelVisitorKiosk` construit et installé.
+- **Non validé** : affichage dans la WebView (écran blanc malgré backend OK).
 
 ### 11.2 Performances
 
-Les valeurs suivantes correspondent à des **observations** ou à des **fréquences configurées** dans le code, et non à des bancs de mesure formels (qui restent à mettre en place en phase 4) :
-
 | Élément | Valeur observée / configurée |
 |---|---|
-| Latence réseau WiFi robot | Variable, de l'ordre de 7 à 1654 ms selon les observations |
-| Fréquence de mise à jour de la pose (`/robot_pose`) | ~10 Hz (throttle configuré) |
-| Fréquence de mise à jour du statut (`/robot_status`) | ~2 Hz |
-| Fréquence des données LiDAR filtrées (`/scan_filter`) | ~25 Hz |
-| Seuil de détection d'obstacle (grille d'occupation) | valeur ≥ 65 (sur une échelle 0–100), ou -1 (zone inconnue) |
+| Latence réseau WiFi robot | Variable, 7 à 1654 ms |
+| Fréquence pose (`/robot_pose`) | ~10 Hz |
+| Fréquence statut (`/robot_status`) | ~2 Hz |
+| Fréquence LiDAR (`/scan_filter`) | ~25 Hz |
+| Fréquence visiteurs (`/detected_people_array`) | ~2 Hz (throttle 200 ms) |
+| Seuil obstacle (grille d'occupation) | ≥ 65 ou -1 (zone inconnue) |
+| Archive déploiement Termux | ~60 KiB (mode lite) |
 
 ### 11.3 Indicateurs mesurables (état courant)
 
-- **Topics/services ROS identifiés et documentés** : une dizaine de topics en lecture, trois topics de commande et plusieurs services `rosapi`/`move_base` recensés dans `README.md`.
-- **Endpoints REST développés** : endpoints couvrant le statut robot, la pose, le mouvement, l'arrêt d'urgence, la navigation (par point et par coordonnée), l'annulation, la carte, les paramètres et la synthèse vocale.
-- **Couverture mock/réel** : chaque fonctionnalité de navigation dispose d'une implémentation simulée (`MockRobot`) et d'une implémentation réelle (`RealRobot`), vérifiée par compilation (`py_compile`) et vérification de types côté frontend (`tsc --noEmit`).
-- **Canal d'interaction vocale (TTS robot)** : non encore identifié — indicateur à 0 sur 1 canal candidat validé à ce stade ; plusieurs voies d'investigation actives (cf. §12).
+| Indicateur | Valeur |
+|---|---|
+| Topics/services ROS documentés | ~15 topics lecture, 3+ commande, services `rosapi`/`move_base` |
+| Endpoints REST développés | Robot, navigation, carte, paramètres, speech, reception, knowledge |
+| Applications Android construites | 2 (`CybelTTSBridge`, `CybelVisitorKiosk`) |
+| Couverture mock/réel | Navigation, télémétrie, TTS, actions d'accueil |
+| Canal TTS robot validé | **1/1** (CybelTTSBridge) |
+| Interface visiteur validée sur tablette | **0/1** (écran blanc — correctifs en attente de déploiement) |
+| Documentation technique | 6+ fichiers (`INTERFACE`, `TTS_BRIDGE`, `VISITOR_KIOSK`, `TERMUX_DEPLOY`, `ROBOT_CONNECTION`, `PROMPT_CLAUDE_KIOSK_TABLETTE`) |
 
 ---
 
@@ -588,36 +676,67 @@ Les valeurs suivantes correspondent à des **observations** ou à des **fréquen
 
 ### 12.1 Limites
 
-- **Absence persistante de canal TTS confirmé côté robot** : malgré une introspection exhaustive des topics, services et nœuds ROS (recherche de toute occurrence liée à « tts », « voice », « speech », « audio », « sound », « speak », etc.), aucun canal de synthèse vocale n'a été trouvé côté ROS. La fonction de synthèse vocale de l'application propriétaire est donc très probablement gérée **nativement par le sous-système Android**, hors du périmètre `rosbridge`.
-- **Accès complémentaire au sous-système Android non résolu** : le port ADB réseau (5555) de l'upper body Android est fermé, et aucun service HTTP n'a été détecté sur les ports usuels. L'accès via débogage USB (ADB filaire) est en cours de mise en place mais nécessite une intervention physique (configuration du mode USB, qui était initialement en mode « hôte » / OTG, incompatible avec une connexion ADB classique).
-- **Identifiants d'accès système (SSH/FTP) inconnus** : les tentatives d'authentification avec des couples d'identifiants par défaut courants (constructeur, distribution Linux embarquée, motifs liés au numéro de série) ont toutes échoué, et le service SSH applique une limitation de connexions qui rend toute tentative supplémentaire risquée (blocage prolongé de l'accès légitime).
-- **Robot unique disponible** : les tests sont réalisés sur un seul exemplaire physique, partagé avec d'autres usages — ce qui limite la possibilité de tests destructifs ou prolongés et impose une grande prudence dans toute commande envoyée (cf. §12.2).
-- **Version Android obsolète (7.1, 2017)** : limite l'écosystème d'outils de débogage modernes directement compatibles (ex. absence de « débogage sans fil » natif, disponible seulement depuis Android 11).
+- **Interface visiteur non validée sur tablette** : l'app « CYBEL Accueil » affiche un écran blanc malgré un backend Termux fonctionnel (`health` 200). Causes probables : incompatibilité WebView Android 7.1 avec le build JavaScript moderne, et/ou isolation réseau entre le processus Termux et la WebView sur `127.0.0.1`. Des correctifs ont été développés (build legacy, URL dynamique via IP Wi-Fi) mais n'ont pas encore été validés sur le matériel.
+- **Backend complet non déployable sur Termux** : FastAPI + pydantic nécessite `pydantic-core` (compilation Rust), impossible sur Python 3.13 Termux avec l'espace disque disponible (~90 % occupé). Le backend lite (Starlette) couvre le kiosque mais pas toutes les fonctionnalités opérateur.
+- **Routage réseau asymétrique** : la tête Android ne peut pas initier de connexion vers le PC développeur (`10.42.0.0/24`). Contourné par l'hébergement Termux, mais complique le développement itératif (SSH parfois indisponible, IP DHCP variable).
+- **IP DHCP instable** : l'adresse Wi-Fi de la tête Android change (`172.16.0.88` → `.194` → `.130` → `.128` observés), nécessitant une mise à jour régulière des scripts et de la configuration.
+- **Robot unique disponible** : tests sur un seul exemplaire, partagé — prudence obligatoire pour toute commande physique.
+- **Version Android obsolète (7.1)** : limite les outils de débogage (`adb reverse` non supporté par l'adbd embarqué), impose des contraintes fortes sur le JavaScript servi par la WebView.
+- **Identifiants SSH/FTP châssis inconnus** : accès système Linux embarqué non obtenu.
 
 ### 12.2 Difficultés rencontrées
 
-- **Distinguer une commande acceptée d'une commande effective.** Le protocole `rosbridge` accepte silencieusement une publication sur un topic sans abonné, ce qui a conduit dans un premier temps à signaler à tort qu'une commande de synthèse vocale avait réussi alors qu'aucun composant ne l'avait traitée. La correction a nécessité l'ajout systématique d'une vérification via les services d'introspection `/rosapi/subscribers` et `/rosapi/services`.
-- **Effet de bord d'un test de navigation réel.** Un test de la fonctionnalité « navigation par clic » a entraîné l'envoi d'un objectif réel au robot physique ; bien qu'aucun mouvement visible n'ait été observé, une commande d'annulation a été envoyée par précaution immédiatement après. Cet épisode souligne l'importance de **toujours disposer d'un mécanisme d'annulation immédiatement disponible** avant tout test impliquant une commande de mouvement, et a renforcé la discipline de test en mode simulation en premier lieu.
-- **Instabilité de la connexion réseau au robot.** Le poste de développement peut quitter involontairement le réseau WiFi dédié du robot, provoquant une déconnexion silencieuse de `rosbridge`. Le statut affiché par l'interface restait à tort « connecté », ce qui a nécessité une correction de la boucle de reconnexion pour refléter fidèlement l'état réel de la liaison.
-- **Environnement de développement multi-processus.** Le script de lancement combiné (backend + frontend) ne surveillait initialement que le répertoire `backend/` pour le rechargement à chaud, alors que la logique métier réside également dans `sdk/` (hors de ce répertoire) — corrigé par l'ajout explicite de répertoires surveillés supplémentaires. Un problème d'encodage de sortie console (caractères Unicode émis par l'outil de build frontend) a également dû être corrigé pour fiabiliser les sessions de développement sous Windows.
-- **Tentatives d'accès aux comptes système.** Les tentatives d'authentification par couples d'identifiants courants se sont heurtées à un mécanisme de protection du serveur SSH coupant les connexions après un nombre limité d'essais — la démarche a été interrompue dès ce constat pour éviter un blocage prolongé de l'accès légitime au robot.
+**Protocole et commandes**
+
+- **Commande acceptée ≠ commande effective** : `rosbridge` accepte silencieusement une publication sans abonné → correction via `/rosapi/subscribers`.
+- **Effet de bord d'un test de navigation réel** : renforce la discipline « simulation d'abord, annulation prête ».
+- **Instabilité réseau WiFi** : statut « connecté » erroné après déconnexion → correction de la boucle de reconnexion.
+
+**Synthèse vocale (TTS)**
+
+- **Aucun canal ROS/HTTP/MQTT pour le TTS** : investigation exhaustive sans résultat côté réseau.
+- **IP documentée périmée** (`172.16.0.88`) : toutes les sondes HTTP avaient échoué jusqu'à l'obtention d'un accès ADB filaire révélant la vraie IP DHCP.
+- **Race condition `TextToSpeech`** : `speak()` appelé avant la liaison au moteur Google TTS → corrigé par drapeau `ttsReady` + `pendingText`.
+- **Broadcast ignoré au premier essai** : apps jamais lancées en état *stopped* → correction par ciblage explicite `-n com.cybel.ttsbridge/.SpeakReceiver`.
+
+**Déploiement tablette (kiosque)**
+
+- **Backend PC injoignable** : `ERR_ADDRESS_UNREACHABLE` → pivot Termux.
+- **FastAPI/pydantic échoue sur Termux** : compilation Rust impossible → backend lite Starlette.
+- **Écran blanc WebView** : `curl` health 200 depuis Termux mais page blanche dans l'app → diagnostic WebView 7.1 + isolation réseau.
+- **rosbridge via mauvaise IP depuis Termux** : `10.42.0.1` non routé → `192.168.20.22` via eth0.
+
+**Environnement de développement**
+
+- Rechargement à chaud ne surveillait pas `sdk/` → corrigé dans `dev.py`.
+- Encodage Unicode console Windows → corrigé.
+- Tentatives SSH brute-force → limitation fail2ban → démarche interrompue.
 
 ### 12.3 Améliorations futures
 
-- **Poursuivre l'investigation du canal TTS** via un accès ADB filaire à l'upper body Android (en cours), ou, à défaut, proposer une **solution de repli** côté opérateur (synthèse vocale exécutée sur le poste de contrôle via la Web Speech API du navigateur).
-- **Formaliser un protocole de test non destructif** (checklist pré-commande : mode simulation d'abord, mécanisme d'annulation prêt, vérification d'abonnés réels) pour toute nouvelle fonctionnalité impliquant une commande envoyée au robot physique.
-- **Mettre en place des tests automatisés** (unitaires sur le SDK avec `MockRobot`, tests d'intégration sur l'API) afin de fiabiliser les évolutions futures.
-- **Étudier la sécurisation des canaux de communication** : `rosbridge` et le broker MQTT du robot sont actuellement accessibles **sans authentification** sur le réseau WiFi du robot ; une analyse de risque (au regard de l'OWASP IoT Top 10) et des recommandations de cloisonnement réseau pourront être proposées en fin de stage.
-- **Explorer les extensions optionnelles du sujet de stage** une fois le socle stabilisé : interaction par vision (caméra embarquée), intégration d'un agent conversationnel (chatbot) pour les annonces d'accueil, voire coordination multi-robot si un second exemplaire devient disponible.
-- **Conteneurisation** (Docker/docker-compose) du backend et du frontend pour faciliter le déploiement sur un poste de supervision dédié, conformément à l'infrastructure initialement envisagée.
+- **Valider le correctif écran blanc** : redéployer build legacy + APK mis à jour ; page de test ES5 minimale pour isoler réseau vs JavaScript.
+- **Activer le démarrage auto** Termux au boot (`termux-boot.sh`) pour un kiosque autonome après redémarrage du robot.
+- **Formaliser des tests automatisés** (SDK mock, API, build kiosk).
+- **Étudier la sécurisation** des canaux rosbridge/MQTT (OWASP IoT Top 10).
+- **Connecter la FAQ** au module conversationnel en préparation.
+- **Reconnaissance vocale côté visiteur** (micro tablette) — non implémentée dans la v1 kiosque.
+- **Conteneurisation** Docker pour déploiement opérateur sur poste dédié.
+- **Exploiter l'IPC** des apps propriétaires (`com.ciot.welcomepatrol`) — nécessiterait décompilation APK, gardé en réserve.
 
 ---
 
 ## 13. Conclusion
 
-À ce stade initial du stage (phase de connectivité achevée, phase d'exploration protocolaire engagée), le projet CYBEL a permis d'établir une **connectivité fiable** avec le robot CIOT TY1251D-03195, de **reconstruire une partie significative** de son protocole de communication interne (télémétrie, commande de vitesse, navigation autonome vers un point ou une coordonnée), et de poser les **fondations logicielles** d'une plateforme de commande indépendante (SDK mock/réel, API FastAPI, interface web), conformément aux objectifs et aux livrables attendus du sujet de stage.
+À mi-parcours du stage (18/06/2026), le projet CYBEL a permis d'atteindre des **résultats substantiels** par rapport aux objectifs et livrables du sujet de stage :
 
-La principale difficulté restante concerne l'**interaction vocale du robot (TTS)**, dont le canal de contrôle n'est pas exposé par le système de navigation ROS et nécessite probablement un accès complémentaire au sous-système Android, en cours d'investigation par débogage filaire. Cette difficulté illustre bien la nature du travail de rétro-ingénierie mené : itératif, prudent (toute interaction avec le robot physique étant potentiellement irréversible ou perturbatrice), et nécessitant une documentation continue des découvertes — démarche qui sera poursuivie jusqu'à la fin du stage, avec pour objectif final une plateforme intégrée et démontrable, conforme aux livrables annoncés (interface de communication fonctionnelle, système de contrôle du mouvement, interface utilisateur, module d'interaction de base, et rapport technique incluant l'architecture et l'analyse du protocole).
+1. **Connectivité et protocole** : le robot est accessible, son protocole de communication (télémétrie, mouvement, navigation) a été reconstruit par rétro-ingénierie et documenté.
+2. **Plateforme opérateur** : SDK mock/réel, API FastAPI, interface web complète (supervision, carte SLAM, LiDAR, visiteurs, téléopération, actions d'accueil bilingues, commande vocale) — fonctionnelle en simulation et sur robot réel.
+3. **Synthèse vocale** : le canal TTS, initialement le principal blocage, a été **résolu** par le développement de `CybelTTSBridge`, une application Android légère exploitant le moteur Google TTS natif.
+4. **Interface visiteur** : une seconde interface web kiosque (`frontend-kiosk/`) et une application Android (`CybelVisitorKiosk`) ont été développées, avec un déploiement embarqué sur Termux (backend lite) pour un fonctionnement autonome sans PC développeur.
+
+Le **dernier obstacle** concerne la validation terrain de l'app kiosque sur la tablette : écran blanc malgré un backend local fonctionnel. Ce problème, distinct du protocole robot ou du TTS, illustre les contraintes spécifiques de l'écosystème Android 7.1 embarqué (WebView legacy, isolation réseau Termux/WebView, espace disque limité). Des correctifs techniques ont été identifiés et implémentés ; leur validation constitue la priorité immédiate de la phase 4.
+
+Ce travail démontre qu'une plateforme de commande tierce, fonctionnellement riche et documentée, peut être construite **sans documentation constructeur**, par une démarche itérative de rétro-ingénierie prudente, complétée par un accès direct au sous-système Android lorsque le protocole ROS s'avère insuffisant. L'objectif final — une démonstration intégrée opérateur + visiteur sur le robot physique — reste atteignable dès la résolution du blocage WebView.
 
 ---
 
@@ -633,4 +752,11 @@ La principale difficulté restante concerne l'**interaction vocale du robot (TTS
 - Vite — Documentation officielle. https://vitejs.dev
 - Mozilla Developer Network. *Web Speech API — Documentation*. https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API
 - HESTIM Engineering & Business School. *Sujet de stage : Development of a Custom Interaction and Control System for an Android-Based Service Robot* (document interne fourni par l'encadrant, Dr. Sridath Tula).
-- Documentation interne du projet : `README.md` et `docs/INTERFACE.md` (dépôt CYBEL).
+- Documentation interne du projet CYBEL :
+  - `README.md` — architecture et protocole reconstruit ;
+  - `docs/INTERFACE.md` — guide interface opérateur ;
+  - `docs/TTS_BRIDGE.md` — résolution TTS et pont CybelTTSBridge ;
+  - `docs/VISITOR_KIOSK.md` — interface visiteur et app Android ;
+  - `docs/TERMUX_DEPLOY.md` — déploiement embarqué sur Termux ;
+  - `docs/ROBOT_CONNECTION.md` — procédures de connexion et reconnexion ;
+  - `docs/PROMPT_CLAUDE_KIOSK_TABLETTE.md` — brief technique pour diagnostic écran blanc.
