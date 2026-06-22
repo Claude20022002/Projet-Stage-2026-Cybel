@@ -60,6 +60,7 @@ function startPolling(): void {
     try {
       status = await api.getTourStatus();
       syncScreenFromStatus();
+      if (status.state !== "running") stopPolling();
       render();
     } catch {
       /* ignore transient network errors during tour */
@@ -185,8 +186,8 @@ function renderRunning(): string {
 
 function renderCompleted(): string {
   const state = status?.state;
-  let title = tr().tourCompleted;
-  let hint = tr().completedHint;
+  let title: string = tr().tourCompleted;
+  let hint: string = tr().completedHint;
   if (state === "stopped") {
     title = tr().tourStopped;
     hint = tr().stoppedHint;

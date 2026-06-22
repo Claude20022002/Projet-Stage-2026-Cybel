@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Literal
 
@@ -18,12 +18,18 @@ class TourStop:
     name_en: str
     equipment_fr: str
     equipment_en: str
-    target_point: str
     speech_fr: str
     speech_en: str
+    target_point: str | None = None
+    x: float | None = None
+    y: float | None = None
+    theta: float | None = None
     approach_speech_fr: str | None = None
     approach_speech_en: str | None = None
     dwell_seconds: float = 10.0
+
+    def has_coordinates(self) -> bool:
+        return self.x is not None and self.y is not None
 
 
 @dataclass
@@ -69,7 +75,7 @@ class TourStatus:
 
 
 SpeakFn = Callable[[str], Awaitable[None]]
-NavigateFn = Callable[[str], Awaitable[None]]
+NavigateStopFn = Callable[[TourStop], Awaitable[None]]
 StopMotionFn = Callable[[], Awaitable[None]]
 
 
@@ -88,9 +94,12 @@ def load_lab_tour(path: Path | None = None) -> LabTour:
             name_en=str(s.get("name_en", s["name_fr"])),
             equipment_fr=str(s["equipment_fr"]),
             equipment_en=str(s.get("equipment_en", s["equipment_fr"])),
-            target_point=str(s["target_point"]),
             speech_fr=str(s["speech_fr"]),
             speech_en=str(s.get("speech_en", s["speech_fr"])),
+            target_point=s.get("target_point"),
+            x=float(s["x"]) if s.get("x") is not None else None,
+            y=float(s["y"]) if s.get("y") is not None else None,
+            theta=float(s["theta"]) if s.get("theta") is not None else None,
             approach_speech_fr=s.get("approach_speech_fr"),
             approach_speech_en=s.get("approach_speech_en"),
             dwell_seconds=float(s.get("dwell_seconds", 10)),
@@ -125,7 +134,12 @@ def tour_public_payload(tour: LabTour) -> dict:
                 "name_en": s.name_en,
                 "equipment_fr": s.equipment_fr,
                 "equipment_en": s.equipment_en,
-                "target_point": s.target_point,
+                **({"target_point": s.target_point} if s.target_point else {}),
+                **(
+                    {"x": s.x, "y": s.y, "theta": s.theta}
+                    if s.has_coordinates()
+                    else {}
+                ),
             }
             for s in tour.stops
         ],
@@ -137,7 +151,7 @@ class TourEngine:
         self,
         tour: LabTour,
         speak: SpeakFn,
-        navigate: NavigateFn,
+        navigate: NavigateStopFn,
         stop_motion: StopMotionFn,
     ) -> None:
         self.tour = tour
@@ -228,7 +242,7 @@ class TourEngine:
 
                 self._status.phase = "navigating"
                 self._status.message = f"Direction {equipment}"
-                await self._navigate(stop.target_point)
+                await self._navigate(stop)
                 if self._cancel:
                     return
 

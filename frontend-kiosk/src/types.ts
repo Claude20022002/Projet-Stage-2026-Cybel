@@ -12,7 +12,10 @@ export interface TourStopPreview {
   name_en: string;
   equipment_fr: string;
   equipment_en: string;
-  target_point: string;
+  target_point?: string;
+  x?: number;
+  y?: number;
+  theta?: number;
 }
 
 export interface LabTourInfo {

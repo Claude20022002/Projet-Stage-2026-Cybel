@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import subprocess
 import sys
@@ -22,11 +23,26 @@ ACTIONS_PATH = CYBEL_HOME / "scripts" / "termux" / "actions.json"
 FAQ_PATH = CYBEL_HOME / "data" / "hestim_knowledge_base.json"
 TOUR_PATH = CYBEL_HOME / "data" / "lab_tour.json"
 KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
+LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
 
-if str(CYBEL_HOME) not in sys.path:
-    sys.path.insert(0, str(CYBEL_HOME))
 
-from sdk.lab_tour import TourEngine, load_lab_tour, tour_public_payload
+def _load_lab_tour_module():
+    """Charge lab_tour sans importer sdk/__init__.py (évite pydantic sur Termux lite)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("cybel_lab_tour", LAB_TOUR_MODULE)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Module introuvable: {LAB_TOUR_MODULE}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_lab_tour = _load_lab_tour_module()
+TourEngine = _lab_tour.TourEngine
+load_lab_tour = _lab_tour.load_lab_tour
+tour_public_payload = _lab_tour.tour_public_payload
 
 ROBOT_HOST = os.environ.get("ROBOT_HOST", "192.168.20.22")
 ROBOT_WS_PORT = int(os.environ.get("ROBOT_WS_PORT", "9090"))
@@ -97,6 +113,31 @@ async def navigate_to_point(point_name: str) -> None:
         "/poi",
         {"name": point_name, "point_name": point_name, "command": "go"},
     )
+
+
+async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None:
+    uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+    async with websockets.connect(uri, open_timeout=5) as ws:
+        await ws.send(
+            json.dumps(
+                {
+                    "op": "publish",
+                    "topic": "/navi_goal",
+                    "msg": {
+                        "header": {"frame_id": "map"},
+                        "pose": {
+                            "position": {"x": x, "y": y, "z": 0.0},
+                            "orientation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": math.sin(theta / 2),
+                                "w": math.cos(theta / 2),
+                            },
+                        },
+                    },
+                }
+            )
+        )
 
 
 async def stop_robot() -> None:
@@ -173,8 +214,13 @@ def get_tour_engine() -> TourEngine:
                 raise RuntimeError("TTS échoué")
             await asyncio.sleep(0.3)
 
-        async def navigate(point: str) -> None:
-            await navigate_to_point(point)
+        async def navigate(stop) -> None:
+            if stop.has_coordinates():
+                await navigate_to_coordinate(stop.x, stop.y, stop.theta or 0.0)
+            elif stop.target_point:
+                await navigate_to_point(str(stop.target_point))
+            else:
+                raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
 
         async def stop_motion() -> None:
             await stop_robot()

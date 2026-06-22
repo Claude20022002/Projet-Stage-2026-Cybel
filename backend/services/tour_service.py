@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sdk.lab_tour import TourEngine, load_lab_tour, tour_public_payload
+from sdk.lab_tour import TourEngine, TourStop, load_lab_tour, tour_public_payload
 from services.robot_service import robot_service
 
 
@@ -24,10 +24,23 @@ class TourService:
                     raise RuntimeError(result.get("error", "TTS échoué"))
                 await asyncio.sleep(0.3)
 
-            async def navigate(point: str) -> None:
-                success = await robot_service.navigate_to_point(point)
-                if not success:
-                    raise RuntimeError(f"Point '{point}' introuvable sur la carte")
+            async def navigate(stop: TourStop) -> None:
+                if stop.has_coordinates():
+                    success = await robot_service.navigate_to_coordinate(
+                        stop.x, stop.y, stop.theta or 0.0
+                    )
+                    if not success:
+                        raise RuntimeError(
+                            f"Navigation impossible vers ({stop.x}, {stop.y})"
+                        )
+                elif stop.target_point:
+                    success = await robot_service.navigate_to_point(stop.target_point)
+                    if not success:
+                        raise RuntimeError(
+                            f"Point '{stop.target_point}' introuvable sur la carte"
+                        )
+                else:
+                    raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
 
             async def stop_motion() -> None:
                 await robot_service.stop()
