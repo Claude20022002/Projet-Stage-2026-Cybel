@@ -20,7 +20,6 @@ from sdk.lab_tour import (
     tour_public_payload,
     validate_stop_dict,
 )
-from sdk.map_utils import is_coordinate_navigable
 from services.robot_service import robot_service
 
 
@@ -41,14 +40,9 @@ class TourService:
 
         async def navigate(stop: TourStop) -> None:
             if stop.has_coordinates():
-                map_data = robot_service.get_map()
-                if map_data and not is_coordinate_navigable(map_data, stop.x, stop.y):
-                    raise RuntimeError(
-                        f"Arrêt '{stop.equipment_fr}' inaccessible "
-                        f"({stop.x}, {stop.y}) : obstacle ou hors carte"
-                    )
                 success = await robot_service.navigate_to_coordinate(
-                    stop.x, stop.y, stop.theta or 0.0
+                    stop.x, stop.y, stop.theta or 0.0,
+                    check_map=False,
                 )
                 if not success:
                     raise RuntimeError(

@@ -63,11 +63,20 @@ def is_coordinate_navigable(
     x: float,
     y: float,
     threshold: int = OCCUPANCY_OBSTACLE_THRESHOLD,
+    *,
+    strict: bool = False,
 ) -> bool:
+    """Vérifie une cellule de la grille d'occupation.
+
+    strict=True : clic carte UI (rejette inconnu / hors carte).
+    strict=False : objectifs /navi_goal (seuls les obstacles certains sont rejetés).
+    """
     cell = get_cell_value(map_data, x, y)
     if cell is None:
-        return False
-    return 0 <= cell < threshold
+        return not strict
+    if cell < 0:
+        return not strict
+    return cell < threshold
 
 
 def parse_map_metadata(msg: dict) -> MapMetadata | None:

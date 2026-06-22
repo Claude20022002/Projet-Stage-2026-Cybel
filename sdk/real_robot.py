@@ -553,11 +553,17 @@ class RealRobot:
             await asyncio.sleep(0.4)
         return False
 
-    async def navigate_to_coordinate(self, x: float, y: float, theta: float = 0.0) -> bool:
+    async def navigate_to_coordinate(
+        self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
+    ) -> bool:
         if not self._client.connected:
             return False
 
-        if self.map_data and not is_coordinate_navigable(self.map_data, x, y):
+        if (
+            check_map
+            and self.map_data
+            and not is_coordinate_navigable(self.map_data, x, y, strict=True)
+        ):
             await self._emit(
                 "event",
                 {"message": f"Destination ({x:.2f}, {y:.2f}) inaccessible (obstacle ou hors carte)"},
