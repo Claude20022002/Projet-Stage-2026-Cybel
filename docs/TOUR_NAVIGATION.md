@@ -42,10 +42,12 @@ Le blocage n'est **pas** lié aux nouvelles coordonnées mais à l'**état du ch
 
 **Tablette (`cybel_lite.py`)** et **PC (`tour_service.py`)** refusent `POST /api/tour/start` si :
 
-- `nav_status == 604` (erreur) ou `600` (non localisé) ;
+- `nav_status == 604` (erreur), `600` (non localisé) ou **`602` (navigation fantôme)** ;
 - localisation &lt; **60 %** (`LOCALIZATION_MIN_PERCENT` dans `scripts/termux/cybel.env`).
 
-Message explicite renvoyé au kiosque (HTTP 409).
+Le kiosque affiche désormais le **message d'erreur exact** (toast) au lieu d'un échec silencieux.
+
+Symptôme « rien ne se passe » : souvent HTTP **409** (visite refusée) ou attente longue avant relocalisation — le bouton reste grisé (`busy`) sans parole ni mouvement.
 
 ### 3.2 Récupération avant chaque objectif
 

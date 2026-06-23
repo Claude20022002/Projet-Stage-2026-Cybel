@@ -9,7 +9,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(detail || response.statusText);
+    try {
+      const body = JSON.parse(detail) as { error?: string; detail?: string };
+      throw new Error(body.error || body.detail || detail || response.statusText);
+    } catch (err) {
+      if (err instanceof Error && err.message !== detail) throw err;
+      throw new Error(detail || response.statusText);
+    }
   }
   return response.json() as Promise<T>;
 }

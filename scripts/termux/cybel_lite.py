@@ -218,21 +218,7 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
     return snap
 
 
-async def prepare_for_tour() -> tuple[bool, str, dict]:
-    """Prérequis visite : récupération nav + localisation."""
-    snap = await recover_navigation_state()
-    nav_status = int(snap.get("nav_status") or 0)
-    ready, reason = _tour_navigation.assess_tour_readiness(
-        nav_status,
-        snap.get("localization_percent"),
-        min_localization=LOCALIZATION_MIN_PERCENT,
-    )
-    if ready:
-        return True, "", snap
-    # Ne pas bloquer 45 s en relocalisation si la nav n'est pas prête (602/604/600).
-    if nav_status in (604, 600, 602):
-        return False, reason, snap
-    loc_ok, snap = await ensure_global_localization()
+async def ensure_global_localization(
     min_percent: float | None = None,
     timeout: float = 45.0,
 ) -> tuple[bool, dict]:
@@ -260,14 +246,15 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
 async def prepare_for_tour() -> tuple[bool, str, dict]:
     """Prérequis visite : récupération nav + localisation."""
     snap = await recover_navigation_state()
+    nav_status = int(snap.get("nav_status") or 0)
     ready, reason = _tour_navigation.assess_tour_readiness(
-        int(snap.get("nav_status") or 0),
+        nav_status,
         snap.get("localization_percent"),
         min_localization=LOCALIZATION_MIN_PERCENT,
     )
     if ready:
         return True, "", snap
-    if int(snap.get("nav_status") or 0) in (604, 600):
+    if nav_status in (604, 600, 602):
         return False, reason, snap
     loc_ok, snap = await ensure_global_localization()
     ready, reason = _tour_navigation.assess_tour_readiness(
@@ -285,11 +272,11 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     return False, reason or "Prérequis visite non satisfaits", snap
 
 
-async def ensure_global_localization(
+async def prepare_for_nav_goal() -> dict:
     """Avant chaque objectif : annuler erreurs résiduelles."""
     snap = await recover_navigation_state(timeout=5.0)
     nav_status = int(snap.get("nav_status") or 0)
-    if nav_status in (604, 600):
+    if nav_status in (604, 600, 602):
         raise RuntimeError(
             _tour_navigation.assess_tour_readiness(
                 nav_status,

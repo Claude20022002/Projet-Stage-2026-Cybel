@@ -235,8 +235,9 @@ async function startTour(): Promise<void> {
     status = result.status ?? (await api.getTourStatus());
     screen = "running";
     startPolling();
-  } catch {
-    showToast(tr().actionError);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : tr().actionError;
+    showToast(message);
   } finally {
     busy = false;
     render();
