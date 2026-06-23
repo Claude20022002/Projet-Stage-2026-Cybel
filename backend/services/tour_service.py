@@ -21,7 +21,10 @@ from sdk.lab_tour import (
     tour_public_payload,
     validate_stop_dict,
 )
-from sdk.tour_trace import (
+from sdk.tour_navigation import (
+    assess_tour_readiness,
+    navigation_wait_failure_message,
+)
     get_active_tour_logger,
     pose_dict,
     start_tour_logger,

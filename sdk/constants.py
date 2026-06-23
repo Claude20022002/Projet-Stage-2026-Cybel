@@ -56,6 +56,13 @@ def navigation_failure_message(nav_status: int, *, destination: str = "") -> str
         return f"{hint} (destination : {destination})"
     return hint
 
+
+def tour_recovery_hint() -> str:
+    return (
+        "Procédure : Arrêt → Relocaliser (interface opérateur) → "
+        "attendre nav_status 601 et localisation ≥ 60 % → relancer la visite."
+    )
+
 MARKER_TYPE_MAP: dict[str, str] = {
     "charging": "charging",
     "charging_pile": "charging",
