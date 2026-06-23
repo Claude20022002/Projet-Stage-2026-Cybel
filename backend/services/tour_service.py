@@ -102,6 +102,10 @@ class TourService:
         return self._ensure_engine().get_status().to_dict()
 
     async def start(self, lang: str = "fr") -> dict:
+        if self._engine and self._engine.is_running():
+            return {"ok": False, "error": "Une visite est déjà en cours"}
+        # Recharge lab_tour.json à chaque démarrage (édition manuelle du fichier).
+        self.reset_engine()
         if not robot_service.is_mock:
             localized = await robot_service.ensure_localization(
                 settings.localization_min_percent

@@ -373,6 +373,26 @@ class RobotSpeech:
 
         return None
 
+    async def _is_adb_tts_service_running(self) -> bool:
+        from sdk.speech_timing import tts_service_running_in_output
+
+        serial = await self._resolve_adb_serial()
+        if not serial:
+            return False
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["adb", "-s", serial, "shell", "dumpsys", "activity", "services"],
+                capture_output=True,
+                timeout=4.0,
+                text=True,
+            )
+            return tts_service_running_in_output(
+                (result.stdout or "") + (result.stderr or "")
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
     async def wait_for_completion(self, text: str, timeout: float = 90.0) -> None:
         """Attend la fin probable de l'annonce (TTS fire-and-forget)."""
         if self._mock and self._speech_task:
@@ -380,6 +400,24 @@ class RobotSpeech:
                 await asyncio.wait_for(asyncio.shield(self._speech_task), timeout=timeout)
             except (asyncio.TimeoutError, asyncio.CancelledError):
                 pass
+            return
+
+        from sdk.speech_timing import is_local_tts_service_running, wait_for_tts_completion
+
+        method = self._status.last_method
+        if method == "adb-tts":
+            await wait_for_tts_completion(
+                text,
+                self._is_adb_tts_service_running,
+                max_seconds=timeout,
+            )
+            return
+        if method == "local-broadcast":
+            await wait_for_tts_completion(
+                text,
+                is_local_tts_service_running,
+                max_seconds=timeout,
+            )
             return
 
         estimated = min(max(len(text.strip()) * 0.055, 1.5), timeout)

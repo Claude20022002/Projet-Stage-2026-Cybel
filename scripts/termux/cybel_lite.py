@@ -24,22 +24,32 @@ FAQ_PATH = CYBEL_HOME / "data" / "hestim_knowledge_base.json"
 TOUR_PATH = CYBEL_HOME / "data" / "lab_tour.json"
 KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
 LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
+SPEECH_TIMING_MODULE = CYBEL_HOME / "sdk" / "speech_timing.py"
 
 
-def _load_lab_tour_module():
-    """Charge lab_tour sans importer sdk/__init__.py (évite pydantic sur Termux lite)."""
+def _load_module_from_file(module_name: str, path: Path):
+    """Charge un module sdk sans importer sdk/__init__.py (évite pydantic sur Termux)."""
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("cybel_lab_tour", LAB_TOUR_MODULE)
+    spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"Module introuvable: {LAB_TOUR_MODULE}")
+        raise RuntimeError(f"Module introuvable: {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
+def _load_lab_tour_module():
+    return _load_module_from_file("cybel_lab_tour", LAB_TOUR_MODULE)
+
+
+def _load_speech_timing_module():
+    return _load_module_from_file("cybel_speech_timing", SPEECH_TIMING_MODULE)
+
+
 _lab_tour = _load_lab_tour_module()
+_speech_timing = _load_speech_timing_module()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
 load_tour_data = _lab_tour.load_tour_data
@@ -160,7 +170,17 @@ async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None
 
 
 def estimate_speech_seconds(text: str) -> float:
-    return min(max(len(text.strip()) * 0.055, 1.5), 90.0)
+    return _speech_timing.estimate_speech_seconds(text)
+
+
+async def speak_local_and_wait(text: str) -> None:
+    """Envoie le TTS local et attend la fin réelle du service Android."""
+    if not speak_local(text):
+        raise RuntimeError("TTS échoué")
+    await _speech_timing.wait_for_tts_completion(
+        text,
+        _speech_timing.is_local_tts_service_running,
+    )
 
 
 async def wait_for_navigation_arrival(timeout: float = 300.0) -> bool:
@@ -280,9 +300,7 @@ def get_tour_engine() -> TourEngine:
         tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
 
         async def speak(text: str) -> None:
-            if not speak_local(text):
-                raise RuntimeError("TTS échoué")
-            await asyncio.sleep(estimate_speech_seconds(text))
+            await speak_local_and_wait(text)
 
         async def navigate(stop) -> None:
             if stop.has_coordinates():
@@ -320,6 +338,14 @@ async def tour_status(_: Request) -> JSONResponse:
 
 async def tour_start(request: Request) -> JSONResponse:
     lang = request.query_params.get("lang", "fr")
+    engine = get_tour_engine()
+    if engine.is_running():
+        return JSONResponse(
+            {"ok": False, "error": "Une visite est déjà en cours"},
+            status_code=409,
+        )
+    # Recharge lab_tour.json à chaque démarrage (édition manuelle du fichier).
+    reset_tour_engine()
     if not await ensure_auto_navigation():
         return JSONResponse(
             {"ok": False, "error": "Impossible d'activer le mode navigation automatique"},
