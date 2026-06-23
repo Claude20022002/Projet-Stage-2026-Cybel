@@ -26,7 +26,7 @@ import {
   pushEvent,
 } from "./state";
 import type { AppPage } from "./types";
-import { isTeleopEnabled } from "./robotUi";
+import { isNavigating, isTeleopEnabled } from "./robotUi";
 
 const MOVE_SPEED = 0.2;
 const ROTATE_SPEED = 0.5;
@@ -169,7 +169,9 @@ function updateMapCanvas(): void {
       state.pose,
       state.points,
       state.selectedPoint,
-      state.status?.current_goal ?? null,
+      state.status?.current_goal && state.status?.nav_status === 602
+        ? state.status.current_goal
+        : null,
       state.map,
       state.lidar,
       state.people,
@@ -561,12 +563,8 @@ function bindPointEvents(): void {
     }
   });
 
-  document.getElementById("btn-cancel-nav")?.addEventListener("click", async () => {
-    try {
-      await api.cancelNavigation();
-    } catch (err) {
-      pushEvent(`Erreur : ${(err as Error).message}`);
-    }
+  document.getElementById("btn-cancel-nav")?.addEventListener("click", () => {
+    void cancelRobotMotion("Navigation annulée");
   });
 
   document.getElementById("btn-add-point")?.addEventListener("click", async () => {
@@ -614,8 +612,11 @@ function bindControlEvents(): void {
   });
 
   document.getElementById("btn-stop")?.addEventListener("click", () => {
-    stopMoveLoop();
-    api.haltTour().catch((err) => pushEvent(`Erreur : ${err.message}`));
+    void cancelRobotMotion("Arrêt demandé");
+  });
+
+  document.getElementById("btn-cancel-nav-controls")?.addEventListener("click", () => {
+    void cancelRobotMotion("Navigation annulée");
   });
 
   document.getElementById("btn-estop")?.addEventListener("click", () => {
@@ -657,7 +658,11 @@ function bindControlEvents(): void {
     const stop = () => {
       if (moveInterval) {
         stopMoveLoop();
-        api.move({ linear_x: 0, angular_z: 0 }).catch(() => {});
+        if (isTeleopEnabled(state.status)) {
+          api.move({ linear_x: 0, angular_z: 0 }).catch(() => {});
+        } else if (isNavigating(state.status)) {
+          void cancelRobotMotion("Navigation annulée");
+        }
       }
     };
 
@@ -694,6 +699,16 @@ function stopMoveLoop(): void {
   }
 }
 
+async function cancelRobotMotion(successMessage: string): Promise<void> {
+  stopMoveLoop();
+  try {
+    await api.cancelNavigation();
+    pushEvent(successMessage);
+  } catch (err) {
+    pushEvent(`Erreur annulation : ${(err as Error).message}`);
+  }
+}
+
 function onStateChange(): void {
   if (state.page !== lastPage) {
     renderApp();
@@ -723,6 +738,7 @@ function onStateChange(): void {
 
     const prevManual = document.getElementById("toggle-manual") as HTMLInputElement | null;
     const teleopReady = isTeleopEnabled(state.status);
+    const navigating = isNavigating(state.status);
     const prevTeleopReady = prevManual
       ? !document.querySelector(".controls-panel__dpad--disabled")
       : false;
@@ -733,6 +749,7 @@ function onStateChange(): void {
         !prevManual ||
         prevManual.checked !== (state.status?.nav_mode === "manual") ||
         teleopReady !== prevTeleopReady ||
+        navigating !== Boolean(document.getElementById("btn-cancel-nav-controls")) ||
         Boolean(document.getElementById("btn-estop")) === newEstop ||
         Boolean(document.getElementById("btn-release-estop")) !== newEstop;
       if (needsRerender) updateControls();
@@ -770,7 +787,9 @@ export async function initApp(): Promise<void> {
       pushEvent("Actions d'accueil non chargées");
     }
     try {
-      setTour(await api.getTourFull());
+      const reloaded = await api.reloadTour();
+      setTour(reloaded.tour);
+      pushEvent(`Parcours rechargé (${reloaded.stops} arrêt(s))`);
       const tourStatus = await api.getTourStatus();
       setTourStatus(tourStatus);
       if (tourStatus.state === "running") startTourPolling();

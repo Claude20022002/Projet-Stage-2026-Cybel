@@ -24,7 +24,8 @@ export const t = {
     idleHint: "Appuyez pour lancer une visite guidée autonome avec présentation vocale des équipements.",
     completedHint: "Merci d'avoir visité le laboratoire. Le robot reste disponible.",
     stoppedHint: "La visite a été interrompue. Vous pouvez en relancer une nouvelle.",
-    errorHint: "Vérifiez que le robot est prêt et que les points de navigation existent sur la carte.",
+    errorHint:
+      "Échec de navigation possible (code 604) : obstacle sur le chemin, destination hors carte, ou robot mal localisé. Dégagez le passage, relocalisez depuis le contrôleur PC, puis relancez.",
   },
   en: {
     title: "Laboratory tour",

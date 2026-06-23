@@ -64,6 +64,16 @@ async def save_tour_full(payload: TourSavePayload) -> dict:
     return {"ok": True, "tour": data}
 
 
+@router.post("/reload")
+async def reload_tour() -> dict:
+    """Recharge le parcours depuis data/lab_tour.json (sans redémarrer le backend)."""
+    try:
+        tour = tour_service.reload_from_disk()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "stops": len(tour.get("stops", [])), "tour": tour}
+
+
 @router.get("/status")
 async def get_status() -> dict:
     return tour_service.get_status()

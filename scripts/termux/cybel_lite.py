@@ -289,13 +289,15 @@ def get_tour_engine() -> TourEngine:
                 await navigate_to_coordinate(stop.x, stop.y, stop.theta or 0.0)
                 if not await wait_for_navigation_arrival():
                     raise RuntimeError(
-                        f"Le robot n'est pas arrivé à {stop.equipment_fr}"
+                        f"Échec de navigation (604) vers {stop.equipment_fr} — "
+                        "obstacle ou destination inaccessible"
                     )
             elif stop.target_point:
                 await navigate_to_point(str(stop.target_point))
                 if not await wait_for_navigation_arrival():
                     raise RuntimeError(
-                        f"Le robot n'est pas arrivé au point '{stop.target_point}'"
+                        f"Échec de navigation (604) vers le point « {stop.target_point} » — "
+                        "obstacle ou destination inaccessible"
                     )
             else:
                 raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
@@ -341,6 +343,12 @@ async def tour_halt(_: Request) -> JSONResponse:
     await get_tour_engine().stop()
     await stop_robot()
     return JSONResponse({"ok": True, "message": "Arrêt total effectué"})
+
+
+async def tour_reload(_: Request) -> JSONResponse:
+    reset_tour_engine()
+    data = load_tour_data(TOUR_PATH)
+    return JSONResponse({"ok": True, "stops": len(data.get("stops", [])), "tour": data})
 
 
 async def tour_full(_: Request) -> JSONResponse:
@@ -468,6 +476,7 @@ def build_app() -> Starlette:
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),
         Route("/api/tour/full", tour_full, methods=["GET"]),
+        Route("/api/tour/reload", tour_reload, methods=["POST"]),
         Route("/api/tour/full", tour_save_full, methods=["PUT"]),
         Route("/api/tour/status", tour_status, methods=["GET"]),
         Route("/api/tour/start", tour_start, methods=["POST"]),

@@ -108,6 +108,10 @@ export const api = {
     }),
   stopSpeech: () => request("/api/speech/stop", { method: "POST" }),
   getTourFull: () => request<LabTourData>("/api/tour/full"),
+  reloadTour: () =>
+    request<{ ok: boolean; stops: number; tour: LabTourData }>("/api/tour/reload", {
+      method: "POST",
+    }),
   getTourStatus: () => request<TourStatus>("/api/tour/status"),
   startTour: (lang: "fr" | "en" = "fr") =>
     request<{ ok: boolean; status?: TourStatus; error?: string }>(

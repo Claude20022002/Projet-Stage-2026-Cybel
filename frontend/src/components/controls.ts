@@ -1,10 +1,11 @@
 import { icons } from "../icons";
-import { isTeleopEnabled, teleopHint } from "../robotUi";
+import { isNavigating, isTeleopEnabled, teleopHint } from "../robotUi";
 import type { RobotStatus } from "../types";
 
 export function renderControls(status: RobotStatus | null, softEstop: boolean): string {
   const teleopReady = isTeleopEnabled(status);
   const manualMode = status?.nav_mode === "manual";
+  const navigating = isNavigating(status);
 
   return `
     <section class="controls-panel">
@@ -17,6 +18,15 @@ export function renderControls(status: RobotStatus | null, softEstop: boolean): 
         </label>
         <p class="controls-panel__hint">${teleopHint(status)}</p>
       </div>
+
+      ${
+        navigating
+          ? `<button id="btn-cancel-nav-controls" class="btn btn--warning btn--block btn--with-icon" type="button">
+              ${icons.x("icon", 16)}
+              <span>Annuler la navigation</span>
+            </button>`
+          : ""
+      }
 
       <div class="controls-panel__dpad ${teleopReady ? "" : "controls-panel__dpad--disabled"}">
         <button class="dpad__btn dpad__btn--up" data-move="forward" type="button" title="Avancer">

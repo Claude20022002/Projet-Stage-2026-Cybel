@@ -25,6 +25,8 @@ ROS_SERVICES = {
     "markers": "/marker_manager/get_markers_details",
     "global_localization": "/global_localization",
     "static_map": "/static_map",
+    "cancel_nav": "/path_follower/cancel",
+    "marker_control": "/marker_manager/control",
 }
 
 NAV_STATUS_LABELS: dict[int, str] = {
@@ -34,6 +36,25 @@ NAV_STATUS_LABELS: dict[int, str] = {
     603: "Arrivé",
     604: "Erreur",
 }
+
+NAV_STATUS_HINTS: dict[int, str] = {
+    600: "Robot non localisé — utilisez Relocaliser avant de naviguer.",
+    601: "Prêt à naviguer.",
+    602: "Navigation en cours.",
+    603: "Destination atteinte.",
+    604: (
+        "Échec de navigation — obstacle, chemin bloqué, destination inaccessible "
+        "ou localisation insuffisante. Dégagez le passage, relocalisez le robot, "
+        "puis relancez."
+    ),
+}
+
+
+def navigation_failure_message(nav_status: int, *, destination: str = "") -> str:
+    hint = NAV_STATUS_HINTS.get(nav_status, f"Code navigation {nav_status}")
+    if destination:
+        return f"{hint} (destination : {destination})"
+    return hint
 
 MARKER_TYPE_MAP: dict[str, str] = {
     "charging": "charging",

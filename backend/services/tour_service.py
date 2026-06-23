@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config import settings
+from sdk.constants import navigation_failure_message
 from sdk.lab_tour import (
     TourEngine,
     TourStop,
@@ -50,9 +51,10 @@ class TourService:
                     )
                 arrived = await robot_service.wait_for_navigation_arrival()
                 if not arrived:
+                    status = robot_service.get_status()
+                    dest = stop.equipment_fr
                     raise RuntimeError(
-                        f"Le robot n'est pas arrivé à {stop.equipment_fr} "
-                        "(navigation interrompue ou délai dépassé)"
+                        navigation_failure_message(status.nav_status, destination=dest)
                     )
             elif stop.target_point:
                 success = await robot_service.navigate_to_point(stop.target_point)
@@ -62,8 +64,12 @@ class TourService:
                     )
                 arrived = await robot_service.wait_for_navigation_arrival()
                 if not arrived:
+                    status = robot_service.get_status()
                     raise RuntimeError(
-                        f"Le robot n'est pas arrivé au point '{stop.target_point}'"
+                        navigation_failure_message(
+                            status.nav_status,
+                            destination=stop.target_point or "",
+                        )
                     )
             else:
                 raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
@@ -80,6 +86,11 @@ class TourService:
 
     def reset_engine(self) -> None:
         self._engine = None
+
+    def reload_from_disk(self) -> dict:
+        """Recharge lab_tour.json depuis le disque (après édition manuelle du fichier)."""
+        self.reset_engine()
+        return self.get_tour_full()
 
     def get_tour(self) -> dict:
         return tour_public_payload(load_lab_tour(self._tour_path))

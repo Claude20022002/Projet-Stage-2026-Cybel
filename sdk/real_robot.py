@@ -5,7 +5,7 @@ import math
 import time
 from typing import Any, Awaitable, Callable
 
-from sdk.constants import LIDAR_TOPICS, MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS
+from sdk.constants import LIDAR_TOPICS, MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS, navigation_failure_message
 from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import is_coordinate_navigable, parse_map_metadata, parse_occupancy_grid
 from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus, SpeechStatus
@@ -143,6 +143,7 @@ class RealRobot:
         self._relocalize_task: asyncio.Task | None = None
         self._nav_saw_active = False
         self._last_ros_message_at = 0.0
+        self._suppress_robot_goal = False
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -409,11 +410,23 @@ class RealRobot:
         goal_raw = msg.get("current_goal_coordinate")
         current_goal = None
         if isinstance(goal_raw, dict):
-            current_goal = Coordinate(
-                x=float(goal_raw.get("x") or 0.0),
-                y=float(goal_raw.get("y") or 0.0),
-                theta=float(goal_raw.get("theta") or 0.0),
-            )
+            gx = float(goal_raw.get("x") or 0.0)
+            gy = float(goal_raw.get("y") or 0.0)
+            if abs(gx) > 1e-4 or abs(gy) > 1e-4:
+                current_goal = Coordinate(
+                    x=gx,
+                    y=gy,
+                    theta=float(goal_raw.get("theta") or 0.0),
+                )
+
+        navigating_to = self.status.navigating_to
+        if self._suppress_robot_goal:
+            current_goal = None
+            navigating_to = None
+            if nav_status in (601, 603):
+                self._suppress_robot_goal = False
+        elif nav_status not in (602,) and current_goal is None:
+            navigating_to = None
 
         self._localization_percent = normalize_localization_percent(
             float(
@@ -443,7 +456,7 @@ class RealRobot:
             current_building_name=str(msg.get("current_building_name") or ""),
             current_floor_name=str(msg.get("current_floor_name") or "0"),
             current_goal=current_goal,
-            navigating_to=self.status.navigating_to,
+            navigating_to=navigating_to,
         )
         await self._emit("status", self.status.model_dump())
 
@@ -496,15 +509,41 @@ class RealRobot:
         return await self._speech.stop()
 
     async def _cancel_navigation(self) -> None:
+        point_name = self.status.navigating_to
         if self._client.connected:
-            await self._client.publish(ROS_TOPICS["cancel_nav"], {})
+            poi_stops: list[dict[str, Any]] = [{"command": "stop"}]
+            if point_name:
+                poi_stops.insert(
+                    0,
+                    {"name": point_name, "point_name": point_name, "command": "stop"},
+                )
+            for args in poi_stops:
+                try:
+                    await self._client.call_service(ROS_SERVICES["poi"], args, timeout=3.0)
+                except Exception:
+                    pass
+            for service, args in (
+                (ROS_SERVICES["cancel_nav"], {}),
+                (ROS_SERVICES["marker_control"], {"command": "stop"}),
+            ):
+                try:
+                    await self._client.call_service(service, args, timeout=3.0)
+                except Exception:
+                    pass
+            try:
+                await self._client.publish(ROS_TOPICS["cancel_nav"], {})
+            except Exception:
+                pass
         await self._publish_velocity(0.0, 0.0)
+        self._suppress_robot_goal = True
         self.status.navigating_to = None
         self.status.current_goal = None
         self._nav_saw_active = False
         if self.status.nav_status in (602, 604):
             self.status.nav_status = 601
             self.status.nav_status_label = nav_status_label(601)
+        await self._emit("event", {"message": "Navigation annulée"})
+        await self._emit("status", self.status.model_dump())
 
     async def _publish_velocity(self, linear_x: float, angular_z: float) -> None:
         if not self._client.connected:
@@ -591,13 +630,7 @@ class RealRobot:
         await self._publish_velocity(linear_x, angular_z)
 
     async def stop(self) -> None:
-        await self._publish_velocity(0.0, 0.0)
-        if self._client.connected:
-            await self._client.publish(ROS_TOPICS["cancel_nav"], {})
-        self.status.navigating_to = None
-        self.status.current_goal = None
-        await self._emit("event", {"message": "Arrêt"})
-        await self._emit("status", self.status.model_dump())
+        await self._cancel_navigation()
 
     async def emergency_stop(self) -> None:
         await self.stop()
@@ -607,8 +640,9 @@ class RealRobot:
         await self._emit("status", self.status.model_dump())
 
     async def release_emergency_stop(self) -> None:
+        await self._cancel_navigation()
         self.status.soft_estop = False
-        await self._emit("event", {"message": "E-Stop relâché"})
+        await self._emit("event", {"message": "E-Stop relâché — objectif de navigation effacé"})
         await self._emit("status", self.status.model_dump())
 
     async def set_manual_mode(self, enabled: bool) -> None:
@@ -705,6 +739,10 @@ class RealRobot:
             if nav_status == 602:
                 self._nav_saw_active = True
             if nav_status == 604:
+                await self._emit(
+                    "event",
+                    {"message": navigation_failure_message(604)},
+                )
                 return False
             if self._nav_saw_active and nav_status == 603:
                 if goal is None or _pose_near_goal(self.pose, goal):
@@ -729,6 +767,8 @@ class RealRobot:
 
         if not await self.ensure_automatic_navigation():
             return False
+
+        self._suppress_robot_goal = False
 
         if self.status.nav_status == 600:
             await self._emit(
@@ -845,6 +885,8 @@ class RealRobot:
 
         if not await self.ensure_automatic_navigation():
             return False
+
+        self._suppress_robot_goal = False
 
         if self.status.nav_status == 600:
             await self._emit(
