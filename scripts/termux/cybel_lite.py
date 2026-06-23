@@ -26,6 +26,7 @@ KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
 LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
 SPEECH_TIMING_MODULE = CYBEL_HOME / "sdk" / "speech_timing.py"
 TOUR_TRACE_MODULE = CYBEL_HOME / "sdk" / "tour_trace.py"
+TOUR_NAVIGATION_MODULE = CYBEL_HOME / "sdk" / "tour_navigation.py"
 
 
 def _load_module_from_file(module_name: str, path: Path):
@@ -53,9 +54,14 @@ def _load_tour_trace_module():
     return _load_module_from_file("cybel_tour_trace", TOUR_TRACE_MODULE)
 
 
+def _load_tour_navigation_module():
+    return _load_module_from_file("cybel_tour_navigation", TOUR_NAVIGATION_MODULE)
+
+
 _lab_tour = _load_lab_tour_module()
 _speech_timing = _load_speech_timing_module()
 _tour_trace = _load_tour_trace_module()
+_tour_navigation = _load_tour_navigation_module()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
 load_tour_data = _lab_tour.load_tour_data
@@ -67,6 +73,12 @@ tour_public_payload = _lab_tour.tour_public_payload
 ROBOT_HOST = os.environ.get("ROBOT_HOST", "192.168.20.22")
 ROBOT_WS_PORT = int(os.environ.get("ROBOT_WS_PORT", "9090"))
 BACKEND_PORT = int(os.environ.get("BACKEND_PORT", "8000"))
+LOCALIZATION_MIN_PERCENT = float(
+    os.environ.get(
+        "LOCALIZATION_MIN_PERCENT",
+        str(_tour_navigation.DEFAULT_LOCALIZATION_MIN_PERCENT),
+    )
+)
 
 TTS_RECEIVER = "com.cybel.ttsbridge/.SpeakReceiver"
 TTS_ACTION = "com.cybel.ttsbridge.SPEAK"
@@ -136,10 +148,43 @@ async def ros_call_service(service: str, args: dict, timeout: float = 5.0) -> di
                 raise RuntimeError(data.get("msg", "rosbridge error"))
 
 
+async def cancel_navigation_full() -> None:
+    """Annule navigation, POI et marqueurs (réinitialise un état 604)."""
+    for service, args in (
+        ("/path_follower/cancel", {}),
+        ("/poi", {"command": "stop"}),
+        ("/marker_manager/control", {"command": "stop"}),
+    ):
+        try:
+            await ros_call_service(service, args)
+        except Exception:
+            pass
+    try:
+        uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+        async with websockets.connect(uri, open_timeout=3) as ws:
+            await ws.send(
+                json.dumps({"op": "publish", "topic": "/path_follower/cancel", "msg": {}})
+            )
+            await ws.send(
+                json.dumps(
+                    {
+                        "op": "publish",
+                        "topic": "/mobile_base/commands/velocity",
+                        "msg": {
+                            "linear": {"x": 0, "y": 0, "z": 0},
+                            "angular": {"x": 0, "y": 0, "z": 0},
+                        },
+                    }
+                )
+            )
+    except Exception:
+        pass
+
+
 async def ensure_auto_navigation() -> bool:
     """Annule la nav en cours et passe le châssis en mode automatique."""
     try:
-        await stop_robot()
+        await cancel_navigation_full()
         await ros_call_service("/change_location_mode", {"mode": 1})
         await asyncio.sleep(0.5)
         return True
@@ -147,7 +192,93 @@ async def ensure_auto_navigation() -> bool:
         return False
 
 
+async def recover_navigation_state(timeout: float = 8.0) -> dict:
+    """Sortie d'un état 604/600 : annulation complète puis attente 601/603."""
+    await cancel_navigation_full()
+    try:
+        await ros_call_service("/change_location_mode", {"mode": 1})
+    except Exception:
+        pass
+    await asyncio.sleep(0.5)
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    snap = await fetch_robot_snapshot()
+    while loop.time() < deadline and snap.get("nav_status") in (604, 600):
+        await asyncio.sleep(0.5)
+        snap = await fetch_robot_snapshot()
+    return snap
+
+
+async def ensure_global_localization(
+    min_percent: float | None = None,
+    timeout: float = 45.0,
+) -> tuple[bool, dict]:
+    """Lance /global_localization et attend le seuil de confiance."""
+    target = min_percent if min_percent is not None else LOCALIZATION_MIN_PERCENT
+    snap = await fetch_robot_snapshot(timeout=4.0)
+    loc = snap.get("localization_percent")
+    if loc is not None and loc >= target:
+        return True, snap
+    try:
+        await ros_call_service("/global_localization", {})
+    except Exception:
+        return False, snap
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        await asyncio.sleep(1.0)
+        snap = await fetch_robot_snapshot(timeout=4.0)
+        loc = snap.get("localization_percent")
+        if loc is not None and loc >= target:
+            return True, snap
+    return False, snap
+
+
+async def prepare_for_tour() -> tuple[bool, str, dict]:
+    """Prérequis visite : récupération nav + localisation."""
+    snap = await recover_navigation_state()
+    ready, reason = _tour_navigation.assess_tour_readiness(
+        int(snap.get("nav_status") or 0),
+        snap.get("localization_percent"),
+        min_localization=LOCALIZATION_MIN_PERCENT,
+    )
+    if ready:
+        return True, "", snap
+    if int(snap.get("nav_status") or 0) in (604, 600):
+        return False, reason, snap
+    loc_ok, snap = await ensure_global_localization()
+    ready, reason = _tour_navigation.assess_tour_readiness(
+        int(snap.get("nav_status") or 0),
+        snap.get("localization_percent"),
+        min_localization=LOCALIZATION_MIN_PERCENT,
+    )
+    if loc_ok and ready:
+        return True, "", snap
+    if not loc_ok and snap.get("localization_percent") is not None:
+        reason = (
+            f"Localisation insuffisante ({snap['localization_percent']:.0f} % "
+            f"< {LOCALIZATION_MIN_PERCENT:.0f} %). Relocalisez le robot."
+        )
+    return False, reason or "Prérequis visite non satisfaits", snap
+
+
+async def prepare_for_nav_goal() -> dict:
+    """Avant chaque objectif : annuler erreurs résiduelles."""
+    snap = await recover_navigation_state(timeout=5.0)
+    nav_status = int(snap.get("nav_status") or 0)
+    if nav_status in (604, 600):
+        raise RuntimeError(
+            _tour_navigation.assess_tour_readiness(
+                nav_status,
+                snap.get("localization_percent"),
+                min_localization=LOCALIZATION_MIN_PERCENT,
+            )[1]
+        )
+    return snap
+
+
 async def navigate_to_point(point_name: str) -> None:
+    await prepare_for_nav_goal()
     if not await ensure_auto_navigation():
         raise RuntimeError("Impossible d'activer le mode navigation automatique")
     await ros_call_service(
@@ -157,6 +288,7 @@ async def navigate_to_point(point_name: str) -> None:
 
 
 async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None:
+    await prepare_for_nav_goal()
     if not await ensure_auto_navigation():
         raise RuntimeError("Impossible d'activer le mode navigation automatique")
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
@@ -206,7 +338,12 @@ async def _subscribe_topics(ws, topics: list[str]) -> None:
         )
 
 
-def _merge_robot_state(pose_msg: dict, status_msg: dict) -> dict:
+def _merge_robot_state(
+    pose_msg: dict,
+    status_msg: dict,
+    loc_msg: dict | None = None,
+) -> dict:
+    localization = _tour_navigation.parse_localization_percent(status_msg, loc_msg)
     state = {
         "x": pose_msg.get("x"),
         "y": pose_msg.get("y"),
@@ -217,7 +354,7 @@ def _merge_robot_state(pose_msg: dict, status_msg: dict) -> dict:
             or 0
         ),
         "nav_status_label": "",
-        "localization_percent": status_msg.get("localization_percent"),
+        "localization_percent": localization,
         "velocity": status_msg.get("velocity") or [0.0, 0.0],
     }
     state["nav_status_label"] = NAV_STATUS_LABELS.get(state["nav_status"], "?")
@@ -227,21 +364,21 @@ def _merge_robot_state(pose_msg: dict, status_msg: dict) -> dict:
         state["y"] = round(float(state["y"]), 3)
     if state["theta"] is not None:
         state["theta"] = round(float(state["theta"]), 3)
-    if state["localization_percent"] is not None:
-        state["localization_percent"] = round(float(state["localization_percent"]), 1)
     return state
 
 
 async def fetch_robot_snapshot(timeout: float = 3.0) -> dict:
-    """Pose + statut navigation via rosbridge (one-shot)."""
+    """Pose, statut navigation et localisation via rosbridge."""
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     pose_msg: dict = {}
     status_msg: dict = {}
+    loc_msg: dict = {}
+    topics = ["/robot_pose", "/robot_status", "/localization_confidence"]
     try:
         async with websockets.connect(uri, open_timeout=5) as ws:
-            await _subscribe_topics(ws, ["/robot_pose", "/robot_status"])
+            await _subscribe_topics(ws, topics)
             while loop.time() < deadline:
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=0.5)
@@ -256,11 +393,14 @@ async def fetch_robot_snapshot(timeout: float = 3.0) -> dict:
                     pose_msg = msg
                 elif topic == "/robot_status":
                     status_msg = msg
+                elif topic == "/localization_confidence":
+                    loc_msg = msg
                 if pose_msg and status_msg:
-                    break
+                    if loc_msg or loop.time() > deadline - 0.5:
+                        break
     except Exception:
         pass
-    return _merge_robot_state(pose_msg, status_msg)
+    return _merge_robot_state(pose_msg, status_msg, loc_msg or None)
 
 
 async def wait_for_navigation_arrival(
@@ -269,7 +409,7 @@ async def wait_for_navigation_arrival(
     tracer=None,
     stop=None,
     stop_index: int = -1,
-) -> bool:
+) -> tuple[bool, str]:
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
@@ -279,16 +419,37 @@ async def wait_for_navigation_arrival(
     last_log = nav_started
     pose_msg: dict = {}
     status_msg: dict = {}
+    loc_msg: dict = {}
+
+    def _failure_message(robot: dict, *, never_started: bool) -> str:
+        dest = ""
+        distance = None
+        if stop is not None:
+            dest = getattr(stop, "equipment_fr", "") or str(stop)
+            if getattr(stop, "x", None) is not None and robot.get("x") is not None:
+                distance = _tour_trace.distance_xy(
+                    float(robot["x"]),
+                    float(robot["y"]),
+                    float(stop.x),
+                    float(stop.y),
+                )
+        return _tour_navigation.navigation_wait_failure_message(
+            int(robot.get("nav_status") or 0),
+            destination=dest,
+            never_started=never_started,
+            distance_to_target_m=distance,
+        )
 
     async with websockets.connect(uri, open_timeout=5) as ws:
-        await _subscribe_topics(ws, ["/robot_pose", "/robot_status"])
+        await _subscribe_topics(ws, ["/robot_pose", "/robot_status", "/localization_confidence"])
         while loop.time() < deadline:
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
             except asyncio.TimeoutError:
                 if not saw_active and loop.time() > activation_deadline:
+                    robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
+                    err = _failure_message(robot, never_started=True)
                     if tracer and stop is not None:
-                        robot = _merge_robot_state(pose_msg, status_msg)
                         tracer.nav_result(
                             stop,
                             index=stop_index,
@@ -296,9 +457,9 @@ async def wait_for_navigation_arrival(
                             success=False,
                             nav_status=robot.get("nav_status"),
                             nav_status_label=str(robot.get("nav_status_label", "")),
-                            error="Navigation non démarrée (timeout activation)",
+                            error=err,
                         )
-                    return False
+                    return False, err
                 continue
             data = json.loads(raw)
             topic = data.get("topic")
@@ -307,10 +468,12 @@ async def wait_for_navigation_arrival(
                 pose_msg = msg
             elif topic == "/robot_status":
                 status_msg = msg
+            elif topic == "/localization_confidence":
+                loc_msg = msg
             else:
                 continue
 
-            robot = _merge_robot_state(pose_msg, status_msg)
+            robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
             now = loop.time()
             if tracer and stop is not None and now - last_log >= 3.0:
                 tracer.nav_progress(
@@ -327,6 +490,7 @@ async def wait_for_navigation_arrival(
             if nav_status == 602:
                 saw_active = True
             if nav_status == 604:
+                err = _failure_message(robot, never_started=False)
                 if tracer and stop is not None:
                     tracer.nav_result(
                         stop,
@@ -335,9 +499,9 @@ async def wait_for_navigation_arrival(
                         success=False,
                         nav_status=nav_status,
                         nav_status_label=str(robot.get("nav_status_label", "")),
-                        error="nav_status 604 — échec navigation",
+                        error=err,
                     )
-                return False
+                return False, err
             if saw_active and nav_status == 603:
                 velocity = robot.get("velocity") or [0.0, 0.0]
                 if abs(velocity[0]) < 0.05 and abs(velocity[1]) < 0.05:
@@ -350,8 +514,9 @@ async def wait_for_navigation_arrival(
                             nav_status=nav_status,
                             nav_status_label=str(robot.get("nav_status_label", "")),
                         )
-                    return True
+                    return True, ""
             if not saw_active and loop.time() > activation_deadline:
+                err = _failure_message(robot, never_started=True)
                 if tracer and stop is not None:
                     tracer.nav_result(
                         stop,
@@ -360,34 +525,14 @@ async def wait_for_navigation_arrival(
                         success=False,
                         nav_status=nav_status,
                         nav_status_label=str(robot.get("nav_status_label", "")),
-                        error="Navigation non démarrée (nav_status inchangé)",
+                        error=err,
                     )
-                return False
-    return False
+                return False, err
+    return False, "Délai d'attente navigation dépassé"
 
 
 async def stop_robot() -> None:
-    try:
-        await ros_call_service("/path_follower/cancel", {})
-    except Exception:
-        pass
-    try:
-        uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
-        async with websockets.connect(uri, open_timeout=3) as ws:
-            await ws.send(
-                json.dumps(
-                    {
-                        "op": "publish",
-                        "topic": "/mobile_base/commands/velocity",
-                        "msg": {
-                            "linear": {"x": 0, "y": 0, "z": 0},
-                            "angular": {"x": 0, "y": 0, "z": 0},
-                        },
-                    }
-                )
-            )
-    except Exception:
-        pass
+    await cancel_navigation_full()
 
 
 async def execute_action(action_id: str, lang: str) -> dict:
@@ -463,13 +608,11 @@ def build_tour_engine(tracer=None) -> TourEngine:
                     detail=f"publish /navi_goal ({stop.x}, {stop.y}, {stop.theta or 0})",
                 )
             await navigate_to_coordinate(stop.x, stop.y, stop.theta or 0.0)
-            if not await wait_for_navigation_arrival(
+            arrived, err = await wait_for_navigation_arrival(
                 tracer=tracer, stop=stop, stop_index=index
-            ):
-                raise RuntimeError(
-                    f"Échec de navigation (604) vers {stop.equipment_fr} — "
-                    "obstacle ou destination inaccessible"
-                )
+            )
+            if not arrived:
+                raise RuntimeError(err)
         elif stop.target_point:
             if tracer:
                 tracer.nav_command(
@@ -481,13 +624,11 @@ def build_tour_engine(tracer=None) -> TourEngine:
                     detail=f"service /poi go → {stop.target_point}",
                 )
             await navigate_to_point(str(stop.target_point))
-            if not await wait_for_navigation_arrival(
+            arrived, err = await wait_for_navigation_arrival(
                 tracer=tracer, stop=stop, stop_index=index
-            ):
-                raise RuntimeError(
-                    f"Échec de navigation (604) vers le point « {stop.target_point} » — "
-                    "obstacle ou destination inaccessible"
-                )
+            )
+            if not arrived:
+                raise RuntimeError(err)
         else:
             raise RuntimeError(f"Arrêt '{stop.id}' sans destination")
 
@@ -523,6 +664,9 @@ async def tour_start(request: Request) -> JSONResponse:
             status_code=409,
         )
     reset_tour_engine()
+    ready, reason, prereq_snap = await prepare_for_tour()
+    if not ready:
+        return JSONResponse({"ok": False, "error": reason}, status_code=409)
     if not await ensure_auto_navigation():
         return JSONResponse(
             {"ok": False, "error": "Impossible d'activer le mode navigation automatique"},
@@ -533,8 +677,7 @@ async def tour_start(request: Request) -> JSONResponse:
         tour_id=tour.id,
         log_dir=_tour_log_dir(),
     )
-    start_pose = await fetch_robot_snapshot()
-    _active_tracer.robot_snapshot("tour_start_pose", start_pose)
+    _active_tracer.robot_snapshot("tour_start_pose", prereq_snap)
     _tour_engine = build_tour_engine(tracer=_active_tracer)
     try:
         result = await _tour_engine.start(lang)

@@ -20,6 +20,8 @@ Guide pour faire tourner le **backend + kiosque visiteur** directement sur la ta
 
 **Priorité actuelle** : valider la navigation autonome sur les 8 arrêts en conditions réelles (carte du laboratoire).
 
+> Diagnostic visite, journal `tour_*.log` et garde-fous navigation → [TOUR_NAVIGATION.md](TOUR_NAVIGATION.md)
+
 > **Aide IA** : brief complet pour Claude AI → [PROMPT_CLAUDE_KIOSK_TABLETTE.md](PROMPT_CLAUDE_KIOSK_TABLETTE.md)
 
 ### Procédure de redéploiement (après correctif écran blanc)

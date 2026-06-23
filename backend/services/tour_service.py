@@ -9,7 +9,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config import settings
-from sdk.constants import navigation_failure_message
 from sdk.lab_tour import (
     TourEngine,
     TourStop,
@@ -25,6 +24,7 @@ from sdk.tour_navigation import (
     assess_tour_readiness,
     navigation_wait_failure_message,
 )
+from sdk.tour_trace import (
     get_active_tour_logger,
     pose_dict,
     start_tour_logger,
@@ -142,7 +142,11 @@ class TourService:
                 if not arrived:
                     status = robot_service.get_status()
                     dest = stop.equipment_fr
-                    err = navigation_failure_message(status.nav_status, destination=dest)
+                    err = navigation_wait_failure_message(
+                        status.nav_status,
+                        destination=dest,
+                        never_started=status.nav_status == 601,
+                    )
                     if tracer:
                         tracer.nav_result(
                             stop,
@@ -194,9 +198,10 @@ class TourService:
                 )
                 if not arrived:
                     status = robot_service.get_status()
-                    err = navigation_failure_message(
+                    err = navigation_wait_failure_message(
                         status.nav_status,
                         destination=stop.target_point or "",
+                        never_started=status.nav_status == 601,
                     )
                     if tracer:
                         tracer.nav_result(
@@ -264,6 +269,14 @@ class TourService:
         tracer.robot_snapshot("tour_start_pose", _robot_snapshot())
         self._engine = self._build_engine(tracer=tracer)
         if not robot_service.is_mock:
+            status = robot_service.get_status()
+            ready, reason = assess_tour_readiness(
+                status.nav_status,
+                status.localization_percent,
+                min_localization=settings.localization_min_percent,
+            )
+            if not ready:
+                return {"ok": False, "error": reason}
             localized = await robot_service.ensure_localization(
                 settings.localization_min_percent
             )
