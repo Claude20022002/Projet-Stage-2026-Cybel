@@ -1,9 +1,9 @@
-import pytest
+from pathlib import Path
 
-from backend.services.tour_service import TourService
+from sdk.lab_tour import TourEngine, load_lab_tour
 
 
-def test_tour_start_reloads_engine_from_disk(tmp_path, monkeypatch):
+def test_tour_engine_reflects_reloaded_json(tmp_path: Path):
     tour_path = tmp_path / "lab_tour.json"
     tour_path.write_text(
         """{
@@ -18,6 +18,7 @@ def test_tour_start_reloads_engine_from_disk(tmp_path, monkeypatch):
   "outro_speech_en": "",
   "stops": [{
     "id": "a",
+    "name_fr": "A",
     "equipment_fr": "Machine A",
     "speech_fr": "Texte",
     "x": 1.0,
@@ -28,15 +29,21 @@ def test_tour_start_reloads_engine_from_disk(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    service = TourService()
-    service._tour_path = tour_path
-    engine1 = service._ensure_engine()
-    assert engine1.tour.stops[0].equipment_fr == "Machine A"
+    tour_a = load_lab_tour(tour_path)
+    assert tour_a.stops[0].equipment_fr == "Machine A"
 
     tour_path.write_text(
         tour_path.read_text(encoding="utf-8").replace("Machine A", "Machine B"),
         encoding="utf-8",
     )
-    service.reset_engine()
-    engine2 = service._ensure_engine()
-    assert engine2.tour.stops[0].equipment_fr == "Machine B"
+    tour_b = load_lab_tour(tour_path)
+    assert tour_b.stops[0].equipment_fr == "Machine B"
+
+    async def noop(_: str) -> None:
+        return None
+
+    async def nav(_stop) -> None:
+        return None
+
+    engine = TourEngine(tour_b, noop, nav, noop)
+    assert engine.tour.stops[0].equipment_fr == "Machine B"
