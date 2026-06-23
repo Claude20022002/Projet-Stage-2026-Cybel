@@ -74,6 +74,12 @@ async def reload_tour() -> dict:
     return {"ok": True, "stops": len(tour.get("stops", [])), "tour": tour}
 
 
+@router.get("/trace")
+async def get_tour_trace() -> dict:
+    """Journal temps réel de la visite (pose robot, cibles, nav_status)."""
+    return tour_service.get_trace()
+
+
 @router.get("/status")
 async def get_status() -> dict:
     return tour_service.get_status()

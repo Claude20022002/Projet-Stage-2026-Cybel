@@ -7,7 +7,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Awaitable, Callable, Literal
+from typing import Awaitable, Callable, Literal, Any
 
 TourPhase = Literal["", "intro", "navigating", "presenting", "dwell", "outro"]
 TourStateName = Literal["idle", "running", "completed", "stopped", "error"]
@@ -77,7 +77,7 @@ class TourStatus:
 
 
 SpeakFn = Callable[[str], Awaitable[None]]
-NavigateStopFn = Callable[[TourStop], Awaitable[None]]
+NavigateStopFn = Callable[[TourStop, int], Awaitable[None]]
 StopMotionFn = Callable[[], Awaitable[None]]
 
 
@@ -217,11 +217,13 @@ class TourEngine:
         speak: SpeakFn,
         navigate: NavigateStopFn,
         stop_motion: StopMotionFn,
+        tracer: Any | None = None,
     ) -> None:
         self.tour = tour
         self._speak = speak
         self._navigate = navigate
         self._stop_motion = stop_motion
+        self._tracer = tracer
         self._status = TourStatus(total_stops=len(tour.stops))
         self._task: asyncio.Task | None = None
         self._cancel = False
@@ -270,9 +272,13 @@ class TourEngine:
         return fr
 
     async def _run(self, lang: str) -> None:
+        if self._tracer:
+            self._tracer.tour_start(lang, self.tour.stops)
         try:
             self._status.phase = "intro"
             self._status.message = "Introduction"
+            if self._tracer:
+                self._tracer.phase("intro", message="Introduction")
             intro = self._pick(
                 self.tour.intro_speech_fr, self.tour.intro_speech_en, lang
             )
@@ -294,7 +300,14 @@ class TourEngine:
 
                 self._status.phase = "navigating"
                 self._status.message = f"Direction {equipment}"
-                await self._navigate(stop)
+                if self._tracer:
+                    self._tracer.phase(
+                        "navigating",
+                        index=index,
+                        stop=stop,
+                        message=f"Direction {equipment}",
+                    )
+                await self._navigate(stop, index)
                 if self._cancel:
                     return
 
@@ -306,6 +319,13 @@ class TourEngine:
                 if approach:
                     self._status.phase = "presenting"
                     self._status.message = approach
+                    if self._tracer:
+                        self._tracer.phase(
+                            "presenting",
+                            index=index,
+                            stop=stop,
+                            message="approach_speech",
+                        )
                     await self._speak(approach)
                     if self._cancel:
                         return
@@ -313,12 +333,26 @@ class TourEngine:
                 presentation = self._pick(stop.speech_fr, stop.speech_en, lang)
                 self._status.phase = "presenting"
                 self._status.message = presentation
+                if self._tracer:
+                    self._tracer.phase(
+                        "presenting",
+                        index=index,
+                        stop=stop,
+                        message="presentation",
+                    )
                 await self._speak(presentation)
                 if self._cancel:
                     return
 
                 self._status.phase = "dwell"
                 self._status.message = "Observation des équipements"
+                if self._tracer:
+                    self._tracer.phase(
+                        "dwell",
+                        index=index,
+                        stop=stop,
+                        message="Observation",
+                    )
                 await asyncio.sleep(max(stop.dwell_seconds, 0))
 
             if self._cancel:
@@ -330,18 +364,26 @@ class TourEngine:
             )
             if outro:
                 self._status.message = "Fin de visite"
+                if self._tracer:
+                    self._tracer.phase("outro", message="Fin de visite")
                 await self._speak(outro)
 
             self._status.state = "completed"
             self._status.phase = ""
             self._status.message = "Visite terminée"
+            if self._tracer:
+                self._tracer.tour_end("completed")
         except asyncio.CancelledError:
             self._status.state = "stopped"
             self._status.message = "Visite interrompue"
+            if self._tracer:
+                self._tracer.tour_end("stopped")
             raise
         except Exception as exc:
             self._status.state = "error"
             self._status.error = str(exc)
             self._status.message = "Erreur pendant la visite"
+            if self._tracer:
+                self._tracer.tour_end("error", error=str(exc))
         finally:
             self._task = None

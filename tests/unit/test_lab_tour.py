@@ -41,16 +41,16 @@ async def test_tour_sequence_navigate_before_speech():
   async def speak(text: str) -> None:
       events.append(f"speak:{text}")
 
-  async def navigate(stop: TourStop) -> None:
-      events.append(f"nav:{stop.id}")
+  async def navigate(stop: TourStop, index: int) -> None:
+      events.append(f"nav:{stop.id}@{index}")
       await asyncio.sleep(0.05)
 
   engine = TourEngine(tour, speak, navigate, lambda: asyncio.sleep(0))
   await engine.start("fr")
   await asyncio.sleep(0.5)
 
-  assert "nav:a" in events
+  assert "nav:a@0" in events
   assert "speak:Nous voici à A" in events
   assert "speak:Présentation A" in events
-  assert events.index("nav:a") < events.index("speak:Nous voici à A")
+  assert events.index("nav:a@0") < events.index("speak:Nous voici à A")
   assert events.index("speak:Nous voici à A") < events.index("speak:Présentation A")
