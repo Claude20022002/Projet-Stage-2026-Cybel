@@ -1,9 +1,29 @@
-"""Prérequis et récupération navigation pour la visite guidée."""
+"""Prérequis et récupération navigation pour la visite guidée.
+
+Sans import ``sdk.*`` pour rester chargeable sur Termux lite (pas de pydantic).
+"""
 from __future__ import annotations
 
-from sdk.constants import NAV_STATUS_HINTS, navigation_failure_message
-
 DEFAULT_LOCALIZATION_MIN_PERCENT = 60.0
+
+NAV_STATUS_HINTS: dict[int, str] = {
+    600: "Robot non localisé — utilisez Relocaliser avant de naviguer.",
+    601: "Prêt à naviguer.",
+    602: "Navigation en cours.",
+    603: "Destination atteinte.",
+    604: (
+        "Échec de navigation — obstacle, chemin bloqué, destination inaccessible "
+        "ou localisation insuffisante. Dégagez le passage, relocalisez le robot, "
+        "puis relancez."
+    ),
+}
+
+
+def navigation_failure_message(nav_status: int, *, destination: str = "") -> str:
+    hint = NAV_STATUS_HINTS.get(nav_status, f"Code navigation {nav_status}")
+    if destination:
+        return f"{hint} (destination : {destination})"
+    return hint
 
 
 def normalize_localization_percent(value: float) -> float:
