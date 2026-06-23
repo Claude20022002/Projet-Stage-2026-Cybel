@@ -192,24 +192,47 @@ async def ensure_auto_navigation() -> bool:
         return False
 
 
-async def recover_navigation_state(timeout: float = 8.0) -> dict:
-    """Sortie d'un état 604/600 : annulation complète puis attente 601/603."""
-    await cancel_navigation_full()
-    try:
-        await ros_call_service("/change_location_mode", {"mode": 1})
-    except Exception:
-        pass
-    await asyncio.sleep(0.5)
+async def recover_navigation_state(timeout: float = 12.0) -> dict:
+    """Annule nav/erreurs et attend un état prêt (601/603)."""
+    bad_states = {600, 602, 604}
+
+    async def _cancel_and_mode() -> None:
+        await cancel_navigation_full()
+        try:
+            await ros_call_service("/change_location_mode", {"mode": 1})
+        except Exception:
+            pass
+        await asyncio.sleep(0.5)
+
+    await _cancel_and_mode()
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     snap = await fetch_robot_snapshot()
-    while loop.time() < deadline and snap.get("nav_status") in (604, 600):
+    while loop.time() < deadline and int(snap.get("nav_status") or 0) in bad_states:
         await asyncio.sleep(0.5)
+        snap = await fetch_robot_snapshot()
+    if int(snap.get("nav_status") or 0) in bad_states:
+        await _cancel_and_mode()
+        await asyncio.sleep(1.0)
         snap = await fetch_robot_snapshot()
     return snap
 
 
-async def ensure_global_localization(
+async def prepare_for_tour() -> tuple[bool, str, dict]:
+    """Prérequis visite : récupération nav + localisation."""
+    snap = await recover_navigation_state()
+    nav_status = int(snap.get("nav_status") or 0)
+    ready, reason = _tour_navigation.assess_tour_readiness(
+        nav_status,
+        snap.get("localization_percent"),
+        min_localization=LOCALIZATION_MIN_PERCENT,
+    )
+    if ready:
+        return True, "", snap
+    # Ne pas bloquer 45 s en relocalisation si la nav n'est pas prête (602/604/600).
+    if nav_status in (604, 600, 602):
+        return False, reason, snap
+    loc_ok, snap = await ensure_global_localization()
     min_percent: float | None = None,
     timeout: float = 45.0,
 ) -> tuple[bool, dict]:
@@ -262,7 +285,7 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     return False, reason or "Prérequis visite non satisfaits", snap
 
 
-async def prepare_for_nav_goal() -> dict:
+async def ensure_global_localization(
     """Avant chaque objectif : annuler erreurs résiduelles."""
     snap = await recover_navigation_state(timeout=5.0)
     nav_status = int(snap.get("nav_status") or 0)

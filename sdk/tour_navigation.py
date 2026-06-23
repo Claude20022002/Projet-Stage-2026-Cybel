@@ -73,6 +73,11 @@ def assess_tour_readiness(
             f"{NAV_STATUS_HINTS[604]} "
             "Annulez la navigation en cours, relocalisez le robot, puis relancez la visite."
         )
+    if nav_status == 602:
+        return False, (
+            "Navigation fantôme (602) — le robot croit être en déplacement mais est immobile. "
+            "Annulez la navigation puis relancez la visite."
+        )
     if nav_status not in (601, 603):
         return False, (
             f"État navigation inattendu ({nav_status}). "
