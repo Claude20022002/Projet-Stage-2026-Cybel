@@ -47,6 +47,8 @@ At this stage of the internship, connectivity with the robot has been establishe
 13. [Conclusion](#13-conclusion)
 14. [Bibliographie](#14-bibliographie)
 
+**Chapitres 5–7, conclusion, annexes (format rapport HESTIM)** : voir [chapitres_5_6_7_conclusion.md](chapitres_5_6_7_conclusion.md) — méthodologie, réalisation, validation, Gantt, diagrammes Mermaid, bibliographie et webographie.
+
 ---
 
 ## 1. Introduction

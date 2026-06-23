@@ -1,0 +1,27 @@
+%% Diagramme de Gantt — export PNG pour Overleaf
+%% Fichier : diagrammes/gantt_planning_stage.png
+gantt
+    title Planning stage CYBEL (juin — septembre 2026)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d/%m
+
+    section Phase 1 Connectivité
+    Analyse réseau et matériel       :done, p1a, 2026-06-01, 10d
+    Identification services          :done, p1b, after p1a, 5d
+
+    section Phase 2 Investigation
+    Introspection ROS rosapi         :done, p2a, 2026-06-10, 14d
+    MQTT et commandes mouvement      :done, p2b, 2026-06-15, 10d
+    Résolution TTS                   :done, p2c, 2026-06-20, 10d
+
+    section Phase 3 Développement
+    SDK Python mock et réel          :done, p3a, 2026-06-01, 30d
+    Backend FastAPI                  :done, p3b, 2026-06-15, 25d
+    Interface opérateur              :done, p3c, 2026-06-20, 25d
+    Visite guidée et kiosque         :done, p3d, 2026-06-22, 20d
+    Termux et APK Android            :done, p3e, 2026-06-28, 10d
+
+    section Phase 4 Validation
+    Tests navigation terrain         :active, p4a, 2026-07-01, 30d
+    Ajustement lab_tour.json         :p4b, after p4a, 20d
+    Rédaction finale et soutenance   :p4c, 2026-08-01, 45d

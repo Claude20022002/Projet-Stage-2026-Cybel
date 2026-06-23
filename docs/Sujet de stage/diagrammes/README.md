@@ -17,6 +17,7 @@ Les fichiers `.mmd` sont les **sources Mermaid** à convertir en PNG pour le dos
 | `sequence_kiosk_action.mmd` | `sequence_kiosk_action.png` | Figure séquence kiosque (actions accueil — historique) |
 | `sequence_lab_tour.mmd` | `sequence_lab_tour.png` | Figure séquence visite guidée labo |
 | `sequence_tour_halt.mmd` | `sequence_tour_halt.png` | Figure arrêt total opérateur |
+| `gantt_planning_stage.mmd` | `gantt_planning_stage.png` | Figure planning Gantt (ch. 5) |
 | `topologie_reseau.mmd` | `topologie_reseau.png` | Figure topologie réseau |
 
 ## Génération des PNG
