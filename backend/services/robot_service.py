@@ -82,6 +82,9 @@ class RobotService:
                 localization_min_percent=settings.localization_min_percent,
                 auto_relocalize_on_connect=settings.auto_relocalize_on_connect,
                 navigation_wait_timeout=settings.navigation_wait_timeout,
+                connect_timeout=settings.robot_connect_timeout,
+                connect_retries=settings.robot_connect_retries,
+                stale_seconds=settings.robot_stale_seconds,
             )
         await self._backend.start()
         for callback in self._telemetry_callbacks:

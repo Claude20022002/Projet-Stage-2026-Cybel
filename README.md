@@ -461,9 +461,9 @@ netsh wlan connect name="TY1251D-03195"
 # Test de connexion
 ping 10.42.0.1
 
-# Lancer le SDK
+# Lancer le SDK (test connexion rosbridge)
 cd cybel
-python -m sdk.tests.test_connection
+python scripts\robot_status.py
 
 # Lancer le backend + le frontend en une seule commande (depuis la racine)
 python scripts/dev.py

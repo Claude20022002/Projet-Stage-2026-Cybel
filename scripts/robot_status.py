@@ -2,8 +2,12 @@ import asyncio
 import websockets
 import json
 
+ROBOT_WS = "ws://10.42.0.1:9090"
+OPEN_TIMEOUT = 20
+
+
 async def main():
-    async with websockets.connect("ws://10.42.0.1:9090") as ws:
+    async with websockets.connect(ROBOT_WS, open_timeout=OPEN_TIMEOUT) as ws:
         await ws.send(json.dumps({
             "op": "subscribe",
             "topic": "/robot_status",

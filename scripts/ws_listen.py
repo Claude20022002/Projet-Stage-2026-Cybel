@@ -2,11 +2,14 @@ import asyncio
 import websockets
 import json
 
-async def listen():
-    uri = "ws://10.42.0.1:9090"
-    print(f"Connexion rosbridge sur {uri} ...")
+ROBOT_WS = "ws://10.42.0.1:9090"
+OPEN_TIMEOUT = 20
 
-    async with websockets.connect(uri) as ws:
+async def listen():
+    uri = ROBOT_WS
+    print(f"Connexion rosbridge sur {uri} (timeout {OPEN_TIMEOUT}s)...")
+
+    async with websockets.connect(uri, open_timeout=OPEN_TIMEOUT) as ws:
         print("[OK] Connecte !\n")
 
         # 1. Lister tous les topics ROS

@@ -9,7 +9,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from sdk.models import MoveCommand, Pose, RobotStatus
-from config import settings
 from services.robot_service import robot_service
 from services.tour_service import tour_service
 
@@ -63,19 +62,22 @@ async def set_manual_mode(request: ManualModeRequest) -> dict:
 
 @router.post("/relocalize")
 async def relocalize() -> dict:
-    success = await robot_service.ensure_localization(settings.localization_min_percent)
-    if not success:
-        status = robot_service.get_status()
+    status = robot_service.get_status()
+    if not status.connected:
         raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Relocalisation insuffisante ({status.localization_percent:.0f} %). "
-                "Déplacez le robot dans une zone dégagée et réessayez."
-            ),
+            status_code=503,
+            detail="Robot non connecté — vérifiez le Wi‑Fi et la connexion rosbridge",
+        )
+    launched = await robot_service.global_localization()
+    if not launched:
+        raise HTTPException(
+            status_code=503,
+            detail="Impossible de lancer la relocalisation sur le robot",
         )
     status = robot_service.get_status()
     return {
         "ok": True,
+        "message": "Relocalisation lancée — le robot va tourner sur lui-même",
         "localization_percent": status.localization_percent,
         "localization_label": status.localization_label,
     }

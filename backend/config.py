@@ -4,6 +4,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     robot_host: str = "10.42.0.1"
     robot_ws_port: int = 9090
+    robot_connect_timeout: float = 20.0
+    robot_connect_retries: int = 3
+    robot_stale_seconds: float = 25.0
     robot_mock: bool = True
     speech_topic: str = ""
     speech_service: str = ""

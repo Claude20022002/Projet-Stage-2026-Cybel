@@ -12,9 +12,28 @@ logger = logging.getLogger(__name__)
 MessageHandler = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
+def _format_exc(exc: Exception | None) -> str:
+    if exc is None:
+        return "erreur inconnue"
+    message = str(exc).strip()
+    if message:
+        return f"{type(exc).__name__}: {message}"
+    return type(exc).__name__
+
+
 class RosbridgeClient:
-    def __init__(self, url: str) -> None:
+    def __init__(
+        self,
+        url: str,
+        *,
+        connect_timeout: float = 20.0,
+        connect_retries: int = 3,
+        retry_delay: float = 2.0,
+    ) -> None:
         self.url = url
+        self._connect_timeout = connect_timeout
+        self._connect_retries = max(1, connect_retries)
+        self._retry_delay = retry_delay
         self._ws: ClientConnection | None = None
         self._listener_task: asyncio.Task | None = None
         self._handlers: list[MessageHandler] = []
@@ -36,23 +55,47 @@ class RosbridgeClient:
     def on_disconnect(self, handler: Callable[[], Awaitable[None]]) -> None:
         self._disconnect_handlers.append(handler)
 
-    async def connect(self, timeout: float = 5.0) -> bool:
+    async def connect(self, timeout: float | None = None) -> bool:
         if self._ws is not None:
             await self.disconnect()
-        try:
-            self._ws = await asyncio.wait_for(
-                websockets.connect(self.url, open_timeout=timeout),
-                timeout=timeout,
-            )
-            self._connected = True
-            self._listener_task = asyncio.create_task(self._listen())
-            logger.info("Connecté à rosbridge %s", self.url)
-            return True
-        except Exception as exc:
-            logger.warning("Connexion rosbridge échouée: %s", exc)
-            self._connected = False
-            self._ws = None
-            return False
+
+        open_timeout = timeout if timeout is not None else self._connect_timeout
+        last_exc: Exception | None = None
+
+        for attempt in range(1, self._connect_retries + 1):
+            try:
+                self._ws = await websockets.connect(
+                    self.url,
+                    open_timeout=open_timeout,
+                    close_timeout=5,
+                    ping_interval=20,
+                    ping_timeout=20,
+                )
+                self._connected = True
+                self._listener_task = asyncio.create_task(self._listen())
+                logger.info("Connecté à rosbridge %s", self.url)
+                return True
+            except Exception as exc:
+                last_exc = exc
+                self._connected = False
+                self._ws = None
+                if attempt < self._connect_retries:
+                    logger.warning(
+                        "Connexion rosbridge tentative %s/%s échouée (%s) — nouvel essai dans %.0f s",
+                        attempt,
+                        self._connect_retries,
+                        _format_exc(exc),
+                        self._retry_delay,
+                    )
+                    await asyncio.sleep(self._retry_delay)
+
+        logger.warning(
+            "Connexion rosbridge échouée après %s tentative(s) vers %s: %s",
+            self._connect_retries,
+            self.url,
+            _format_exc(last_exc),
+        )
+        return False
 
     async def disconnect(self) -> None:
         self._connected = False
@@ -94,7 +137,7 @@ class RosbridgeClient:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.warning("Écoute rosbridge interrompue: %s", exc)
+            logger.warning("Écoute rosbridge interrompue: %s", _format_exc(exc))
             self._connected = False
             for handler in self._disconnect_handlers:
                 try:

@@ -1,4 +1,5 @@
 """Lance le backend FastAPI et le frontend Vite en une seule commande."""
+import os
 import subprocess
 import sys
 import threading
@@ -19,13 +20,19 @@ def stream_output(process: subprocess.Popen, prefix: str) -> None:
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+    # --reload ouvre plusieurs connexions rosbridge et sature le robot.
+    use_reload = os.environ.get("CYBEL_DEV_RELOAD", "").strip().lower() in ("1", "true", "yes")
+    backend_cmd = [sys.executable, "-m", "uvicorn", "main:app", "--port", "8000"]
+    if use_reload:
+        backend_cmd.extend(
+            ["--reload", "--reload-dir", str(BACKEND_DIR), "--reload-dir", str(ROOT / "sdk")]
+        )
+    else:
+        print("[dev] Backend sans --reload (connexion rosbridge stable).")
+        print("[dev] CYBEL_DEV_RELOAD=1 pour activer le rechargement auto.\n")
+
     backend = subprocess.Popen(
-        [
-            sys.executable, "-m", "uvicorn", "main:app", "--reload",
-            "--reload-dir", str(BACKEND_DIR),
-            "--reload-dir", str(ROOT / "sdk"),
-            "--port", "8000",
-        ],
+        backend_cmd,
         cwd=BACKEND_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

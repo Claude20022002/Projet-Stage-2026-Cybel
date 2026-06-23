@@ -97,10 +97,17 @@ class RealRobot:
         localization_min_percent: float = 60.0,
         auto_relocalize_on_connect: bool = True,
         navigation_wait_timeout: float = 300.0,
+        connect_timeout: float = 20.0,
+        connect_retries: int = 3,
+        stale_seconds: float = 25.0,
     ) -> None:
         self._host = host
         self._chassis_id = chassis_id
-        self._client = RosbridgeClient(f"ws://{host}:{ws_port}")
+        self._client = RosbridgeClient(
+            f"ws://{host}:{ws_port}",
+            connect_timeout=connect_timeout,
+            connect_retries=connect_retries,
+        )
         self._speech = RobotSpeech(
             client=self._client,
             emit=self._emit,
@@ -132,6 +139,7 @@ class RealRobot:
         self._localization_min_percent = localization_min_percent
         self._auto_relocalize_on_connect = auto_relocalize_on_connect
         self._navigation_wait_timeout = navigation_wait_timeout
+        self._stale_seconds = stale_seconds
         self._relocalize_task: asyncio.Task | None = None
         self._nav_saw_active = False
         self._last_ros_message_at = 0.0
@@ -221,13 +229,17 @@ class RealRobot:
     async def _reconnect_loop(self) -> None:
         while True:
             await asyncio.sleep(5.0)
-            stale = (time.monotonic() - self._last_ros_message_at) > 10.0
+            stale = (time.monotonic() - self._last_ros_message_at) > self._stale_seconds
             if self._client.connected and not stale:
                 continue
 
             if self._client.connected and stale:
-                logger.warning("rosbridge silencieux depuis 10 s — reconnexion")
+                logger.warning(
+                    "rosbridge silencieux depuis %.0f s — reconnexion",
+                    self._stale_seconds,
+                )
                 await self._client.disconnect()
+                await asyncio.sleep(2.0)
                 if self.status.connected:
                     self.status.connected = False
                     await self._emit("event", {"message": "Connexion robot perdue — reconnexion…"})
