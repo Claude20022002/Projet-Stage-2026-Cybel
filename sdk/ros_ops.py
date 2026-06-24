@@ -25,7 +25,7 @@ def service_succeeded(response: dict[str, Any]) -> bool:
     """True si le service ROS a répondu positivement (ou sans champ result)."""
     if not response:
         return False
-    if response.get("op") == "service_response" and response.get("result") is False:
+    if response.get("result") is False:
         return False
     return True
 
