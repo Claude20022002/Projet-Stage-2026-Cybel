@@ -986,6 +986,8 @@ gantt
 ROBOT_MOCK=true pytest tests/unit -v --tb=short
 ```
 
+**Smoke test robot (avant l'UI) :** `python scripts/phase0_robot_check.py` — voir [PHASE0_DEMARRAGE.md](../PHASE0_DEMARRAGE.md).
+
 ---
 
 ## 15. Améliorations CYBEL vs constructeur (à implémenter volontairement)
