@@ -1,17 +1,36 @@
+# Référence APK : TopicContent.java / ServiceContent.java (selfchassislibrary)
+# DeploymentToolConstant.java — types POI
+
 ROS_TOPICS = {
+  # Télémétrie
     "pose": "/robot_pose",
     "status": "/robot_status",
     "navi_status": "/navi_status",
-    "velocity_cmd": "/mobile_base/commands/velocity",
-    "cancel_nav": "/path_follower/cancel",
-    "init_pose": "/set_init_pose",
+    "localization_confidence": "/localization_confidence",
+    # Carte
     "current_map": "/get_current_map",
+    "map": "/map",
     "map_metadata": "/map_metadata",
-    "waypoints": "/waypoints",
+    # Navigation — commandes
+    "navi_goal": "/navi_goal",
+    "navi_goal_id": "/navi_goal_id",
+    "move_base_cancel": "/move_base/cancel",
+    "cancel_nav": "/path_follower/cancel",  # legacy CYBEL
+    "soft_stop": "/soft_stop",
+    "global_path": "/global_path",
+    # Téléopération (APK MsgManager — cmd_vel_mux)
+    "teleop": "/cmd_vel_mux/input/teleop",
+    "velocity_cmd": "/cmd_vel_mux/input/teleop",  # alias — remplace mobile_base/commands/velocity
+    # Recharge (WelcomeManager / SelfChassis.sendGoHome)
+    "charge_home_pose": "/charge_server/home_pose",
+    "charge_result": "/charge_server/result",
+    # Multi-étages (phase ultérieure)
+    "cross_floor_navi": "/cross_floor_navi",
+    # Capteurs
     "lidar": "/scan_filter",
     "people": "/detected_people_array",
-    "localization_confidence": "/localization_confidence",
-    "navi_goal": "/navi_goal",
+    "init_pose": "/set_init_pose",
+    "waypoints": "/waypoints",
 }
 
 LIDAR_TOPICS = [
@@ -20,13 +39,69 @@ LIDAR_TOPICS = [
 ]
 
 ROS_SERVICES = {
-    "change_mode": "/change_location_mode",
-    "poi": "/poi",
+    # Navigation POI
+    "tag_manager_navi": "/tag_manager/navi",  # APK SelfChassis.sendMoveByMarkerName
+    "poi": "/poi",  # fallback legacy CYBEL
+    # Localisation
+    "global_locate": "/global_locate",  # APK ServiceContent.GLOBAL_LOCATE
+    "global_localization": "/global_localization",  # fallback CYBEL
+    # Marqueurs / carte
     "markers": "/marker_manager/get_markers_details",
-    "global_localization": "/global_localization",
-    "static_map": "/static_map",
-    "cancel_nav": "/path_follower/cancel",
     "marker_control": "/marker_manager/control",
+    "marker_operation_get": "/marker_operation/get_markers",
+    "static_map": "/static_map",
+    # Modes
+    "change_mode": "/change_location_mode",
+    # Recharge
+    "start_recharge": "/start_recharge",
+    # Annulation (services)
+    "move_base_cancel": "/move_base/cancel",
+    "cancel_nav": "/path_follower/cancel",
+}
+
+# Ordre de tentative pour relocalisation (CYB-003)
+GLOBAL_LOCATE_SERVICE_CHAIN: list[str] = [
+    ROS_SERVICES["global_locate"],
+    ROS_SERVICES["global_localization"],
+]
+
+# Ordre pour navigation vers POI nommé (CYB-002)
+POI_NAV_SERVICE_CHAIN: list[str] = [
+    ROS_SERVICES["tag_manager_navi"],
+    ROS_SERVICES["poi"],
+]
+
+# Annulation navigation — publish puis services (CYB-005)
+CANCEL_NAV_PUBLISH_TOPICS: list[str] = [
+    ROS_TOPICS["move_base_cancel"],
+    ROS_TOPICS["cancel_nav"],
+]
+
+CANCEL_NAV_SERVICE_CHAIN: list[str] = [
+    ROS_SERVICES["move_base_cancel"],
+    ROS_SERVICES["cancel_nav"],
+]
+
+# Types ROS rosbridge (APK TypeContent)
+ROS_MSG_TYPES = {
+    "twist": "geometry_msgs/Twist",
+    "pose2d": "geometry_msgs/Pose2D",
+    "robot_status": "yutong_assistance/RobotStatus",
+    "bool": "std_msgs/Bool",
+    "goal_id": "actionlib_msgs/GoalID",
+}
+
+# Types POI constructeur (DeploymentToolConstant.POINT_*)
+MARKER_TYPE_CODES: dict[str, int] = {
+    "common": 0,
+    "elevator_out": 3,
+    "elevator_in": 4,
+    "wait": 5,
+    "gate": 7,
+    "door_guard": 8,
+    "charge": 11,
+    "charging": 11,
+    "trajectory": -65535,
 }
 
 NAV_STATUS_LABELS: dict[int, str] = {
@@ -63,6 +138,7 @@ def tour_recovery_hint() -> str:
         "attendre nav_status 601 et localisation ≥ 60 % → relancer la visite."
     )
 
+
 MARKER_TYPE_MAP: dict[str, str] = {
     "charging": "charging",
     "charging_pile": "charging",
@@ -74,6 +150,8 @@ MARKER_TYPE_MAP: dict[str, str] = {
     "access_control": "access",
     "ride": "ride",
     "elevator": "ride",
+    "elevator_in": "ride",
+    "elevator_out": "ride",
     "wait": "wait",
     "label": "label",
     "stop": "stop",
@@ -85,7 +163,6 @@ SPEED_GEAR_VALUES = {
     "high": 0.8,
 }
 
-# Candidats TTS — à valider sur robot via scripts/speech_explore.py
 SPEECH_PUBLISH_TOPICS = [
     "/play_tts",
     "/tts_play",
@@ -122,7 +199,6 @@ SPEECH_SERVICE_ARGS = [
     lambda text: {"message": text},
 ]
 
-# Upper body Android (RK3399) — fallback HTTP si ROS échoue
 SPEECH_HTTP_HOST = "172.16.0.194"
 SPEECH_HTTP_PORTS = (80, 8080, 8888, 9000, 9090)
 SPEECH_HTTP_PATHS = (
@@ -137,8 +213,6 @@ SPEECH_HTTP_PATHS = (
     "/android/tts",
 )
 
-# TTS via la tête Android — app CybelTTSBridge installée sur l'appareil
-# (voir android/CybelTTSBridge), déclenchée par broadcast ADB.
 SPEECH_ADB_SERIAL = "172.16.0.194:5555"
 SPEECH_ADB_RECEIVER = "com.cybel.ttsbridge/.SpeakReceiver"
 SPEECH_ADB_ACTION = "com.cybel.ttsbridge.SPEAK"

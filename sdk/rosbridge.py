@@ -163,6 +163,12 @@ class RosbridgeClient:
     async def publish(self, topic: str, msg: dict[str, Any]) -> None:
         await self._send({"op": "publish", "topic": topic, "msg": msg})
 
+    async def advertise(self, topic: str, msg_type: str) -> None:
+        await self._send({"op": "advertise", "topic": topic, "type": msg_type})
+
+    async def unadvertise(self, topic: str) -> None:
+        await self._send({"op": "unadvertise", "topic": topic})
+
     async def call_service(
         self,
         service: str,

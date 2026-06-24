@@ -5,10 +5,21 @@ import math
 import time
 from typing import Any, Awaitable, Callable
 
-from sdk.constants import LIDAR_TOPICS, MARKER_TYPE_MAP, NAV_STATUS_LABELS, ROS_SERVICES, ROS_TOPICS, navigation_failure_message
+from sdk.constants import (
+    CANCEL_NAV_PUBLISH_TOPICS,
+    CANCEL_NAV_SERVICE_CHAIN,
+    LIDAR_TOPICS,
+    MARKER_TYPE_MAP,
+    NAV_STATUS_LABELS,
+    ROS_MSG_TYPES,
+    ROS_SERVICES,
+    ROS_TOPICS,
+    navigation_failure_message,
+)
 from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import is_coordinate_navigable, parse_map_metadata, parse_occupancy_grid
 from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus, SpeechStatus
+from sdk.ros_ops import build_global_locate_chain, build_poi_nav_chain, call_service_first, publish_first
 from sdk.rosbridge import RosbridgeClient
 from sdk.speech import RobotSpeech
 
@@ -144,6 +155,7 @@ class RealRobot:
         self._nav_saw_active = False
         self._last_ros_message_at = 0.0
         self._suppress_robot_goal = False
+        self._teleop_advertised = False
 
     def on_telemetry(self, callback: TelemetryCallback) -> None:
         self._telemetry_callbacks.append(callback)
@@ -264,6 +276,7 @@ class RealRobot:
         for topic, throttle in (
             (ROS_TOPICS["pose"], 200),
             (ROS_TOPICS["status"], 500),
+            (ROS_TOPICS["navi_status"], 500),
             (ROS_TOPICS["current_map"], 2000),
             (ROS_TOPICS["map_metadata"], 2000),
             (ROS_TOPICS["people"], 500),
@@ -296,6 +309,17 @@ class RealRobot:
 
         elif topic == ROS_TOPICS["status"]:
             await self._handle_status(msg)
+
+        elif topic == ROS_TOPICS["navi_status"]:
+            code = int(
+                msg.get("data")
+                if msg.get("data") is not None
+                else msg.get("nav_status", msg.get("status", 0))
+            )
+            if code:
+                self.status.nav_status = code
+                self.status.nav_status_label = nav_status_label(code)
+                await self._emit("status", self.status.model_dump())
 
         elif topic == ROS_TOPICS["current_map"]:
             parsed = parse_occupancy_grid(msg)
@@ -522,18 +546,17 @@ class RealRobot:
                     await self._client.call_service(ROS_SERVICES["poi"], args, timeout=3.0)
                 except Exception:
                     pass
-            for service, args in (
-                (ROS_SERVICES["cancel_nav"], {}),
-                (ROS_SERVICES["marker_control"], {"command": "stop"}),
-            ):
-                try:
-                    await self._client.call_service(service, args, timeout=3.0)
-                except Exception:
-                    pass
-            try:
-                await self._client.publish(ROS_TOPICS["cancel_nav"], {})
-            except Exception:
-                pass
+            await call_service_first(
+                self._client,
+                [(service, {}) for service in CANCEL_NAV_SERVICE_CHAIN]
+                + [(ROS_SERVICES["marker_control"], {"command": "stop"})],
+                timeout=3.0,
+            )
+            await publish_first(
+                self._client,
+                CANCEL_NAV_PUBLISH_TOPICS,
+                {},
+            )
         await self._publish_velocity(0.0, 0.0)
         self._suppress_robot_goal = True
         self.status.navigating_to = None
@@ -548,8 +571,14 @@ class RealRobot:
     async def _publish_velocity(self, linear_x: float, angular_z: float) -> None:
         if not self._client.connected:
             return
+        if not self._teleop_advertised:
+            await self._client.advertise(
+                ROS_TOPICS["teleop"],
+                ROS_MSG_TYPES["twist"],
+            )
+            self._teleop_advertised = True
         await self._client.publish(
-            ROS_TOPICS["velocity_cmd"],
+            ROS_TOPICS["teleop"],
             {
                 "linear": {"x": linear_x, "y": 0.0, "z": 0.0},
                 "angular": {"x": 0.0, "y": 0.0, "z": angular_z},
@@ -634,6 +663,11 @@ class RealRobot:
 
     async def emergency_stop(self) -> None:
         await self.stop()
+        if self._client.connected:
+            try:
+                await self._client.publish(ROS_TOPICS["soft_stop"], {"data": True})
+            except Exception:
+                pass
         self.status.soft_estop = True
         self.status.nav_status_label = "Arrêt d'urgence"
         await self._emit("event", {"message": "E-Stop activé"})
@@ -690,9 +724,19 @@ class RealRobot:
         """
         if not self._client.connected:
             return False
-        await self._client.call_service(ROS_SERVICES["global_localization"], {})
-        await self._emit("event", {"message": "Relocalisation globale lancée"})
-        return True
+        service, _ = await call_service_first(
+            self._client,
+            build_global_locate_chain(),
+            timeout=8.0,
+        )
+        if service:
+            await self._emit(
+                "event",
+                {"message": "Relocalisation globale lancée", "method": service},
+            )
+            return True
+        await self._emit("event", {"message": "Relocalisation — aucun service ROS disponible"})
+        return False
 
     async def wait_for_localization(
         self,
@@ -932,11 +976,19 @@ class RealRobot:
             )
             return False
 
+        nav_method: str | None = None
         if self._client.connected:
-            await self._client.call_service(
-                ROS_SERVICES["poi"],
-                {"name": point_name, "point_name": point_name, "command": "go"},
+            nav_method, _ = await call_service_first(
+                self._client,
+                build_poi_nav_chain(point_name),
+                timeout=5.0,
             )
+            if not nav_method:
+                await self._emit(
+                    "event",
+                    {"message": f"Navigation vers {point_name} — échec appel service ROS"},
+                )
+                return False
 
         self.status.navigating_to = point_name
         if target:
@@ -944,6 +996,9 @@ class RealRobot:
         self.status.nav_status = 602
         self.status.nav_status_label = "En navigation"
         self._nav_saw_active = False
-        await self._emit("event", {"message": f"Navigation vers {point_name}"})
+        event: dict[str, Any] = {"message": f"Navigation vers {point_name}"}
+        if nav_method:
+            event["method"] = nav_method
+        await self._emit("event", event)
         await self._emit("status", self.status.model_dump())
         return True
