@@ -21,3 +21,4 @@ Thumbs.db
 # Build
 *.log
 .env
+/app_init
