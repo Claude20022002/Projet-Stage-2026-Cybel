@@ -22,3 +22,5 @@ Thumbs.db
 *.log
 .env
 /app_init
+/welcomepatrol
+/sentrymove
