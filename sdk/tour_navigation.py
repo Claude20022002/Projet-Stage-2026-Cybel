@@ -5,6 +5,7 @@ Sans import ``sdk.*`` pour rester chargeable sur Termux lite (pas de pydantic).
 from __future__ import annotations
 
 import math
+from typing import Sequence
 
 DEFAULT_LOCALIZATION_MIN_PERCENT = 60.0
 GOAL_TOLERANCE_M = 0.45
@@ -157,12 +158,34 @@ def parse_localization_percent(status_msg: dict, loc_msg: dict | None = None) ->
     return None
 
 
+def is_ghost_navigation(
+    nav_status: int,
+    *,
+    velocity: Sequence[float] | None = None,
+    navigating_to: str | None = None,
+) -> bool:
+    """602 sans cible ni mouvement — état bloquant fréquent après annulation ratée."""
+    if nav_status != 602:
+        return False
+    if navigating_to:
+        return False
+    if velocity:
+        vx = float(velocity[0]) if velocity else 0.0
+        vy = float(velocity[1]) if len(velocity) > 1 else 0.0
+        if abs(vx) >= VELOCITY_STOP_THRESHOLD or abs(vy) >= VELOCITY_STOP_THRESHOLD:
+            return False
+    return True
+
+
 def assess_tour_readiness(
     nav_status: int,
     localization_percent: float | None,
     *,
     min_localization: float = DEFAULT_LOCALIZATION_MIN_PERCENT,
     require_known_localization: bool = False,
+    velocity: Sequence[float] | None = None,
+    navigating_to: str | None = None,
+    ghost_nav_recovered: bool = False,
 ) -> tuple[bool, str]:
     """Vérifie si le robot peut démarrer une visite."""
     if nav_status == 600:
@@ -173,10 +196,21 @@ def assess_tour_readiness(
             "Annulez la navigation en cours, relocalisez le robot, puis relancez la visite."
         )
     if nav_status == 602:
-        return False, (
-            "Navigation fantôme (602) — le robot croit être en déplacement mais est immobile. "
-            "Annulez la navigation puis relancez la visite."
-        )
+        if is_ghost_navigation(
+            nav_status, velocity=velocity, navigating_to=navigating_to
+        ):
+            if ghost_nav_recovered:
+                pass
+            else:
+                return False, (
+                    "Navigation fantôme (602) — le robot croit être en déplacement "
+                    "mais est immobile. Annulez la navigation puis relancez la visite."
+                )
+        else:
+            return False, (
+                "Navigation déjà en cours — attendez l'arrivée ou annulez "
+                "avant de lancer une visite."
+            )
     if nav_status not in (601, 603):
         return False, (
             f"État navigation inattendu ({nav_status}). "

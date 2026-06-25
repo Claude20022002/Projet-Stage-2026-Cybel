@@ -14,12 +14,9 @@ client.connect(HOST, port=8022, username="u0_a92", password=PASSWORD, timeout=15
 
 cmds = [
     "curl -s http://127.0.0.1:8000/api/robot/status",
+    "curl -s -X POST http://127.0.0.1:8000/api/tour/halt",
+    "sleep 5 && curl -s http://127.0.0.1:8000/api/robot/status",
     "curl -s -X POST 'http://127.0.0.1:8000/api/tour/start?lang=fr'",
-    (
-        "curl -s -w '\\nHTTP:%{http_code}' -X POST http://127.0.0.1:8000/api/reception/go "
-        "-H 'Content-Type: application/json' "
-        "-d '{\"point_name\":\"Extraction et soufflage\",\"lang\":\"fr\"}'"
-    ),
 ]
 
 for cmd in cmds:

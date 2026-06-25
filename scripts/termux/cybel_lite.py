@@ -233,11 +233,17 @@ async def _ws_publish_teleop(
     )
 
 
-async def cancel_navigation_full() -> None:
-    """Annule navigation, POI et marqueurs (réinitialise un état 604)."""
+async def cancel_navigation_full(*, point_name: str | None = None) -> None:
+    """Annule navigation, POI et marqueurs (réinitialise un état 604/602 fantôme)."""
+    poi_stops: list[dict] = [{"command": "stop"}]
+    if point_name:
+        poi_stops.insert(
+            0,
+            {"name": point_name, "point_name": point_name, "command": "stop"},
+        )
     for service, args in (
         *[(service, {}) for service in CANCEL_NAV_SERVICE_CHAIN],
-        ("/poi", {"command": "stop"}),
+        *[(("/poi", args)) for args in poi_stops],
         ("/marker_manager/control", {"command": "stop"}),
     ):
         try:
@@ -257,27 +263,44 @@ async def cancel_navigation_full() -> None:
         pass
 
 
+def _ghost_nav(snap: dict) -> bool:
+    return _tour_navigation.is_ghost_navigation(
+        int(snap.get("nav_status") or 0),
+        velocity=snap.get("velocity"),
+        navigating_to=snap.get("navigating_to"),
+    )
+
+
 async def ensure_auto_navigation() -> bool:
     """Annule la nav en cours, passe en mode auto et attend nav_status prêt (601/603)."""
+    snap = await fetch_robot_snapshot(timeout=4.0)
     try:
-        await cancel_navigation_full()
+        await cancel_navigation_full(
+            point_name=str(snap.get("navigating_to") or "") or None
+        )
         await ros_call_service("/change_location_mode", {"mode": 1})
     except Exception:
         return False
     loop = asyncio.get_running_loop()
     deadline = loop.time() + 8.0
-    snap = await fetch_robot_snapshot(timeout=4.0)
     while loop.time() < deadline:
+        snap = await fetch_robot_snapshot(timeout=4.0)
         nav_status = int(snap.get("nav_status") or 0)
         if nav_status in (601, 603):
             return True
         if nav_status in (600, 604):
             await asyncio.sleep(0.5)
-            snap = await fetch_robot_snapshot(timeout=4.0)
+            continue
+        if nav_status == 602 and _ghost_nav(snap):
+            await asyncio.sleep(0.4)
             continue
         await asyncio.sleep(0.4)
-        snap = await fetch_robot_snapshot(timeout=4.0)
-    return int(snap.get("nav_status") or 0) in (601, 603)
+    snap = await fetch_robot_snapshot(timeout=4.0)
+    nav_status = int(snap.get("nav_status") or 0)
+    if nav_status in (601, 603):
+        return True
+    # 602 fantôme persistant : le stack accepte souvent un nouvel objectif (CYB-061).
+    return nav_status == 602 and _ghost_nav(snap)
 
 
 async def recover_navigation_state(timeout: float = 12.0) -> dict:
