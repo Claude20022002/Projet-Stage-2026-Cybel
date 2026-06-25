@@ -95,3 +95,52 @@ def build_global_locate_chain() -> list[tuple[str, dict[str, Any]]]:
     from sdk.constants import GLOBAL_LOCATE_SERVICE_CHAIN
 
     return [(service, {}) for service in GLOBAL_LOCATE_SERVICE_CHAIN]
+
+
+def yaw_from_quaternion(orientation: dict[str, Any]) -> float:
+    """Extrait le yaw depuis un quaternion geometry_msgs."""
+    import math
+
+    z = float(orientation.get("z") or 0.0)
+    w = float(orientation.get("w") or 1.0)
+    return math.atan2(2.0 * w * z, 1.0 - 2.0 * z * z)
+
+
+def extract_markers_from_ros_response(values: dict[str, Any]) -> list[dict[str, Any]]:
+    """Aplatit les réponses ``get_markers_details`` / ``get_markers`` en liste de dicts."""
+    if not values:
+        return []
+
+    collected: list[dict[str, Any]] = []
+
+    def _append_items(items: Any, *, floor: str = "0") -> None:
+        if not isinstance(items, list):
+            return
+        for item in items:
+            if isinstance(item, dict):
+                marker = dict(item)
+                if floor and not marker.get("floor") and not marker.get("floor_name"):
+                    marker["floor"] = floor
+                collected.append(marker)
+
+    floors = values.get("floors")
+    if isinstance(floors, list):
+        for floor in floors:
+            if not isinstance(floor, dict):
+                continue
+            floor_name = str(floor.get("floor_name") or floor.get("name") or "0")
+            _append_items(floor.get("markers"), floor=floor_name)
+
+    markers = values.get("markers")
+    if isinstance(markers, list):
+        _append_items(markers)
+    elif isinstance(markers, dict):
+        _append_items(markers.get("markers"))
+        _append_items(markers.get("waypoints"))
+        for key in ("points", "data"):
+            _append_items(markers.get(key))
+
+    for key in ("marker_list", "data", "points"):
+        _append_items(values.get(key))
+
+    return collected

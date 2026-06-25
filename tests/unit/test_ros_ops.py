@@ -6,6 +6,7 @@ from sdk.ros_ops import (
     build_global_locate_chain,
     build_poi_nav_chain,
     call_service_first,
+    extract_markers_from_ros_response,
     publish_first,
     service_succeeded,
 )
@@ -70,3 +71,39 @@ async def test_publish_first() -> None:
     topic = await publish_first(client, ["/move_base/cancel", "/path_follower/cancel"], {})
     assert topic == "/move_base/cancel"
     assert len(client.published) == 1
+
+
+def test_extract_markers_from_floors_response() -> None:
+    values = {
+        "floors": [
+            {
+                "floor_name": "0",
+                "markers": [
+                    {
+                        "name": "nous",
+                        "pose": {
+                            "position": {"x": -3.01, "y": -0.21, "z": 0.0},
+                            "orientation": {"z": 0.552, "w": 0.834},
+                        },
+                    }
+                ],
+            }
+        ]
+    }
+    markers = extract_markers_from_ros_response(values)
+    assert len(markers) == 1
+    assert markers[0]["name"] == "nous"
+    assert markers[0]["floor"] == "0"
+
+
+def test_extract_markers_from_waypoints_dict() -> None:
+    values = {
+        "markers": {
+            "waypoints": [
+                {"name": "gate", "pose": {"position": {"x": -7.87, "y": -0.68}}},
+            ]
+        }
+    }
+    markers = extract_markers_from_ros_response(values)
+    assert len(markers) == 1
+    assert markers[0]["name"] == "gate"

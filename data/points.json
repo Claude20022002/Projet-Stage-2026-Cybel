@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-06-25T13:04:17.260183+00:00",
+  "updated_at": "2026-06-25T13:46:22.772107+00:00",
   "points": [
     {
       "id": "extraction_soufflage",
@@ -23,6 +23,39 @@
       "floor": "0",
       "kiosk_visible": true,
       "source": "local"
+    },
+    {
+      "id": "m1",
+      "name": "move",
+      "type": "common",
+      "x": -6.01,
+      "y": 3.69,
+      "theta": -1.5899999851125353,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m2",
+      "name": "nous",
+      "type": "common",
+      "x": -3.01,
+      "y": -0.21,
+      "theta": 1.17,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m0",
+      "name": "point2",
+      "type": "common",
+      "x": -9.01,
+      "y": -1.21,
+      "theta": 1.17,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
     },
     {
       "id": "remplissage_bouchonnage",

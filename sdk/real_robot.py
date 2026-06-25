@@ -25,7 +25,14 @@ from sdk.tour_navigation import (
 from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import is_coordinate_navigable, parse_map_metadata, parse_occupancy_grid
 from sdk.models import Coordinate, DetectedPerson, MapData, Point, Pose, RobotStatus, SpeechStatus
-from sdk.ros_ops import build_global_locate_chain, build_poi_nav_chain, call_service_first, publish_first
+from sdk.ros_ops import (
+    build_global_locate_chain,
+    build_poi_nav_chain,
+    call_service_first,
+    extract_markers_from_ros_response,
+    publish_first,
+    yaw_from_quaternion,
+)
 from sdk.rosbridge import RosbridgeClient
 from sdk.speech import RobotSpeech
 
@@ -86,9 +93,25 @@ def _parse_marker(raw: dict, index: int) -> Point | None:
     if not name:
         return None
 
-    x = float(raw.get("x") or raw.get("pose", {}).get("x") or 0.0)
-    y = float(raw.get("y") or raw.get("pose", {}).get("y") or 0.0)
-    theta = float(raw.get("theta") or raw.get("yaw") or raw.get("pose", {}).get("theta") or 0.0)
+    pose = raw.get("pose") or {}
+    position = pose.get("position") if isinstance(pose.get("position"), dict) else pose
+    orientation = pose.get("orientation") if isinstance(pose.get("orientation"), dict) else {}
+
+    x = float(
+        raw.get("x")
+        or position.get("x")
+        or pose.get("x")
+        or 0.0
+    )
+    y = float(
+        raw.get("y")
+        or position.get("y")
+        or pose.get("y")
+        or 0.0
+    )
+    theta = float(raw.get("theta") or raw.get("yaw") or pose.get("theta") or 0.0)
+    if not raw.get("theta") and not raw.get("yaw") and orientation:
+        theta = yaw_from_quaternion(orientation)
     ptype = _parse_point_type(str(raw.get("type") or raw.get("marker_type") or "common"))
 
     return Point(
@@ -512,20 +535,17 @@ class RealRobot:
 
     async def _load_points(self) -> None:
         response = await self._client.call_service(ROS_SERVICES["markers"], {})
-        values = response.get("values") or {}
-        markers = (
-            values.get("markers")
-            or values.get("marker_list")
-            or values.get("data")
-            or values.get("points")
-            or []
-        )
+        values = response.get("values") or response
+        markers = extract_markers_from_ros_response(values if isinstance(values, dict) else {})
 
-        if isinstance(markers, dict):
-            markers = markers.get("markers") or list(markers.values())
-
-        if not isinstance(markers, list):
-            return
+        if not markers:
+            fallback = await self._client.call_service(
+                ROS_SERVICES["marker_operation_get"], {}
+            )
+            fb_values = fallback.get("values") or fallback
+            markers = extract_markers_from_ros_response(
+                fb_values if isinstance(fb_values, dict) else {}
+            )
 
         self._points = [
             p for i, m in enumerate(markers) if isinstance(m, dict) and (p := _parse_marker(m, i))
