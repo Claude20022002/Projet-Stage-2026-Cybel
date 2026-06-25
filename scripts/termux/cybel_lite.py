@@ -506,6 +506,9 @@ async def prepare_for_nav_goal() -> dict:
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
+    if nav_status == _tour_navigation.CHARGING_NAV_STATUS:
+        raise RuntimeError(_tour_navigation.charging_navigation_message())
+
     if nav_status == 602 and not ghost_recovered:
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
@@ -564,14 +567,31 @@ async def navigate_to_point(point_name: str) -> None:
     if not await ensure_auto_navigation():
         raise RuntimeError("Impossible d'activer le mode navigation automatique")
     service, _ = await ros_call_service_first(_poi_nav_chain(point_name))
-    if not service:
-        raise RuntimeError(f"Navigation POI échouée pour « {point_name} »")
+    if service:
+        return
+    point = find_point(point_name)
+    if point:
+        await navigate_to_coordinate(
+            float(point["x"]),
+            float(point["y"]),
+            float(point.get("theta") or 0.0),
+            skip_prepare=True,
+        )
+        return
+    raise RuntimeError(f"Navigation POI échouée pour « {point_name} »")
 
 
-async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None:
-    await prepare_for_nav_goal()
-    if not await ensure_auto_navigation():
-        raise RuntimeError("Impossible d'activer le mode navigation automatique")
+async def navigate_to_coordinate(
+    x: float,
+    y: float,
+    theta: float = 0.0,
+    *,
+    skip_prepare: bool = False,
+) -> None:
+    if not skip_prepare:
+        await prepare_for_nav_goal()
+        if not await ensure_auto_navigation():
+            raise RuntimeError("Impossible d'activer le mode navigation automatique")
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
     async with websockets.connect(uri, open_timeout=5) as ws:
         await ws.send(
@@ -839,6 +859,16 @@ async def execute_action(action_id: str, lang: str) -> dict:
         await stop_robot()
         events.append("Action interrompue")
         return {"ok": True, "action": action_id, "events": events}
+
+    if action_id == "return_charge":
+        ok = await go_home()
+        if not ok:
+            return {"ok": False, "error": "Retour à la borne impossible"}
+        events.append("Retour à la borne de recharge")
+        return {"ok": True, "action": action_id, "events": events}
+
+    if action_id == "guided_tour":
+        return {"ok": False, "error": "use_tour_start", "action": action_id}
 
     speech = pick_speech(action, lang)
     if speech:
