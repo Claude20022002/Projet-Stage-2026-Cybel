@@ -534,11 +534,6 @@ async def prepare_for_nav_goal() -> dict:
             _tour_navigation.charging_navigation_message(charger=True)
         )
 
-    if nav_status == _tour_navigation.CHARGING_NAV_STATUS:
-        raise RuntimeError(
-            _tour_navigation.charging_navigation_message(charger=False)
-        )
-
     if nav_status == 602 and not ghost_recovered:
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
@@ -580,12 +575,17 @@ async def prepare_for_nav_goal() -> dict:
                 "et placez le robot sur une zone connue de la carte."
             )
 
+    nav_status = int(snap.get("nav_status") or 0)
+    stuck_605 = (
+        nav_status == _tour_navigation.CHARGING_NAV_STATUS
+        and not _tour_navigation.parse_charger_flag(snap.get("charger"))
+    )
     ready, reason = _tour_navigation.assess_tour_readiness(
         nav_status,
         snap.get("localization_percent"),
         min_localization=LOCALIZATION_MIN_PERCENT,
         require_known_localization=True,
-        **_readiness_kwargs(snap, ghost_nav_recovered=ghost_recovered),
+        **_readiness_kwargs(snap, ghost_nav_recovered=ghost_recovered or stuck_605),
     )
     if not ready:
         raise RuntimeError(reason)
