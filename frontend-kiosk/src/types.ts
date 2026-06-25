@@ -1,6 +1,7 @@
 export type Lang = "fr" | "en";
 
 export type TourScreen =
+  | "standby"
   | "welcome"
   | "destinations"
   | "dest_running"
@@ -32,11 +33,41 @@ export interface KioskDestination {
   theta?: number;
 }
 
+export interface KioskConfig {
+  organization_name_fr: string;
+  organization_name_en: string;
+  welcome_message_fr: string;
+  welcome_message_en: string;
+  logo_url: string;
+  standby_timeout_seconds: number;
+  featured_destinations: string[];
+}
+
+export interface ReceptionAction {
+  id: string;
+  label: string;
+  label_en?: string;
+  description: string;
+  icon: string;
+  category: string;
+}
+
 export interface RobotStatus {
   connected: boolean;
+  battery: number;
+  charger: boolean;
+  soft_estop: boolean;
   nav_status: number;
   nav_status_label: string;
+  nav_mode_label: string;
+  localization_percent: number;
+  localization_label: string;
   navigating_to: string | null;
+}
+
+export interface SpeechStatus {
+  speaking: boolean;
+  last_text: string;
 }
 
 export interface TourStopPreview {
@@ -71,4 +102,21 @@ export interface TourStatus {
   phase: TourPhase;
   message: string;
   error: string | null;
+}
+
+export interface AppState {
+  lang: Lang;
+  screen: TourScreen;
+  activeFlow: ActiveFlow;
+  tour: LabTourInfo | null;
+  status: TourStatus | null;
+  destinations: KioskDestination[];
+  featuredDestinations: KioskDestination[];
+  selectedDestination: string | null;
+  robotStatus: RobotStatus | null;
+  speech: SpeechStatus | null;
+  config: KioskConfig | null;
+  searchQuery: string;
+  busy: boolean;
+  message: string;
 }

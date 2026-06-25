@@ -1,4 +1,13 @@
-import type { KioskDestination, LabTourInfo, Lang, RobotStatus, TourStatus } from "./types";
+import type {
+  KioskConfig,
+  KioskDestination,
+  LabTourInfo,
+  Lang,
+  ReceptionAction,
+  RobotStatus,
+  SpeechStatus,
+  TourStatus,
+} from "./types";
 
 const API_BASE = "";
 
@@ -21,6 +30,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getConfig: () => request<KioskConfig>("/api/kiosk/config"),
   getTour: () => request<LabTourInfo>("/api/tour"),
   getTourStatus: () => request<TourStatus>("/api/tour/status"),
   startTour: (lang: Lang) =>
@@ -30,10 +40,17 @@ export const api = {
   stopTour: () =>
     request<{ ok: boolean; status?: TourStatus }>("/api/tour/stop", { method: "POST" }),
   getDestinations: () => request<KioskDestination[]>("/api/reception/destinations"),
+  getActions: () => request<ReceptionAction[]>("/api/reception/actions"),
   goDestination: (pointName: string, lang: Lang) =>
     request<{ ok: boolean; point: string; events?: string[] }>("/api/reception/go", {
       method: "POST",
       body: JSON.stringify({ point_name: pointName, lang }),
     }),
+  runAction: (actionId: string, lang: Lang) =>
+    request<{ ok: boolean; error?: string; events?: string[] }>(
+      `/api/reception/actions/${actionId}?lang=${lang}`,
+      { method: "POST" }
+    ),
   getRobotStatus: () => request<RobotStatus>("/api/robot/status"),
+  getSpeechStatus: () => request<SpeechStatus>("/api/speech/status"),
 };

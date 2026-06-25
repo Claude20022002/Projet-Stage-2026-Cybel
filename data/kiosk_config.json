@@ -1,0 +1,9 @@
+{
+  "organization_name_fr": "HESTIM — Laboratoire",
+  "organization_name_en": "HESTIM — Laboratory",
+  "welcome_message_fr": "Bienvenue ! Je suis CYBEL, votre robot d'accueil. Touchez l'écran pour commencer.",
+  "welcome_message_en": "Welcome! I am CYBEL, your reception robot. Touch the screen to begin.",
+  "logo_url": "/kiosk/logo.svg",
+  "standby_timeout_seconds": 90,
+  "featured_destinations": ["Accueil", "Salle A", "Labo IoT", "Hall"]
+}

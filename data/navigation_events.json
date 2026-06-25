@@ -71,8 +71,56 @@
       "nav_status": 600,
       "detail": "",
       "at": "2026-06-25T10:41:48.636422+00:00"
+    },
+    {
+      "id": "372d526d-fda4-4f0b-98be-7d0a24c3ea37",
+      "kind": "navigate_point",
+      "success": false,
+      "point_name": "Routeur CNC",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:51:35.743420+00:00"
+    },
+    {
+      "id": "589a3755-80e3-40db-9ae4-0857dca07663",
+      "kind": "navigate_coordinate",
+      "success": false,
+      "point_name": null,
+      "x": -4.051596364338083,
+      "y": -0.9621581462051303,
+      "theta": -2.8293947541519953,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:51:48.266825+00:00"
+    },
+    {
+      "id": "af16afbd-6b39-4d01-80d3-6387f67ab0ae",
+      "kind": "navigate_point",
+      "success": false,
+      "point_name": "Sérigraphie",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:52:14.027405+00:00"
+    },
+    {
+      "id": "9f1b35c3-6344-44ea-87d5-904927383102",
+      "kind": "navigate_coordinate",
+      "success": false,
+      "point_name": null,
+      "x": -7.684168216785274,
+      "y": -4.457219169741423,
+      "theta": -0.984753961446168,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:52:44.143470+00:00"
     }
   ],
   "version": 1,
-  "updated_at": "2026-06-25T10:41:48.636439+00:00"
+  "updated_at": "2026-06-25T10:52:44.143489+00:00"
 }

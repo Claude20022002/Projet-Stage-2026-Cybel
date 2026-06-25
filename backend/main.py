@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
-from routers import charge, diagnostics, history, knowledge, map, mqtt, navigation, patrol, reception, robot, settings as settings_router, speech, tour
+from routers import charge, diagnostics, history, knowledge, kiosk, map, mqtt, navigation, patrol, reception, robot, settings as settings_router, speech, tour
 from services.charge_service import charge_service
 from services.mqtt_bridge_service import mqtt_bridge_service
 from services.robot_service import robot_service
@@ -79,6 +79,7 @@ app.include_router(navigation.router)
 app.include_router(map.router)
 app.include_router(settings_router.router)
 app.include_router(reception.router)
+app.include_router(kiosk.router)
 app.include_router(speech.router)
 app.include_router(knowledge.router)
 app.include_router(tour.router)
