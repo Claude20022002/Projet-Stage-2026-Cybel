@@ -1,5 +1,7 @@
 # Déploiement CYBEL sur Termux (tête Android)
 
+> Index : [docs/README.md](README.md) · Section : [kiosque/README.md](kiosque/README.md)
+
 Guide pour faire tourner le **backend + kiosque visiteur** directement sur la tablette Android du robot, sans dépendre du PC développeur.
 
 ---

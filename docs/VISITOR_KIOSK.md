@@ -1,5 +1,7 @@
 # Interface visiteur (kiosque)
 
+> Index : [docs/README.md](README.md) · Section : [kiosque/README.md](kiosque/README.md)
+
 Documentation de l'**interface visiteur** du robot CYBEL, affichée en plein écran sur l'écran tactile de l'upper body Android. Elle permet à un visiteur de lancer une **visite guidée autonome du laboratoire** : le robot se déplace d'équipement en équipement et présente chaque poste à voix haute.
 
 ---

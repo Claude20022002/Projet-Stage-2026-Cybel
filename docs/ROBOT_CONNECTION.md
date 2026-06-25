@@ -1,5 +1,7 @@
 # Connexion au robot réel — configuration, reconnexion, débogage
 
+> Index : [docs/README.md](README.md) · Section : [robot/README.md](robot/README.md)
+
 Guide pratique pour faire tourner le backend CYBEL en **mode réel** (robot
 physique, pas le mock), reconnecter les différents canaux après un
 redémarrage du robot, et déboguer en cas de problème. Complète

@@ -1,5 +1,7 @@
 # Phase 0 — Démarrage et smoke test robot
 
+> Index doc : [README.md](README.md) · Labo : [labo/TERRAIN.md](labo/TERRAIN.md) · Guides : [guides/README.md](guides/README.md)
+
 Guide pour valider CYBEL **le matin sur le robot** avant d'ouvrir l'interface web.
 Couvre la préparation réseau, le smoke test CLI, les tests unitaires hors robot,
 puis le lancement complet de la plateforme.
