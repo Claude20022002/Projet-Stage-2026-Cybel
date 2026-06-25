@@ -21,6 +21,10 @@ NAV_STATUS_HINTS: dict[int, str] = {
         "ou localisation insuffisante. Dégagez le passage, relocalisez le robot, "
         "puis relancez."
     ),
+    605: (
+        "Robot en recharge sur la borne — éloignez-le du socle ou attendez "
+        "la fin de charge avant de naviguer."
+    ),
 }
 
 
@@ -158,6 +162,18 @@ def parse_localization_percent(status_msg: dict, loc_msg: dict | None = None) ->
     return None
 
 
+CHARGING_NAV_STATUS = 605
+
+
+def is_charging_navigation_block(nav_status: int) -> bool:
+    """605 observé sur TY1251D lorsque le robot est sur la borne de recharge."""
+    return nav_status == CHARGING_NAV_STATUS
+
+
+def charging_navigation_message() -> str:
+    return NAV_STATUS_HINTS[CHARGING_NAV_STATUS]
+
+
 def is_ghost_navigation(
     nav_status: int,
     *,
@@ -186,10 +202,17 @@ def assess_tour_readiness(
     velocity: Sequence[float] | None = None,
     navigating_to: str | None = None,
     ghost_nav_recovered: bool = False,
+    charger: bool = False,
+    charging_recovered: bool = False,
 ) -> tuple[bool, str]:
     """Vérifie si le robot peut démarrer une visite."""
     if nav_status == 600:
         return False, NAV_STATUS_HINTS[600]
+    if is_charging_navigation_block(nav_status):
+        if charging_recovered:
+            pass
+        else:
+            return False, charging_navigation_message()
     if nav_status == 604:
         return False, (
             f"{NAV_STATUS_HINTS[604]} "

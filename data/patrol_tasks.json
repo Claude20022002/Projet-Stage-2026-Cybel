@@ -14,10 +14,10 @@
           "name_en": "LG-10 station",
           "speech_fr": "Point de contrôle : station LG-10. Zone opérationnelle.",
           "speech_en": "Checkpoint: LG-10 station. Operational area.",
-          "x": -2.45,
-          "y": 0.79,
-          "theta": -2.63,
-          "dwell_seconds": 8
+          "dwell_seconds": 8.0,
+          "x": -4.45,
+          "y": 1.79,
+          "theta": -2.63
         },
         {
           "id": "lg_09",
@@ -25,10 +25,10 @@
           "name_en": "LG-09 station",
           "speech_fr": "Point de contrôle : station LG-09.",
           "speech_en": "Checkpoint: LG-09 station.",
+          "dwell_seconds": 8.0,
           "x": -3.01,
           "y": -0.89,
-          "theta": 2.87,
-          "dwell_seconds": 8
+          "theta": 2.87
         },
         {
           "id": "extraction_soufflage",
@@ -36,10 +36,10 @@
           "name_en": "Extraction and blowing",
           "speech_fr": "Point de contrôle : zone extraction et soufflage.",
           "speech_en": "Checkpoint: extraction and blowing area.",
+          "dwell_seconds": 8.0,
           "x": -3.0,
           "y": -1.8,
-          "theta": -1.69,
-          "dwell_seconds": 8
+          "theta": -1.69
         }
       ]
     }

@@ -127,6 +127,7 @@ NAV_STATUS_LABELS: dict[int, str] = {
     602: "En navigation",
     603: "Arrivé",
     604: "Erreur",
+    605: "En recharge",
 }
 
 NAV_STATUS_HINTS: dict[int, str] = {
@@ -138,6 +139,10 @@ NAV_STATUS_HINTS: dict[int, str] = {
         "Échec de navigation — obstacle, chemin bloqué, destination inaccessible "
         "ou localisation insuffisante. Dégagez le passage, relocalisez le robot, "
         "puis relancez."
+    ),
+    605: (
+        "Robot en recharge sur la borne — éloignez-le du socle ou attendez "
+        "la fin de charge avant de naviguer."
     ),
 }
 

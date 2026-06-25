@@ -92,7 +92,11 @@ NAV_STATUS_LABELS = {
     602: "En navigation",
     603: "Arrivé",
     604: "Erreur",
+    605: "En recharge",
 }
+
+CHARGE_HOME_TOPIC = "/charge_server/home_pose"
+START_RECHARGE_SERVICE = "/start_recharge"
 
 GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
 
