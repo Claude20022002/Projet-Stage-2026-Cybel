@@ -22,10 +22,23 @@ NAV_STATUS_HINTS: dict[int, str] = {
         "puis relancez."
     ),
     605: (
-        "Robot en recharge sur la borne — éloignez-le du socle ou attendez "
-        "la fin de charge avant de naviguer."
+        "État navigation bloqué (605) — annulez la navigation en cours puis relancez."
     ),
 }
+
+ON_CHARGER_HINT = (
+    "Robot branché sur la borne — détachez-le du socle pour naviguer."
+)
+
+
+def parse_charger_flag(raw: object) -> bool:
+    """Interprète le champ ``charger`` ROS (0/1, parfois chaîne)."""
+    if raw is None:
+        return False
+    try:
+        return int(raw) != 0
+    except (TypeError, ValueError):
+        return bool(raw)
 
 
 def navigation_failure_message(nav_status: int, *, destination: str = "") -> str:
@@ -160,26 +173,6 @@ def parse_localization_percent(status_msg: dict, loc_msg: dict | None = None) ->
             except (TypeError, ValueError):
                 continue
     return None
-
-
-    605: (
-        "État navigation bloqué (605) — annulez la navigation en cours puis relancez."
-    ),
-}
-
-ON_CHARGER_HINT = (
-    "Robot branché sur la borne — détachez-le du socle pour naviguer."
-)
-
-
-def parse_charger_flag(raw: object) -> bool:
-    """Interprète le champ ``charger`` ROS (0/1, parfois chaîne)."""
-    if raw is None:
-        return False
-    try:
-        return int(raw) != 0
-    except (TypeError, ValueError):
-        return bool(raw)
 
 
 CHARGING_NAV_STATUS = 605
