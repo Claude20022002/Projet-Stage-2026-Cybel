@@ -69,3 +69,4 @@ Ce fichier est **autonome** : protocoles ROS/MQTT, tâches ordonnées, fichiers 
 - TTS : [`../TTS_BRIDGE.md`](../TTS_BRIDGE.md)
 - SDK Python : `sdk/`
 - Sync POI Sentrymove : [`../SENTRYMOVE_POI_SYNC.md`](../SENTRYMOVE_POI_SYNC.md)
+- **Session labo** : [`../labo/TERRAIN.md`](../labo/TERRAIN.md)

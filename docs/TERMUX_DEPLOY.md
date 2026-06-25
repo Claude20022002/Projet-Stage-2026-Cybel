@@ -2,6 +2,8 @@
 
 Guide pour faire tourner le **backend + kiosque visiteur** directement sur la tablette Android du robot, sans dépendre du PC développeur.
 
+> **Session labo** : [labo/TERRAIN.md](labo/TERRAIN.md) · Double instance (8000/8001) : [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md)
+
 ---
 
 ## État d'avancement (fin juin 2026)

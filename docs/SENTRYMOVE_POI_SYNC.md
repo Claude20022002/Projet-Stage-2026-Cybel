@@ -2,6 +2,8 @@
 
 Guide opérateur pour l'option hybride : **Sentrymove** (superviseur + cartographie) + **kiosque CYBEL** (visiteur).
 
+> **Terrain** : [labo/TERRAIN.md](labo/TERRAIN.md) · Preflight : [`scripts/preflight_labo.ps1`](../scripts/preflight_labo.ps1)
+
 ---
 
 ## Principe

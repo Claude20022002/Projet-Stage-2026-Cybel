@@ -441,6 +441,17 @@ Guide complet du fonctionnement de l'interface web (panneaux, workflows, API, We
 
 **[docs/INTERFACE.md](docs/INTERFACE.md)**
 
+## Documentation (index GitHub)
+
+**[docs/README.md](docs/README.md)** — index complet de la documentation.
+
+| Section | Lien |
+|---------|------|
+| **Session labo** | [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) |
+| Preflight auto | `.\scripts\preflight_labo.ps1` |
+| Kiosque A/B | [docs/labo/KIOSK_AB_COMPARISON.md](docs/labo/KIOSK_AB_COMPARISON.md) |
+| Sync POI | [docs/SENTRYMOVE_POI_SYNC.md](docs/SENTRYMOVE_POI_SYNC.md) |
+
 ## Déploiement kiosque sur Termux (tête Android)
 
 Backend + interface visiteur embarqués sur la tablette (`ssh -p 8022`) :
