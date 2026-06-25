@@ -309,7 +309,7 @@ async def ensure_auto_navigation() -> bool:
 
 async def recover_navigation_state(timeout: float = 12.0) -> dict:
     """Annule nav/erreurs et attend un état prêt (601/603)."""
-    bad_states = {600, 602, 604}
+    bad_states = {600, 602, 604, _tour_navigation.CHARGING_NAV_STATUS}
 
     async def _cancel_and_mode(snap: dict) -> None:
         await cancel_navigation_full(
@@ -345,7 +345,69 @@ def _readiness_kwargs(snap: dict, *, ghost_nav_recovered: bool = False) -> dict:
         "velocity": snap.get("velocity"),
         "navigating_to": snap.get("navigating_to"),
         "ghost_nav_recovered": ghost_nav_recovered,
+        "charger": bool(snap.get("charger")),
     }
+
+
+async def _publish_charge_leave() -> None:
+    """Tente de quitter la borne (aligné SelfChassis / charge_server)."""
+    try:
+        uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+        async with websockets.connect(uri, open_timeout=4) as ws:
+            await ws.send(
+                json.dumps(
+                    {
+                        "op": "publish",
+                        "topic": CHARGE_HOME_TOPIC,
+                        "msg": {"data": False},
+                    }
+                )
+            )
+    except Exception:
+        pass
+
+
+async def ensure_leave_charge_if_needed(timeout: float = 15.0) -> dict:
+    """Sortie de borne si nav_status 605 ou robot signalé en charge."""
+    snap = await fetch_robot_snapshot(timeout=6.0)
+    nav_status = int(snap.get("nav_status") or 0)
+    if nav_status != _tour_navigation.CHARGING_NAV_STATUS and not snap.get("charger"):
+        return snap
+
+    await cancel_navigation_full(
+        point_name=str(snap.get("navigating_to") or "") or None
+    )
+    await _publish_charge_leave()
+    for service, args in (
+        ("/marker_manager/control", {"command": "stop"}),
+        ("/poi", {"command": "stop"}),
+    ):
+        try:
+            await ros_call_service(service, args)
+        except Exception:
+            pass
+    try:
+        await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+    except Exception:
+        pass
+    try:
+        await ros_call_service("/change_location_mode", {"mode": 1})
+    except Exception:
+        pass
+
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        await asyncio.sleep(0.6)
+        snap = await fetch_robot_snapshot(timeout=6.0)
+        nav_status = int(snap.get("nav_status") or 0)
+        if nav_status in (601, 603) and not snap.get("charger"):
+            return snap
+        if nav_status not in (_tour_navigation.CHARGING_NAV_STATUS,) and not snap.get(
+            "charger"
+        ):
+            return snap
+    return snap
 
 
 async def ensure_global_localization(
@@ -377,12 +439,13 @@ async def ensure_global_localization(
 
 async def prepare_for_tour() -> tuple[bool, str, dict]:
     """Prérequis visite : récupération nav + localisation."""
+    snap = await ensure_leave_charge_if_needed()
     snap = await recover_navigation_state()
     nav_status = int(snap.get("nav_status") or 0)
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status in (604, 600):
+    if nav_status in (604, 600, _tour_navigation.CHARGING_NAV_STATUS):
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
@@ -437,6 +500,7 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
 
 async def prepare_for_nav_goal() -> dict:
     """Avant chaque objectif : récupération nav + relocalisation si besoin."""
+    snap = await ensure_leave_charge_if_needed()
     snap = await recover_navigation_state(timeout=8.0)
     nav_status = int(snap.get("nav_status") or 0)
     loc = snap.get("localization_percent")
@@ -594,7 +658,7 @@ def _merge_robot_state(
     return state
 
 
-async def fetch_robot_snapshot(timeout: float = 5.0) -> dict:
+async def fetch_robot_snapshot(timeout: float = 6.0) -> dict:
     """Pose, statut navigation et localisation via rosbridge."""
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
     loop = asyncio.get_running_loop()
@@ -610,7 +674,9 @@ async def fetch_robot_snapshot(timeout: float = 5.0) -> dict:
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=0.5)
                 except asyncio.TimeoutError:
-                    if pose_msg and status_msg:
+                    if pose_msg and status_msg and loc_msg:
+                        break
+                    if pose_msg and status_msg and loop.time() > deadline - 1.0:
                         break
                     continue
                 data = json.loads(raw)
@@ -622,9 +688,6 @@ async def fetch_robot_snapshot(timeout: float = 5.0) -> dict:
                     status_msg = msg
                 elif topic == "/localization_confidence":
                     loc_msg = msg
-                if pose_msg and status_msg:
-                    if loc_msg or loop.time() > deadline - 0.5:
-                        break
     except Exception:
         pass
     return _merge_robot_state(pose_msg, status_msg, loc_msg or None)
