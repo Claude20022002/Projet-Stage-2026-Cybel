@@ -4,6 +4,38 @@ import pytest
 
 from sdk.mock_robot import MockRobot
 from sdk.models import Coordinate
+from sdk.tour_navigation import navigation_precondition_detail
+
+
+def test_navigation_precondition_soft_estop():
+    reason = navigation_precondition_detail(
+        connected=True,
+        soft_estop=True,
+        nav_status=601,
+    )
+    assert reason is not None
+    assert "E-Stop" in reason
+
+
+def test_navigation_precondition_manual_mode():
+    reason = navigation_precondition_detail(
+        connected=True,
+        soft_estop=False,
+        nav_status=601,
+        nav_mode="manual",
+    )
+    assert reason is not None
+    assert "manuel" in reason
+
+
+def test_navigation_precondition_ready():
+    assert navigation_precondition_detail(
+        connected=True,
+        soft_estop=False,
+        nav_status=601,
+        nav_mode="auto_navi",
+        localization_percent=80.0,
+    ) is None
 
 
 @pytest.mark.asyncio

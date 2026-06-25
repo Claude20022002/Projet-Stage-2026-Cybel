@@ -89,7 +89,8 @@ async def delete_patrol_task(task_id: str) -> dict:
 async def start_patrol(task_id: str, lang: Literal["fr", "en"] = "fr") -> dict:
     result = await patrol_service.start(task_id, lang)
     if not result.get("ok"):
-        raise HTTPException(status_code=409, detail=result.get("error", "Échec"))
+        status = 409 if result.get("code") == "busy" else 400
+        raise HTTPException(status_code=status, detail=result.get("error", "Échec"))
     return result
 
 

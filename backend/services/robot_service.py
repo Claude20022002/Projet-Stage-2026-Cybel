@@ -10,6 +10,7 @@ from config import settings
 from sdk.mock_robot import MockRobot
 from sdk.models import MapData, MoveCommand, Point, Pose, RobotSettings, RobotStatus, SpeechStatus
 from sdk.real_robot import RealRobot
+from sdk.tour_navigation import navigation_precondition_detail
 from services.persistence_service import persistence_service
 
 
@@ -123,6 +124,26 @@ class RobotService:
     def get_points(self) -> list[Point]:
         return self._require().get_points()
 
+    def find_point(self, point_name: str) -> Point | None:
+        for point in persistence_service.load_points():
+            if point.name == point_name:
+                return point
+        return next((p for p in self.get_points() if p.name == point_name), None)
+
+    def navigation_block_reason(
+        self, *, point_name: str | None = None
+    ) -> str | None:
+        status = self.get_status()
+        return navigation_precondition_detail(
+            connected=status.connected,
+            soft_estop=status.soft_estop,
+            nav_status=status.nav_status,
+            nav_mode=status.nav_mode,
+            localization_percent=status.localization_percent,
+            min_localization=settings.localization_min_percent,
+            point_name=point_name,
+        )
+
     def get_map(self) -> MapData | None:
         return self._require().get_map()
 
@@ -176,6 +197,15 @@ class RobotService:
 
     async def navigate_to_point(self, point_name: str) -> bool:
         success = await self._require().navigate_to_point(point_name)
+        if not success:
+            point = self.find_point(point_name)
+            if point is not None:
+                success = await self._require().navigate_to_coordinate(
+                    point.x,
+                    point.y,
+                    point.theta,
+                    check_map=False,
+                )
         status = self.get_status()
         persistence_service.log_navigation(
             kind="navigate_point",

@@ -1,0 +1,78 @@
+{
+  "events": [
+    {
+      "id": "c95b32e2-aa8a-44b6-8b18-cff996e85982",
+      "kind": "navigate_point",
+      "success": false,
+      "point_name": "Routeur CNC",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:40:47.042157+00:00"
+    },
+    {
+      "id": "efb685ca-16c7-4400-9c6a-00052f21461d",
+      "kind": "navigate_point",
+      "success": false,
+      "point_name": "Routeur CNC",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:41:03.542380+00:00"
+    },
+    {
+      "id": "d9ee89da-2050-4b8b-9834-7f814797d411",
+      "kind": "navigate_point",
+      "success": false,
+      "point_name": "Extraction et soufflage",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:41:12.054422+00:00"
+    },
+    {
+      "id": "80758cae-96cf-4973-90c3-3492ef7f63d1",
+      "kind": "navigate_coordinate",
+      "success": false,
+      "point_name": null,
+      "x": -4.091514736342996,
+      "y": -1.8853818127996256,
+      "theta": -2.468630323308104,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:41:40.522067+00:00"
+    },
+    {
+      "id": "12c48bc5-9cfd-4e5b-b037-58a5da1bd252",
+      "kind": "navigate_coordinate",
+      "success": false,
+      "point_name": null,
+      "x": -4.091514736342996,
+      "y": -1.8853818127996256,
+      "theta": -2.468630323308104,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:41:43.655798+00:00"
+    },
+    {
+      "id": "a293193d-63c8-4016-8cc2-b4a94c62739d",
+      "kind": "navigate_coordinate",
+      "success": false,
+      "point_name": null,
+      "x": -4.1713514803528255,
+      "y": -1.7534927175718416,
+      "theta": -2.5287588009741153,
+      "nav_status": 600,
+      "detail": "",
+      "at": "2026-06-25T10:41:48.636422+00:00"
+    }
+  ],
+  "version": 1,
+  "updated_at": "2026-06-25T10:41:48.636439+00:00"
+}

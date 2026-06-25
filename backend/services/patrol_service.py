@@ -104,16 +104,31 @@ class PatrolService:
 
     async def start(self, task_id: str, lang: str = "fr") -> dict:
         if self.is_running():
-            return {"ok": False, "error": "Une patrouille est déjà en cours"}
+            return {"ok": False, "error": "Une patrouille est déjà en cours", "code": "busy"}
 
         from services.tour_service import tour_service
 
         if tour_service._engine and tour_service._engine.is_running():
-            return {"ok": False, "error": "Une visite guidée est en cours"}
+            return {"ok": False, "error": "Une visite guidée est en cours", "code": "busy"}
 
         self._engine = self._build_engine(task_id)
 
         if not robot_service.is_mock:
+            status = robot_service.get_status()
+            if status.nav_status in (602, 604):
+                await robot_service.stop()
+                await asyncio.sleep(0.5)
+            if not await robot_service.ensure_automatic_navigation():
+                self._engine = None
+                return {
+                    "ok": False,
+                    "error": (
+                        "Le robot n'a pas confirmé le mode navigation automatique — "
+                        "annulez la navigation en cours puis réessayez"
+                    ),
+                    "code": "not_ready",
+                }
+
             status = robot_service.get_status()
             ready, reason = assess_tour_readiness(
                 status.nav_status,
@@ -122,7 +137,7 @@ class PatrolService:
             )
             if not ready:
                 self._engine = None
-                return {"ok": False, "error": reason}
+                return {"ok": False, "error": reason, "code": "not_ready"}
             localized = await robot_service.ensure_localization(
                 settings.localization_min_percent
             )
@@ -134,8 +149,8 @@ class PatrolService:
                         f"Localisation insuffisante (< {settings.localization_min_percent:.0f} %). "
                         "Relocalisez le robot avant de lancer la patrouille."
                     ),
+                    "code": "not_ready",
                 }
-            await robot_service.set_manual_mode(False)
 
         return await self._engine.start(lang)
 

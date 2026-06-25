@@ -30,6 +30,47 @@ def navigation_failure_message(nav_status: int, *, destination: str = "") -> str
     return hint
 
 
+def navigation_precondition_detail(
+    *,
+    connected: bool,
+    soft_estop: bool,
+    nav_status: int,
+    nav_mode: str = "",
+    localization_percent: float | None = None,
+    min_localization: float = DEFAULT_LOCALIZATION_MIN_PERCENT,
+    point_name: str | None = None,
+) -> str | None:
+    """Raison explicite si une navigation doit être refusée, sinon ``None``."""
+    if not connected:
+        return "Liaison rosbridge coupée (reconnexion en cours)"
+    if soft_estop:
+        return "E-Stop actif — relâchez l'arrêt d'urgence avant de naviguer"
+    if nav_mode == "manual":
+        return (
+            "Mode manuel actif — passez en mode automatique avant de naviguer "
+            "(bouton Auto ou relâchez la téléopération)"
+        )
+    if nav_status == 600:
+        return NAV_STATUS_HINTS[600]
+    if nav_status == 604:
+        return (
+            f"{NAV_STATUS_HINTS[604]} Annulez la navigation en cours puis relocalisez."
+        )
+    if nav_status == 602:
+        return (
+            "Navigation déjà en cours — attendez l'arrivée ou annulez avant un nouvel objectif"
+        )
+    if nav_status not in (601, 603):
+        dest = f" vers « {point_name} »" if point_name else ""
+        return f"État navigation inattendu ({nav_status}){dest}"
+    if localization_percent is not None and localization_percent < min_localization:
+        return (
+            f"Localisation insuffisante ({localization_percent:.0f} % < "
+            f"{min_localization:.0f} %) — relocalisez le robot"
+        )
+    return None
+
+
 def navigation_recovery_hint(nav_status: int) -> str:
     """Conseil opérateur après échec ou blocage navigation (CYB-061)."""
     return {

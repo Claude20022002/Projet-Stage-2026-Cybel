@@ -8,10 +8,33 @@ if str(ROOT) not in sys.path:
 from fastapi import APIRouter, HTTPException
 
 from sdk.models import AddPointCommand, NavigateCommand, NavigateCoordinateCommand, Point
+from sdk.tour_navigation import navigation_failure_message, navigation_recovery_hint
 from services.robot_service import robot_service
 from services.tour_service import tour_service
 
 router = APIRouter(prefix="/api/navigation", tags=["navigation"])
+
+
+def _navigation_failure_detail(*, point_name: str | None = None) -> str:
+    reason = robot_service.navigation_block_reason(point_name=point_name)
+    if reason:
+        return reason
+    status = robot_service.get_status()
+    if status.nav_mode == "manual":
+        return (
+            "Le robot n'a pas confirmé le mode navigation automatique — "
+            "réessayez ou relocalisez"
+        )
+    if point_name:
+        return (
+            f"Navigation impossible vers « {point_name} » "
+            f"({status.nav_status_label or status.nav_status})"
+        )
+    return (
+        "Navigation impossible : destination inaccessible "
+        f"({status.nav_status_label or status.nav_status}). "
+        f"{navigation_recovery_hint(status.nav_status)}"
+    )
 
 
 @router.get("/points", response_model=list[Point])
@@ -46,40 +69,42 @@ async def delete_point(point_name: str) -> dict:
 
 @router.post("/goto")
 async def navigate_to(command: NavigateCommand) -> dict:
-    status = robot_service.get_status()
-    if not status.connected:
+    reason = robot_service.navigation_block_reason(point_name=command.point_name)
+    if reason:
+        raise HTTPException(status_code=400, detail=reason)
+
+    if robot_service.find_point(command.point_name) is None:
         raise HTTPException(
-            status_code=503,
-            detail="Navigation impossible : liaison rosbridge coupée (reconnexion en cours)",
+            status_code=404,
+            detail=f"Point « {command.point_name} » introuvable",
         )
+
     success = await robot_service.navigate_to_point(command.point_name)
     if not success:
-        status = robot_service.get_status()
-        if status.nav_status == 600:
-            raise HTTPException(
-                status_code=400,
-                detail="Navigation impossible : robot non localisé — utilisez Relocaliser",
-            )
         raise HTTPException(
             status_code=400,
-            detail=f"Navigation impossible vers « {command.point_name} » (mode auto ou point)",
+            detail=_navigation_failure_detail(point_name=command.point_name),
         )
     return {"ok": True, "point": command.point_name}
 
 
 @router.post("/goto-coordinate")
 async def navigate_to_coordinate(command: NavigateCoordinateCommand) -> dict:
-    status = robot_service.get_status()
-    if not status.connected:
-        raise HTTPException(
-            status_code=503,
-            detail="Navigation impossible : liaison rosbridge coupée (reconnexion en cours)",
-        )
+    reason = robot_service.navigation_block_reason()
+    if reason:
+        raise HTTPException(status_code=400, detail=reason)
+
     success = await robot_service.navigate_to_coordinate(command.x, command.y, command.theta)
     if not success:
+        status = robot_service.get_status()
+        if status.nav_status in (600, 604):
+            raise HTTPException(
+                status_code=400,
+                detail=navigation_failure_message(status.nav_status),
+            )
         raise HTTPException(
             status_code=400,
-            detail="Navigation impossible : destination inaccessible (obstacle ou hors carte)",
+            detail=_navigation_failure_detail(),
         )
     return {"ok": True, "x": command.x, "y": command.y}
 

@@ -55,7 +55,13 @@ class RobotSpeech:
         self._http_host = http_host or SPEECH_HTTP_HOST
         self._http_port = http_port
         self._http_path = http_path
-        self._adb_serial = adb_serial if adb_serial else ("" if local_broadcast else SPEECH_ADB_SERIAL)
+        # Chaîne vide explicite = USB uniquement (pas de adb connect Wi-Fi automatique).
+        if adb_serial:
+            self._adb_serial = adb_serial
+        elif local_broadcast:
+            self._adb_serial = ""
+        else:
+            self._adb_serial = SPEECH_ADB_SERIAL
         self._local_broadcast = local_broadcast
         self._status = SpeechStatus(mock=mock)
         self._speech_task: asyncio.Task | None = None
@@ -145,8 +151,9 @@ class RobotSpeech:
             self._last_adb_connect_ok = True
             return True
         if ":" not in target:
-            self._last_adb_connect_ok = False
-            return False
+            devices = await self._list_adb_devices()
+            self._last_adb_connect_ok = target in devices
+            return self._last_adb_connect_ok
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
@@ -168,8 +175,18 @@ class RobotSpeech:
             return False
 
     async def ensure_adb_connected(self) -> dict[str, Any]:
-        serial = self._adb_serial or SPEECH_ADB_SERIAL
-        ok = await self._ensure_adb_connected(serial)
+        serial = await self._resolve_adb_serial()
+        if not serial:
+            return {
+                "ok": False,
+                "serial": self._adb_serial or None,
+                "device_ready": False,
+            }
+        ok = (
+            await self._ensure_adb_connected(serial)
+            if ":" in serial
+            else serial in await self._list_adb_devices()
+        )
         ready = await self._adb_device_ready()
         return {"ok": ok and ready, "serial": serial, "device_ready": ready}
 
@@ -261,10 +278,9 @@ class RobotSpeech:
             return {"ok": True, "method": "mock", "text": text}
 
         # ADB en premier : canal fiable (CybelTTSBridge) sur la tête Android.
-        adb_serial = self._adb_serial or SPEECH_ADB_SERIAL
-        if adb_serial:
-            await self._ensure_adb_connected(adb_serial)
         adb_serial = await self._resolve_adb_serial()
+        if adb_serial and ":" in adb_serial:
+            await self._ensure_adb_connected(adb_serial)
         if adb_serial:
             adb_method = await self._try_adb_speak(text, adb_serial)
             if adb_method:

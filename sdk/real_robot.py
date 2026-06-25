@@ -742,9 +742,9 @@ class RealRobot:
             self._manual_mode = True
             confirmed = await self._wait_control_mode(manual=True)
         else:
-            await self._client.call_service(ROS_SERVICES["change_mode"], {"mode": 1})
-            self._manual_mode = False
-            confirmed = await self._wait_control_mode(manual=False)
+            confirmed = await self.ensure_automatic_navigation()
+            if confirmed:
+                return
 
         self.status.nav_mode = "manual" if enabled else "auto_navi"
         self.status.control_state = 0 if enabled else 30
@@ -1087,6 +1087,22 @@ class RealRobot:
                 timeout=5.0,
             )
             if not nav_method:
+                if target:
+                    await self._emit(
+                        "event",
+                        {
+                            "message": (
+                                f"POI « {point_name} » indisponible — "
+                                f"repli vers ({target.x:.2f}, {target.y:.2f})"
+                            )
+                        },
+                    )
+                    return await self.navigate_to_coordinate(
+                        target.x,
+                        target.y,
+                        target.theta,
+                        check_map=False,
+                    )
                 await self._emit(
                     "event",
                     {"message": f"Navigation vers {point_name} — échec appel service ROS"},
