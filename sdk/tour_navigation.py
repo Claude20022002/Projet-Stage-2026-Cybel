@@ -137,6 +137,8 @@ def parse_localization_percent(status_msg: dict, loc_msg: dict | None = None) ->
     sources.append(status_msg)
     for msg in sources:
         for key in (
+            "matching_degree",
+            "match_degree",
             "data",
             "confidence",
             "localization_percent",
@@ -160,6 +162,7 @@ def assess_tour_readiness(
     localization_percent: float | None,
     *,
     min_localization: float = DEFAULT_LOCALIZATION_MIN_PERCENT,
+    require_known_localization: bool = False,
 ) -> tuple[bool, str]:
     """Vérifie si le robot peut démarrer une visite."""
     if nav_status == 600:
@@ -178,6 +181,10 @@ def assess_tour_readiness(
         return False, (
             f"État navigation inattendu ({nav_status}). "
             "Attendez que le robot soit prêt (601) avant de lancer la visite."
+        )
+    if require_known_localization and localization_percent is None:
+        return False, (
+            "Localisation inconnue — placez le robot sur la carte et lancez la relocalisation."
         )
     if localization_percent is not None and localization_percent < min_localization:
         return False, (

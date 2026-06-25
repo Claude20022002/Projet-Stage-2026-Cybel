@@ -36,7 +36,8 @@ function renderDiagnostics(diag: DiagnosticsSnapshot | null): string {
 
 export function renderSettingsPage(
   settings: RobotSettings | null,
-  diagnostics: DiagnosticsSnapshot | null = null
+  diagnostics: DiagnosticsSnapshot | null = null,
+  kioskConfig: Record<string, unknown> | null = null
 ): string {
   const s = settings ?? {
     speed_gear: "medium" as const,
@@ -99,6 +100,26 @@ export function renderSettingsPage(
         </dl>
       </section>
 
+      <section class="settings-card">
+        <h2>${icons.settings("icon", 18)} Kiosque visiteur</h2>
+        <div class="settings-field">
+          <label for="kiosk-org-fr">Nom organisation (FR)</label>
+          <input id="kiosk-org-fr" class="settings-input" type="text" value="${String(kioskConfig?.organization_name_fr ?? "")}" />
+        </div>
+        <div class="settings-field">
+          <label for="kiosk-welcome-fr">Message d'accueil (FR)</label>
+          <textarea id="kiosk-welcome-fr" class="settings-textarea" rows="3">${String(kioskConfig?.welcome_message_fr ?? "")}</textarea>
+        </div>
+        <div class="settings-field">
+          <label for="kiosk-logo">URL logo</label>
+          <input id="kiosk-logo" class="settings-input" type="text" value="${String(kioskConfig?.logo_url ?? "/kiosk/logo.svg")}" />
+        </div>
+        <button id="btn-save-kiosk" class="btn btn--secondary btn--with-icon" type="button">
+          ${icons.settings("icon", 16)}
+          <span>Enregistrer le kiosque</span>
+        </button>
+      </section>
+
       <section class="settings-card" id="settings-diagnostics">
         <h2>${icons.alertTriangle("icon", 18)} Diagnostic</h2>
         ${renderDiagnostics(diagnostics)}
@@ -110,6 +131,23 @@ export function renderSettingsPage(
 export function bindSettingsEvents(onSaved: () => void, onRefreshDiagnostics?: () => void): void {
   document.getElementById("btn-refresh-diagnostics")?.addEventListener("click", () => {
     onRefreshDiagnostics?.();
+  });
+
+  document.getElementById("btn-save-kiosk")?.addEventListener("click", async () => {
+    const orgFr = (document.getElementById("kiosk-org-fr") as HTMLInputElement).value.trim();
+    const welcomeFr = (document.getElementById("kiosk-welcome-fr") as HTMLTextAreaElement).value.trim();
+    const logoUrl = (document.getElementById("kiosk-logo") as HTMLInputElement).value.trim();
+    try {
+      await api.updateKioskConfig({
+        organization_name_fr: orgFr,
+        welcome_message_fr: welcomeFr,
+        logo_url: logoUrl || "/kiosk/logo.svg",
+      });
+      pushEvent("Configuration kiosque enregistrée");
+      onSaved();
+    } catch (err) {
+      pushEvent(`Erreur kiosque : ${(err as Error).message}`);
+    }
   });
 
   document.getElementById("btn-save-settings")?.addEventListener("click", async () => {

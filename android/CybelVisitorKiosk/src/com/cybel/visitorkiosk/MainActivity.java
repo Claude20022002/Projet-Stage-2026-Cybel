@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
     private String kioskUrl = "";
     private final Handler retryHandler = new Handler();
     private boolean firstLoad = true;
+    private boolean backendReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,8 +125,41 @@ public class MainActivity extends Activity {
 
         setContentView(webView);
         hideSystemUi();
-        refreshUrlCandidates();
-        loadKiosk();
+        showStartupPage();
+        BackendStarter.ensureRunning(this, new BackendStarter.Callback() {
+            @Override
+            public void onReady() {
+                backendReady = true;
+                refreshUrlCandidates();
+                loadKiosk();
+            }
+
+            @Override
+            public void onFailed(String message) {
+                Log.e(TAG, "Backend: " + message);
+                showErrorPage(webView, message);
+                scheduleRetry();
+            }
+        });
+    }
+
+    private void showStartupPage() {
+        String html = "<!DOCTYPE html><html><head><meta charset='utf-8'/>"
+                + "<meta name='viewport' content='width=device-width,initial-scale=1'/>"
+                + "<style>body{font-family:sans-serif;background:#1e3a8a;color:#fff;"
+                + "display:flex;flex-direction:column;align-items:center;justify-content:center;"
+                + "height:100vh;margin:0;text-align:center}"
+                + "h1{font-size:28px;margin-bottom:12px}"
+                + "p{opacity:.85;font-size:18px;max-width:420px;padding:0 24px}"
+                + ".spin{width:48px;height:48px;border:4px solid rgba(255,255,255,.3);"
+                + "border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"
+                + "margin-bottom:24px}"
+                + "@keyframes spin{to{transform:rotate(360deg)}}</style></head><body>"
+                + "<div class='spin'></div>"
+                + "<h1>CYBEL Accueil</h1>"
+                + "<p>Démarrage du service d'accueil…</p>"
+                + "</body></html>";
+        webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
     }
 
     /** Reconstruit la liste d'URLs : fichier config, IP locales, loopback en dernier. */
@@ -232,9 +266,8 @@ public class MainActivity extends Activity {
                 + "<p><b>Erreur :</b> " + escapeHtml(detail) + "</p>"
                 + "<p><b>URL actuelle :</b> " + escapeHtml(kioskUrl) + "</p>"
                 + "<p class='urls'><b>URLs testées :</b><br/>" + urls + "</p>"
-                + "<p>Vérifiez que Termux exécute le backend "
-                + "(<code>bash ~/cybel/scripts/termux/start_cybel.sh</code>)."
-                + " Nouvelle tentative dans quelques secondes…</p>"
+                + "<p>Vérifiez que Termux et CYBEL sont installés. L'application tente de "
+                + "relancer le backend automatiquement. Nouvelle tentative dans quelques secondes…</p>"
                 + "</body></html>";
         view.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
     }
@@ -254,6 +287,26 @@ public class MainActivity extends Activity {
         retryHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
+                if (!backendReady) {
+                    BackendStarter.ensureRunning(MainActivity.this, new BackendStarter.Callback() {
+                        @Override
+                        public void onReady() {
+                            backendReady = true;
+                            refreshUrlCandidates();
+                            loadKiosk();
+                        }
+
+                        @Override
+                        public void onFailed(String message) {
+                            urlIndex = (urlIndex + 1) % urlCandidates.size();
+                            refreshUrlCandidates();
+                            kioskUrl = urlCandidates.get(urlIndex);
+                            showErrorPage(webView, message);
+                            scheduleRetry();
+                        }
+                    });
+                    return;
+                }
                 urlIndex = (urlIndex + 1) % urlCandidates.size();
                 refreshUrlCandidates();
                 kioskUrl = urlCandidates.get(urlIndex);

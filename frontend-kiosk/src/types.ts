@@ -41,6 +41,7 @@ export interface KioskConfig {
   logo_url: string;
   standby_timeout_seconds: number;
   featured_destinations: string[];
+  reception_actions?: string[];
 }
 
 export interface ReceptionAction {

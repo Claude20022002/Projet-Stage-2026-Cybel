@@ -15,13 +15,16 @@ import websockets
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 CYBEL_HOME = Path(os.environ.get("CYBEL_HOME", Path.home() / "cybel"))
 ACTIONS_PATH = CYBEL_HOME / "scripts" / "termux" / "actions.json"
 FAQ_PATH = CYBEL_HOME / "data" / "hestim_knowledge_base.json"
 TOUR_PATH = CYBEL_HOME / "data" / "lab_tour.json"
+POINTS_PATH = CYBEL_HOME / "data" / "points.json"
+KIOSK_CONFIG_PATH = CYBEL_HOME / "data" / "kiosk_config.json"
 KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
 LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
 SPEECH_TIMING_MODULE = CYBEL_HOME / "sdk" / "speech_timing.py"
@@ -91,6 +94,11 @@ NAV_STATUS_LABELS = {
     604: "Erreur",
 }
 
+GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
+
+_speech_state: dict = {"speaking": False, "last_text": ""}
+_telemetry_sockets: set[WebSocket] = set()
+
 
 def load_actions() -> list[dict]:
     with open(ACTIONS_PATH, encoding="utf-8") as f:
@@ -146,6 +154,32 @@ async def ros_call_service(service: str, args: dict, timeout: float = 5.0) -> di
                 return data.get("values") or data
             if data.get("op") == "status" and data.get("level") == "error":
                 raise RuntimeError(data.get("msg", "rosbridge error"))
+
+
+def _service_succeeded(response: dict) -> bool:
+    if not response:
+        return False
+    if response.get("result") is False:
+        return False
+    return True
+
+
+async def ros_call_service_first(
+    candidates: list[tuple[str, dict]],
+    *,
+    timeout: float = 8.0,
+) -> tuple[str | None, dict]:
+    """Essaie les services ROS dans l'ordre (aligné APK / sdk/ros_ops)."""
+    last_response: dict = {}
+    for service, args in candidates:
+        try:
+            response = await ros_call_service(service, args, timeout=timeout)
+            last_response = response if isinstance(response, dict) else {}
+            if _service_succeeded(last_response):
+                return service, last_response
+        except Exception:
+            continue
+    return None, last_response
 
 
 async def cancel_navigation_full() -> None:
@@ -222,21 +256,23 @@ async def ensure_global_localization(
     min_percent: float | None = None,
     timeout: float = 45.0,
 ) -> tuple[bool, dict]:
-    """Lance /global_localization et attend le seuil de confiance."""
+    """Lance la relocalisation globale (chaîne APK) et attend le seuil de confiance."""
     target = min_percent if min_percent is not None else LOCALIZATION_MIN_PERCENT
-    snap = await fetch_robot_snapshot(timeout=4.0)
+    snap = await fetch_robot_snapshot(timeout=5.0)
     loc = snap.get("localization_percent")
     if loc is not None and loc >= target:
         return True, snap
-    try:
-        await ros_call_service("/global_localization", {})
-    except Exception:
+    service, _ = await ros_call_service_first(
+        [(name, {}) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
+        timeout=8.0,
+    )
+    if not service:
         return False, snap
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
         await asyncio.sleep(1.0)
-        snap = await fetch_robot_snapshot(timeout=4.0)
+        snap = await fetch_robot_snapshot(timeout=5.0)
         loc = snap.get("localization_percent")
         if loc is not None and loc >= target:
             return True, snap
@@ -247,29 +283,46 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     """Prérequis visite : récupération nav + localisation."""
     snap = await recover_navigation_state()
     nav_status = int(snap.get("nav_status") or 0)
+    loc = snap.get("localization_percent")
+
+    if nav_status in (604, 600, 602):
+        _, reason = _tour_navigation.assess_tour_readiness(
+            nav_status,
+            loc,
+            min_localization=LOCALIZATION_MIN_PERCENT,
+            require_known_localization=True,
+        )
+        return False, reason, snap
+
+    needs_reloc = loc is None or loc < LOCALIZATION_MIN_PERCENT
+    if needs_reloc:
+        loc_ok, snap = await ensure_global_localization()
+        nav_status = int(snap.get("nav_status") or 0)
+        loc = snap.get("localization_percent")
+        if not loc_ok:
+            if nav_status == 600:
+                return False, _tour_navigation.NAV_STATUS_HINTS[600], snap
+            if loc is not None:
+                reason = (
+                    f"Localisation insuffisante ({loc:.0f} % "
+                    f"< {LOCALIZATION_MIN_PERCENT:.0f} %). Relocalisez le robot."
+                )
+            else:
+                reason = (
+                    "Localisation inconnue après relocalisation — vérifiez rosbridge "
+                    "et placez le robot sur une zone connue de la carte."
+                )
+            return False, reason, snap
+
     ready, reason = _tour_navigation.assess_tour_readiness(
         nav_status,
         snap.get("localization_percent"),
         min_localization=LOCALIZATION_MIN_PERCENT,
+        require_known_localization=True,
     )
     if ready:
         return True, "", snap
-    if nav_status in (604, 600, 602):
-        return False, reason, snap
-    loc_ok, snap = await ensure_global_localization()
-    ready, reason = _tour_navigation.assess_tour_readiness(
-        int(snap.get("nav_status") or 0),
-        snap.get("localization_percent"),
-        min_localization=LOCALIZATION_MIN_PERCENT,
-    )
-    if loc_ok and ready:
-        return True, "", snap
-    if not loc_ok and snap.get("localization_percent") is not None:
-        reason = (
-            f"Localisation insuffisante ({snap['localization_percent']:.0f} % "
-            f"< {LOCALIZATION_MIN_PERCENT:.0f} %). Relocalisez le robot."
-        )
-    return False, reason or "Prérequis visite non satisfaits", snap
+    return False, reason, snap
 
 
 async def prepare_for_nav_goal() -> dict:
@@ -331,12 +384,17 @@ def estimate_speech_seconds(text: str) -> float:
 
 async def speak_local_and_wait(text: str) -> None:
     """Envoie le TTS local et attend la fin réelle du service Android."""
-    if not speak_local(text):
-        raise RuntimeError("TTS échoué")
-    await _speech_timing.wait_for_tts_completion(
-        text,
-        _speech_timing.is_local_tts_service_running,
-    )
+    _speech_state["speaking"] = True
+    _speech_state["last_text"] = text
+    try:
+        if not speak_local(text):
+            raise RuntimeError("TTS échoué")
+        await _speech_timing.wait_for_tts_completion(
+            text,
+            _speech_timing.is_local_tts_service_running,
+        )
+    finally:
+        _speech_state["speaking"] = False
 
 
 async def _subscribe_topics(ws, topics: list[str]) -> None:
@@ -366,6 +424,11 @@ def _merge_robot_state(
         "nav_status_label": "",
         "localization_percent": localization,
         "velocity": status_msg.get("velocity") or [0.0, 0.0],
+        "battery": int(status_msg.get("battery") or 0),
+        "charger": bool(status_msg.get("charger")),
+        "connected": bool(pose_msg or status_msg),
+        "nav_mode_label": "Automatique",
+        "navigating_to": status_msg.get("navigating_to"),
     }
     state["nav_status_label"] = NAV_STATUS_LABELS.get(state["nav_status"], "?")
     if state["x"] is not None:
@@ -377,7 +440,7 @@ def _merge_robot_state(
     return state
 
 
-async def fetch_robot_snapshot(timeout: float = 3.0) -> dict:
+async def fetch_robot_snapshot(timeout: float = 5.0) -> dict:
     """Pose, statut navigation et localisation via rosbridge."""
     uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
     loop = asyncio.get_running_loop()
@@ -841,11 +904,242 @@ async def stop_speech(_: Request) -> JSONResponse:
     return JSONResponse({"ok": True})
 
 
+def load_points() -> list[dict]:
+    if not POINTS_PATH.is_file():
+        return []
+    with open(POINTS_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    return list(data.get("points", []))
+
+
+def find_point(point_name: str) -> dict | None:
+    return next((p for p in load_points() if p.get("name") == point_name), None)
+
+
+def kiosk_destinations() -> list[dict]:
+    return [p for p in load_points() if p.get("kiosk_visible", True)]
+
+
+def load_kiosk_config() -> dict:
+    default = {
+        "organization_name_fr": "CYBEL",
+        "organization_name_en": "CYBEL",
+        "welcome_message_fr": "Bienvenue ! Touchez l'écran pour commencer.",
+        "welcome_message_en": "Welcome! Touch the screen to begin.",
+        "logo_url": "/kiosk/logo.svg",
+        "standby_timeout_seconds": 90,
+        "featured_destinations": [],
+        "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode"],
+    }
+    if not KIOSK_CONFIG_PATH.is_file():
+        return default
+    try:
+        with open(KIOSK_CONFIG_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        return {**default, **data}
+    except (OSError, json.JSONDecodeError):
+        return default
+
+
+async def kiosk_config_get(_: Request) -> JSONResponse:
+    return JSONResponse(load_kiosk_config())
+
+
+async def kiosk_config_put(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"ok": False, "error": "Corps invalide"}, status_code=400)
+    allowed = {
+        "organization_name_fr",
+        "organization_name_en",
+        "welcome_message_fr",
+        "welcome_message_en",
+        "logo_url",
+        "standby_timeout_seconds",
+        "featured_destinations",
+        "reception_actions",
+    }
+    current = load_kiosk_config()
+    for key, value in body.items():
+        if key in allowed:
+            current[key] = value
+    KIOSK_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(KIOSK_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(current, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    return JSONResponse({"ok": True, "config": current})
+
+
+def robot_status_payload(snap: dict) -> dict:
+    loc = snap.get("localization_percent")
+    return {
+        "connected": bool(snap.get("connected")),
+        "battery": int(snap.get("battery") or 0),
+        "charger": bool(snap.get("charger")),
+        "soft_estop": False,
+        "nav_status": int(snap.get("nav_status") or 600),
+        "nav_status_label": str(snap.get("nav_status_label") or "Inconnu"),
+        "nav_mode_label": str(snap.get("nav_mode_label") or "Automatique"),
+        "localization_percent": float(loc) if loc is not None else 0.0,
+        "localization_label": (
+            "Bonne"
+            if loc is not None and loc >= LOCALIZATION_MIN_PERCENT
+            else "Faible"
+        ),
+        "navigating_to": snap.get("navigating_to"),
+    }
+
+
+async def robot_relocalize(_: Request) -> JSONResponse:
+    ok, snap = await ensure_global_localization()
+    payload = {"ok": ok, **robot_status_payload(snap)}
+    if not ok:
+        loc = snap.get("localization_percent")
+        if loc is not None:
+            payload["error"] = (
+                f"Localisation insuffisante ({loc:.0f} % "
+                f"< {LOCALIZATION_MIN_PERCENT:.0f} %)"
+            )
+        else:
+            payload["error"] = "Relocalisation échouée ou localisation inconnue"
+        return JSONResponse(payload, status_code=409)
+    return JSONResponse(payload)
+
+
+async def list_destinations(_: Request) -> JSONResponse:
+    return JSONResponse(kiosk_destinations())
+
+
+async def go_destination(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    point_name = str(body.get("point_name", "")).strip()
+    lang = str(body.get("lang", "fr"))
+    if not point_name:
+        return JSONResponse({"ok": False, "error": "point_name requis"}, status_code=400)
+    point = find_point(point_name)
+    if not point:
+        return JSONResponse(
+            {"ok": False, "error": f"Destination « {point_name} » inconnue"},
+            status_code=400,
+        )
+    welcome = (
+        f"Welcome! I will take you to {point_name}. Please follow me."
+        if lang == "en"
+        else f"Bienvenue ! Je vous accompagne vers {point_name}. Suivez-moi."
+    )
+    events = [f"Accueil : {welcome}"]
+    if speak_local(welcome):
+        events.append("TTS local OK")
+    else:
+        events.append("TTS échoué")
+    try:
+        await navigate_to_point(point_name)
+    except Exception:
+        try:
+            await navigate_to_coordinate(
+                float(point["x"]),
+                float(point["y"]),
+                float(point.get("theta") or 0.0),
+            )
+        except Exception as exc:
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": f"Impossible de naviguer vers « {point_name} » : {exc}",
+                    "events": events,
+                },
+                status_code=400,
+            )
+    events.append(f"Navigation vers {point_name}")
+    return JSONResponse({"ok": True, "point": point_name, "events": events})
+
+
+async def robot_status(_: Request) -> JSONResponse:
+    snap = await fetch_robot_snapshot()
+    return JSONResponse(robot_status_payload(snap))
+
+
+async def speech_status(_: Request) -> JSONResponse:
+    return JSONResponse(
+        {
+            "speaking": bool(_speech_state.get("speaking")),
+            "last_text": str(_speech_state.get("last_text") or ""),
+            "mock": False,
+        }
+    )
+
+
+async def telemetry_ws(websocket: WebSocket) -> None:
+    await websocket.accept()
+    _telemetry_sockets.add(websocket)
+    try:
+        snap = await fetch_robot_snapshot()
+        await websocket.send_text(
+            json.dumps({"type": "status", **robot_status_payload(snap)})
+        )
+        await websocket.send_text(
+            json.dumps({"type": "speech", **_speech_state, "mock": False})
+        )
+        await websocket.send_text(
+            json.dumps(
+                {"type": "tour", **get_tour_engine().get_status().to_dict()}
+            )
+        )
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _telemetry_sockets.discard(websocket)
+
+
+async def _telemetry_broadcast_loop() -> None:
+    while True:
+        if _telemetry_sockets:
+            try:
+                snap = await fetch_robot_snapshot(timeout=4.0)
+                status_msg = json.dumps(
+                    {"type": "status", **robot_status_payload(snap)}
+                )
+                speech_msg = json.dumps(
+                    {"type": "speech", **_speech_state, "mock": False}
+                )
+                tour_msg = json.dumps(
+                    {"type": "tour", **get_tour_engine().get_status().to_dict()}
+                )
+                dead: list[WebSocket] = []
+                for ws in list(_telemetry_sockets):
+                    try:
+                        await ws.send_text(status_msg)
+                        await ws.send_text(speech_msg)
+                        await ws.send_text(tour_msg)
+                    except Exception:
+                        dead.append(ws)
+                for ws in dead:
+                    _telemetry_sockets.discard(ws)
+            except Exception:
+                pass
+        await asyncio.sleep(1.5)
+
+
 def build_app() -> Starlette:
     routes: list = [
         Route("/api/health", health, methods=["GET"]),
+        Route("/api/kiosk/config", kiosk_config_get, methods=["GET"]),
+        Route("/api/kiosk/config", kiosk_config_put, methods=["PUT"]),
+        Route("/api/reception/destinations", list_destinations, methods=["GET"]),
+        Route("/api/reception/go", go_destination, methods=["POST"]),
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
+        Route("/api/robot/status", robot_status, methods=["GET"]),
+        Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
+        Route("/api/speech/status", speech_status, methods=["GET"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),
         Route("/api/tour/full", tour_full, methods=["GET"]),
@@ -861,12 +1155,19 @@ def build_app() -> Starlette:
         Route("/api/tour/stops/{stop_id}", tour_delete_stop, methods=["DELETE"]),
         Route("/api/speech/say", say, methods=["POST"]),
         Route("/api/speech/stop", stop_speech, methods=["POST"]),
+        WebSocketRoute("/ws/telemetry", telemetry_ws),
     ]
     if KIOSK_DIST.is_dir():
         routes.append(
             Mount("/kiosk", app=StaticFiles(directory=str(KIOSK_DIST), html=True), name="kiosk")
         )
-    return Starlette(routes=routes)
+    app = Starlette(routes=routes)
+
+    @app.on_event("startup")
+    async def _start_telemetry() -> None:
+        asyncio.create_task(_telemetry_broadcast_loop())
+
+    return app
 
 
 app = build_app()

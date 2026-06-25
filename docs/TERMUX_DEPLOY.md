@@ -16,7 +16,7 @@ Guide pour faire tourner le **backend + kiosque visiteur** directement sur la ta
 | Build kiosk IIFE (WebView 7.1) | ✅ | Bundle `app.js` sans `type="module"` |
 | Parcours `lab_tour.json` (8 arrêts) | ✅ | Coordonnées depuis `knowledgeV2-lab.json` |
 | APK `CybelVisitorKiosk` v1.2 | ✅ | Safe-area, affichage validé |
-| Démarrage auto (`termux-boot`) | ⏳ | Script prêt, non activé |
+| Démarrage auto (`termux-boot`) | ✅ | App Accueil v1.3 + `setup_termux_kiosk.sh` |
 
 **Priorité actuelle** : valider la navigation autonome sur les 8 arrêts en conditions réelles (carte du laboratoire).
 
@@ -208,9 +208,24 @@ cat /sdcard/Download/cybel_kiosk_url.txt
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/kiosk/assets/index-legacy-*.js
 ```
 
-### Démarrage automatique (optionnel)
+### Démarrage automatique
 
-Installer [Termux:Boot](https://f-droid.org/packages/com.termux.boot/) puis :
+**Depuis l'app CYBEL Accueil (v1.3+)** — au lancement, l'app :
+
+1. Vérifie `GET /api/health`
+2. Sinon envoie `com.termux.RUN_COMMAND` vers `ensure_cybel_backend.sh`
+3. Repli `su` + bash Termux si nécessaire
+4. Attend le backend (≤ 50 s) puis charge `/kiosk/`
+
+**Configuration Termux (une fois après déploiement) :**
+
+```bash
+bash ~/cybel/scripts/termux/setup_termux_kiosk.sh
+```
+
+Cela active `allow-external-apps=true` et installe le hook `~/.termux/boot/00-cybel.sh`.
+
+**Au boot Android (optionnel)** — installer [Termux:Boot](https://f-droid.org/packages/com.termux.boot/) pour relancer le backend avant l'app.
 
 ```bash
 mkdir -p ~/.termux/boot

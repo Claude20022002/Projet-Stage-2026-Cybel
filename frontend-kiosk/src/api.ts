@@ -48,7 +48,7 @@ export const api = {
     }),
   runAction: (actionId: string, lang: Lang) =>
     request<{ ok: boolean; error?: string; events?: string[] }>(
-      `/api/reception/actions/${actionId}?lang=${lang}`,
+      `/api/reception/actions/${actionId}/execute?lang=${lang}`,
       { method: "POST" }
     ),
   getRobotStatus: () => request<RobotStatus>("/api/robot/status"),

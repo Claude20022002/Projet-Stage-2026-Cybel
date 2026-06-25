@@ -153,4 +153,20 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(task),
     }),
+  getKioskConfig: () =>
+    request<{
+      organization_name_fr: string;
+      organization_name_en: string;
+      welcome_message_fr: string;
+      welcome_message_en: string;
+      logo_url: string;
+      standby_timeout_seconds: number;
+      featured_destinations: string[];
+      reception_actions?: string[];
+    }>("/api/kiosk/config"),
+  updateKioskConfig: (config: Record<string, unknown>) =>
+    request<{ ok: boolean; config: Record<string, unknown> }>("/api/kiosk/config", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
 };

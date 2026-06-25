@@ -18,6 +18,50 @@ fi
 
 PORT="${BACKEND_PORT:-8000}"
 
+write_kiosk_url() {
+  KIOSK_URL_FILE="/sdcard/Download/cybel_kiosk_url.txt"
+  FALLBACK_FILE="$HOME/cybel_kiosk_url.txt"
+  WLAN_IP=""
+
+  for iface in wlan0 eth0; do
+    if ip -4 addr show "$iface" >/dev/null 2>&1; then
+      WLAN_IP="$(ip -4 addr show "$iface" 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | head -1 || true)"
+      if [ -n "$WLAN_IP" ]; then
+        break
+      fi
+    fi
+  done
+
+  if [ -n "$WLAN_IP" ]; then
+    URL="http://${WLAN_IP}:${PORT}/kiosk/"
+  else
+    URL="http://127.0.0.1:${PORT}/kiosk/"
+  fi
+
+  if mkdir -p "$(dirname "$KIOSK_URL_FILE")" 2>/dev/null && echo "$URL" >"$KIOSK_URL_FILE" 2>/dev/null; then
+    echo "URL kiosk pour l'app Android : $URL"
+    return 0
+  fi
+
+  if command -v su >/dev/null 2>&1; then
+    if su -c "mkdir -p /sdcard/Download && printf '%s\n' '$URL' > /sdcard/Download/cybel_kiosk_url.txt" 2>/dev/null; then
+      echo "URL kiosk pour l'app Android (via su) : $URL"
+      return 0
+    fi
+  fi
+
+  echo "$URL" >"$FALLBACK_FILE"
+  echo "AVERTISSEMENT: écriture SD impossible — URL copiée dans $FALLBACK_FILE"
+  echo "URL kiosk pour l'app Android : $URL"
+  return 0
+}
+
+if curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1; then
+  echo "CYBEL déjà actif — mise à jour URL kiosk uniquement"
+  write_kiosk_url
+  exit 0
+fi
+
 if [ ! -d "$CYBEL_HOME/scripts/termux" ]; then
   echo "ERREUR: cybel non déployé dans $CYBEL_HOME"
   exit 1
@@ -56,15 +100,8 @@ if curl -sf "http://127.0.0.1:$PORT/api/health" >/dev/null; then
   echo "OK — health check http://127.0.0.1:$PORT/api/health"
   curl -s "http://127.0.0.1:$PORT/api/health"
   echo ""
-  KIOSK_URL_FILE="/sdcard/Download/cybel_kiosk_url.txt"
-  WLAN_IP="$(ip -4 addr show wlan0 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | head -1)"
-  if [ -n "$WLAN_IP" ]; then
-    echo "http://${WLAN_IP}:${PORT}/kiosk/" >"$KIOSK_URL_FILE"
-    echo "URL kiosk pour l'app Android : http://${WLAN_IP}:${PORT}/kiosk/"
-  else
-    echo "http://127.0.0.1:${PORT}/kiosk/" >"$KIOSK_URL_FILE"
-    echo "URL kiosk pour l'app Android : http://127.0.0.1:${PORT}/kiosk/"
-  fi
+  write_kiosk_url
+  exit 0
 else
   echo "Échec health check — voir $LOG_FILE"
   tail -n 30 "$LOG_FILE" || true

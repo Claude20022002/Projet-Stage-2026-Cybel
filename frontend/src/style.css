@@ -1665,6 +1665,22 @@ body {
     background: #f8fafc;
 }
 
+.settings-input,
+.settings-textarea {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: #f8fafc;
+}
+
+.settings-textarea {
+    resize: vertical;
+    min-height: 4.5rem;
+}
+
 .settings-info {
     display: flex;
     flex-direction: column;

@@ -8,15 +8,17 @@ Documentation de l'**interface visiteur** du robot CYBEL, affichée en plein éc
 
 | Composant | Statut | Notes |
 |-----------|--------|-------|
-| `frontend-kiosk/` — visite guidée FR/EN | ✅ Fonctionnel | Écran accueil, progression, arrêt visiteur |
+| `frontend-kiosk/` — accueil tablette v0.3 | ✅ Refonte | Veille, statut, recherche, favorites, assistance |
+| `data/kiosk_config.json` — branding | ✅ | Logo, messages, destinations mises en avant |
+| `GET /api/kiosk/config` | ✅ | Config kiosque |
 | `data/lab_tour.json` — 8 arrêts labo | ✅ Configuré | Synthèse depuis `knowledgeV2-lab.json` |
 | `sdk/lab_tour.py` — `TourEngine` | ✅ Fonctionnel | Navigation coordonnées + TTS séquentiel |
 | API `/api/tour/*` | ✅ FastAPI + cybel_lite | CRUD, status, start, stop, halt |
 | Déploiement Termux | ✅ Opérationnel | `deploy_termux.py`, health 200 |
-| App Android `CybelVisitorKiosk` v1.2 | ✅ Validé | Build IIFE, safe-area, URL Wi-Fi |
+| App Android `CybelVisitorKiosk` v1.3 | ✅ Validé | Démarrage auto backend à l'ouverture |
 | Contrôle opérateur pendant visite | ✅ | `POST /api/tour/halt` + panneau contrôleur |
 | Navigation terrain multi-arrêts | ⏳ En validation | Coordonnées à affiner sur carte réelle |
-| Démarrage auto au boot | ⏳ Optionnel | `termux-boot.sh` prêt |
+| Démarrage auto au boot | ✅ | App v1.3 + `setup_termux_kiosk.sh` |
 
 ---
 

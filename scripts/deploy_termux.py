@@ -133,6 +133,7 @@ def deploy_remote(
         f"mkdir -p {sh_quote(remote_base)}",
         f"tar -xzf {sh_quote(remote_tar)} -C {sh_quote(remote_base)}",
         f"chmod +x {sh_quote(remote_base)}/scripts/termux/*.sh",
+        f"bash {sh_quote(remote_base)}/scripts/termux/setup_termux_kiosk.sh || true",
         f"rm -f {sh_quote(remote_tar)}",
         f"bash {sh_quote(remote_base)}/scripts/termux/free_disk.sh || true",
     ]
@@ -162,6 +163,10 @@ def deploy_remote(
         if err.strip():
             print(err.rstrip(), file=sys.stderr)
         if stdout.channel.recv_exit_status() != 0 and "stop_cybel" not in cmd:
+            # start_cybel peut avoir démarré le backend malgré un avertissement SD
+            if "start_cybel" in cmd and "OK — health check" in out:
+                print("AVERTISSEMENT: start_cybel code non nul mais backend OK — poursuite")
+                continue
             print(f"Commande échouée: {cmd}")
             client.close()
             return 1

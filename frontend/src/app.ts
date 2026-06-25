@@ -53,6 +53,7 @@ let lastTourPanelKey = "";
 let lastTourBannerKey = "";
 let lastPatrolPanelKey = "";
 let diagnosticsSnapshot: DiagnosticsSnapshot | null = null;
+let kioskConfigSnapshot: Record<string, unknown> | null = null;
 
 function renderDashboardContent(): string {
   const softEstop = state.status?.soft_estop ?? false;
@@ -80,7 +81,7 @@ function renderApp(): void {
 
   const content =
     state.page === "settings"
-      ? renderSettingsPage(state.settings, diagnosticsSnapshot)
+      ? renderSettingsPage(state.settings, diagnosticsSnapshot, kioskConfigSnapshot)
       : state.page === "tour"
         ? renderTourPage(state.tour, state.tourStatus, state.tourEditingStopId)
         : state.page === "patrol"
@@ -113,7 +114,7 @@ function renderApp(): void {
   } else {
     bindSettingsEvents(
       () => api.getSettings().then(setSettings).catch(() => {}),
-      () => void refreshDiagnostics(true)
+      () => void refreshSettingsData(true)
     );
   }
 }
@@ -124,10 +125,25 @@ function bindLayoutEvents(): void {
       const page = (el as HTMLElement).dataset.page as AppPage;
       if (page && page !== state.page) {
         setPage(page);
-        if (page === "settings") void refreshDiagnostics(true);
+        if (page === "settings") void refreshSettingsData(true);
       }
     });
   });
+}
+
+async function refreshSettingsData(rerender = false): Promise<void> {
+  await Promise.all([
+    refreshDiagnostics(false),
+    api
+      .getKioskConfig()
+      .then((cfg) => {
+        kioskConfigSnapshot = cfg;
+      })
+      .catch(() => {
+        kioskConfigSnapshot = null;
+      }),
+  ]);
+  if (rerender && state.page === "settings") renderApp();
 }
 
 async function refreshDiagnostics(rerender = false): Promise<void> {

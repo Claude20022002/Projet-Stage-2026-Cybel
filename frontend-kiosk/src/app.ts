@@ -1,11 +1,23 @@
 import { api } from "./api";
-import { phaseLabel, pointIcon, t } from "./i18n";
+import { renderStatusBar } from "./components/statusBar";
+import { phaseLabel, t } from "./i18n";
+import {
+  renderCompleted,
+  renderDestinations,
+  renderStandby,
+  renderTraveling,
+  renderWelcome,
+} from "./screens/home";
+import { connectKioskTelemetry } from "./telemetry";
 import type {
   ActiveFlow,
+  KioskConfig,
   KioskDestination,
   Lang,
   LabTourInfo,
+  ReceptionAction,
   RobotStatus,
+  SpeechStatus,
   TourScreen,
   TourStatus,
 } from "./types";
@@ -15,42 +27,37 @@ let screen: TourScreen = "welcome";
 let activeFlow: ActiveFlow = null;
 let tour: LabTourInfo | null = null;
 let status: TourStatus | null = null;
+let config: KioskConfig | null = null;
 let destinations: KioskDestination[] = [];
+let featuredDestinations: KioskDestination[] = [];
+let receptionActions: ReceptionAction[] = [];
 let selectedDestination: string | null = null;
 let robotStatus: RobotStatus | null = null;
+let speechStatus: SpeechStatus | null = null;
+let searchQuery = "";
 let busy = false;
 let message = "";
-let pollTimer: number | null = null;
+let clockTimer: number | null = null;
+let standbyTimer: number | null = null;
 let toastTimer: number | null = null;
 let sawNavigating = false;
+let lastInteractionAt = Date.now();
 
 function tr() {
   return t[lang];
 }
 
-function headerTitle(): string {
-  if (screen === "destinations" || screen === "dest_running") {
-    return tr().destinationsTitle;
-  }
-  return tourTitle();
-}
-
-function tourTitle(): string {
-  if (!tour) return tr().title;
-  return lang === "en" ? tour.title_en : tour.title_fr;
-}
-
-function tourSubtitle(): string {
-  if (!tour) return tr().subtitle;
-  return lang === "en" ? tour.subtitle_en : tour.subtitle_fr;
-}
-
-function stopName(stop: { name_fr: string; name_en: string }): string {
-  return lang === "en" ? stop.name_en : stop.name_fr;
-}
-
-function equipmentName(stop: { equipment_fr: string; equipment_en: string }): string {
-  return lang === "en" ? stop.equipment_en : stop.equipment_fr;
+function resetStandbyTimer(): void {
+  lastInteractionAt = Date.now();
+  if (standbyTimer !== null) window.clearTimeout(standbyTimer);
+  const timeout = (config?.standby_timeout_seconds ?? 90) * 1000;
+  if (timeout <= 0 || screen === "running" || screen === "dest_running") return;
+  standbyTimer = window.setTimeout(() => {
+    if (Date.now() - lastInteractionAt >= timeout - 500) {
+      screen = "standby";
+      render();
+    }
+  }, timeout);
 }
 
 function showToast(text: string): void {
@@ -60,7 +67,42 @@ function showToast(text: string): void {
     message = "";
     toastTimer = null;
     render();
-  }, 3500);
+  }, 4000);
+}
+
+function pickReceptionActions(
+  all: ReceptionAction[],
+  cfg: KioskConfig | null
+): ReceptionAction[] {
+  const ids = cfg?.reception_actions ?? [];
+  const picked = ids
+    .map((id) => all.find((a) => a.id === id))
+    .filter((a): a is ReceptionAction => Boolean(a));
+  if (picked.length) return picked.slice(0, 4);
+  return all.filter((a) => a.category === "accueil" && a.id !== "guided_tour").slice(0, 3);
+}
+
+function tourSpeechCaption(): string | undefined {
+  if (!status || activeFlow !== "tour" || screen !== "running") return undefined;
+  if (status.phase === "presenting" || status.phase === "intro" || status.phase === "outro") {
+    if (status.message && status.message.length > 12) return status.message;
+    if (speechStatus?.speaking && speechStatus.last_text) return speechStatus.last_text;
+  }
+  if (speechStatus?.speaking && speechStatus.last_text) return speechStatus.last_text;
+  return undefined;
+}
+
+function pickFeatured(
+  all: KioskDestination[],
+  cfg: KioskConfig | null
+): KioskDestination[] {
+  const names = cfg?.featured_destinations ?? [];
+  const picked = names
+    .map((name) => all.find((d) => d.name === name))
+    .filter((d): d is KioskDestination => Boolean(d));
+  if (picked.length >= 4) return picked.slice(0, 4);
+  const rest = all.filter((d) => !picked.some((p) => p.name === d.name));
+  return [...picked, ...rest].slice(0, 4);
 }
 
 function syncScreenFromTourStatus(): void {
@@ -76,44 +118,90 @@ function syncScreenFromTourStatus(): void {
 
 function syncScreenFromRobotStatus(): void {
   if (!robotStatus || activeFlow !== "destination" || screen !== "dest_running") return;
-  if (robotStatus.nav_status === 602) {
-    sawNavigating = true;
-  }
+  if (robotStatus.nav_status === 602) sawNavigating = true;
   if (robotStatus.nav_status === 604) {
-    stopPolling();
     screen = "completed";
     return;
   }
   if (sawNavigating && robotStatus.nav_status === 603) {
-    stopPolling();
     screen = "completed";
   }
 }
 
-function startPolling(): void {
-  stopPolling();
-  pollTimer = window.setInterval(async () => {
-    try {
-      if (activeFlow === "tour") {
-        status = await api.getTourStatus();
-        syncScreenFromTourStatus();
-        if (status.state !== "running") stopPolling();
-      } else if (activeFlow === "destination") {
-        robotStatus = await api.getRobotStatus();
-        syncScreenFromRobotStatus();
-        if (screen !== "dest_running") stopPolling();
+function startTelemetry(): void {
+  connectKioskTelemetry({
+    onRobotStatus: (robot) => {
+      robotStatus = robot;
+      if (activeFlow === "destination") syncScreenFromRobotStatus();
+      if (
+        screen === "running" ||
+        screen === "dest_running" ||
+        screen === "welcome" ||
+        screen === "standby"
+      ) {
+        render();
       }
-      render();
-    } catch {
-      /* ignore transient network errors */
-    }
-  }, 1500);
+    },
+    onSpeech: (speech) => {
+      speechStatus = speech;
+      if (screen === "running" || screen === "dest_running") render();
+    },
+    onTourStatus: (tourStatus) => {
+      status = tourStatus;
+      if (activeFlow === "tour") {
+        syncScreenFromTourStatus();
+        if (screen === "running" || screen === "completed") render();
+      }
+    },
+  });
 }
 
-function stopPolling(): void {
-  if (pollTimer !== null) {
-    window.clearInterval(pollTimer);
-    pollTimer = null;
+function startClock(): void {
+  if (clockTimer !== null) return;
+  clockTimer = window.setInterval(() => {
+    const el = document.getElementById("kiosk-clock");
+    if (el) {
+      el.textContent = new Date().toLocaleTimeString(lang === "fr" ? "fr-FR" : "en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  }, 30000);
+}
+
+function renderBody(): string {
+  switch (screen) {
+    case "standby":
+      return renderStandby(lang, config);
+    case "welcome":
+      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy);
+    case "destinations":
+      return renderDestinations(lang, destinations, searchQuery, busy);
+    case "dest_running":
+      return renderTraveling(
+        lang,
+        selectedDestination || tr().destRunning,
+        robotStatus?.nav_status_label || tr().destRunning,
+        "destination"
+      );
+    case "running": {
+      const current = status?.current_index ?? -1;
+      const total = status?.total_stops ?? tour?.stops.length ?? 0;
+      const equipment = status?.current_equipment || "…";
+      const phase = status?.phase ? phaseLabel(status.phase, lang) : "";
+      return renderTraveling(lang, equipment, status?.message || tr().tourRunning, "tour", {
+        current,
+        total,
+        phase,
+      }, tourSpeechCaption());
+    }
+    case "completed":
+      if (activeFlow === "destination") {
+        return renderCompleted(lang, "destination", robotStatus?.nav_status === 604);
+      }
+      return renderCompleted(lang, "tour", false, status?.state, status?.error);
+    default:
+      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy);
   }
 }
 
@@ -122,235 +210,59 @@ function render(): void {
   if (!app) return;
 
   app.innerHTML = `
-    <div class="kiosk">
-      <header class="kiosk__header">
-        <div class="kiosk__brand">
-          <span class="kiosk__logo">CYBEL</span>
-          <span class="kiosk__title">${headerTitle()}</span>
-        </div>
-        <button id="btn-lang" class="kiosk__lang" type="button" ${busy ? "disabled" : ""}>
-          ${tr().langToggle}
-        </button>
-      </header>
-      ${screen === "welcome" ? renderWelcome() : ""}
-      ${screen === "destinations" ? renderDestinations() : ""}
-      ${screen === "dest_running" ? renderDestRunning() : ""}
-      ${screen === "running" ? renderRunning() : ""}
-      ${screen === "completed" ? renderCompleted() : ""}
-      ${message ? `<div class="kiosk__toast">${message}</div>` : ""}
+    <div class="kiosk" data-screen="${screen}">
+      ${screen === "standby" ? "" : renderStatusBar(lang, robotStatus, speechStatus, busy)}
+      ${renderBody()}
+      ${message ? `<div class="kiosk-toast" role="status">${message}</div>` : ""}
     </div>
   `;
 
   bindEvents();
-}
-
-function renderWelcome(): string {
-  const stops = tour?.stops ?? [];
-  return `
-    <main class="kiosk__main kiosk__main--welcome">
-      <section class="hero">
-        <div class="hero__icon" aria-hidden="true">🤖</div>
-        <h1 class="hero__title">${tourTitle()}</h1>
-        <p class="hero__subtitle">${tourSubtitle()}</p>
-        <p class="hero__hint">${tr().chooseMode}</p>
-      </section>
-
-      <section class="mode-picker">
-        <button id="btn-mode-tour" class="mode-card" type="button" ${busy ? "disabled" : ""}>
-          <span class="mode-card__icon" aria-hidden="true">🗺️</span>
-          <strong class="mode-card__title">${tr().modeTour}</strong>
-          <span class="mode-card__hint">${tr().modeTourHint}</span>
-        </button>
-        <button id="btn-mode-dest" class="mode-card" type="button" ${busy ? "disabled" : ""}>
-          <span class="mode-card__icon" aria-hidden="true">📍</span>
-          <strong class="mode-card__title">${tr().modeDestinations}</strong>
-          <span class="mode-card__hint">${tr().modeDestinationsHint}</span>
-        </button>
-      </section>
-
-      ${
-        stops.length
-          ? `
-        <section class="route-preview">
-          <h2 class="route-preview__title">${tr().stopsPreview}</h2>
-          <ol class="route-preview__list">
-            ${stops
-              .map(
-                (stop, index) => `
-              <li class="route-preview__item">
-                <span class="route-preview__num">${index + 1}</span>
-                <div>
-                  <strong>${equipmentName(stop)}</strong>
-                  <span>${stopName(stop)}</span>
-                </div>
-              </li>
-            `
-              )
-              .join("")}
-          </ol>
-        </section>
-      `
-          : ""
-      }
-    </main>
-  `;
-}
-
-function renderDestinations(): string {
-  if (!destinations.length) {
-    return `
-      <main class="kiosk__main kiosk__main--destinations">
-        <section class="hero hero--compact">
-          <p class="hero__hint">${tr().actionError}</p>
-          <button id="btn-back-welcome" class="btn-secondary" type="button">${tr().back}</button>
-        </section>
-      </main>
-    `;
-  }
-
-  return `
-    <main class="kiosk__main kiosk__main--destinations">
-      <p class="destinations__hint">${tr().destinationsHint}</p>
-      <div class="destinations-grid">
-        ${destinations
-          .map(
-            (dest) => `
-          <button
-            class="dest-card"
-            type="button"
-            data-dest="${dest.name}"
-            ${busy ? "disabled" : ""}
-          >
-            <span class="dest-card__icon" aria-hidden="true">${pointIcon(dest.type)}</span>
-            <span class="dest-card__name">${dest.name}</span>
-          </button>
-        `
-          )
-          .join("")}
-      </div>
-      <button id="btn-back-welcome" class="btn-secondary" type="button" ${busy ? "disabled" : ""}>
-        ${tr().back}
-      </button>
-    </main>
-  `;
-}
-
-function renderDestRunning(): string {
-  const label = selectedDestination || tr().destRunning;
-  const statusLabel = robotStatus?.nav_status_label || tr().destRunning;
-
-  return `
-    <main class="kiosk__main kiosk__main--running">
-      <div class="tour-status">
-        <div class="tour-status__badge">${tr().destRunning}</div>
-        <p class="tour-status__step">${statusLabel}</p>
-      </div>
-
-      <section class="tour-focus">
-        <h2 class="tour-focus__equipment">${label}</h2>
-        <p class="tour-focus__follow">${tr().destFollow}</p>
-      </section>
-    </main>
-  `;
-}
-
-function renderRunning(): string {
-  const current = status?.current_index ?? -1;
-  const total = status?.total_stops ?? tour?.stops.length ?? 0;
-  const progress = total > 0 ? Math.max(0, ((current + 1) / total) * 100) : 0;
-  const phase = status?.phase ? phaseLabel(status.phase, lang) : "";
-  const equipment = status?.current_equipment || "…";
-  const stopNameText = status?.current_stop_name || tr().followRobot;
-  const statusMessage = status?.message || tr().tourRunning;
-
-  return `
-    <main class="kiosk__main kiosk__main--running">
-      <div class="tour-status">
-        <div class="tour-status__badge">${tr().tourRunning}</div>
-        ${
-          total > 0
-            ? `
-          <p class="tour-status__step">
-            ${tr().step} <strong>${Math.max(current + 1, 1)}</strong> ${tr().of} <strong>${total}</strong>
-          </p>
-          <div class="progress" aria-hidden="true">
-            <div class="progress__bar" style="width: ${progress}%"></div>
-          </div>
-        `
-            : ""
-        }
-      </div>
-
-      <section class="tour-focus">
-        ${phase ? `<span class="tour-focus__phase">${phase}</span>` : ""}
-        <h2 class="tour-focus__equipment">${equipment}</h2>
-        <p class="tour-focus__location">${stopNameText}</p>
-        <p class="tour-focus__message">${statusMessage}</p>
-        <p class="tour-focus__follow">${tr().followRobot}</p>
-      </section>
-
-      <button id="btn-stop" class="btn-danger" type="button" ${busy ? "disabled" : ""}>
-        ${tr().stopTour}
-      </button>
-    </main>
-  `;
-}
-
-function renderCompleted(): string {
-  if (activeFlow === "destination") {
-    const failed = robotStatus?.nav_status === 604;
-    return `
-      <main class="kiosk__main kiosk__main--completed">
-        <section class="hero hero--compact">
-          <div class="hero__icon" aria-hidden="true">${failed ? "⚠️" : "✅"}</div>
-          <h1 class="hero__title">${failed ? tr().destError : tr().destCompleted}</h1>
-          <p class="hero__hint">${failed ? tr().destErrorHint : tr().destCompletedHint}</p>
-          <button id="btn-restart" class="btn-primary" type="button" ${busy ? "disabled" : ""}>
-            ${tr().newDestination}
-          </button>
-        </section>
-      </main>
-    `;
-  }
-
-  const state = status?.state;
-  let title: string = tr().tourCompleted;
-  let hint: string = tr().completedHint;
-  if (state === "stopped") {
-    title = tr().tourStopped;
-    hint = tr().stoppedHint;
-  } else if (state === "error") {
-    title = tr().tourError;
-    hint = status?.error || tr().errorHint;
-  }
-
-  return `
-    <main class="kiosk__main kiosk__main--completed">
-      <section class="hero hero--compact">
-        <div class="hero__icon" aria-hidden="true">${state === "error" ? "⚠️" : "✅"}</div>
-        <h1 class="hero__title">${title}</h1>
-        <p class="hero__hint">${hint}</p>
-        <button id="btn-restart" class="btn-primary" type="button" ${busy ? "disabled" : ""}>
-          ${tr().newTour}
-        </button>
-      </section>
-    </main>
-  `;
+  resetStandbyTimer();
 }
 
 function bindEvents(): void {
   document.getElementById("btn-lang")?.addEventListener("click", () => {
     if (busy) return;
+    touch();
     lang = lang === "fr" ? "en" : "fr";
+    render();
+  });
+
+  document.getElementById("screen-standby")?.addEventListener("click", () => {
+    touch();
+    screen = "welcome";
     render();
   });
 
   document.getElementById("btn-mode-tour")?.addEventListener("click", () => void startTour());
   document.getElementById("btn-mode-dest")?.addEventListener("click", () => void openDestinations());
+  document.getElementById("btn-assistance")?.addEventListener("click", () => void runAssistance());
+
   document.getElementById("btn-back-welcome")?.addEventListener("click", () => {
+    touch();
     screen = "welcome";
     activeFlow = null;
+    searchQuery = "";
     render();
+  });
+
+  document.getElementById("dest-search")?.addEventListener("input", (event) => {
+    touch();
+    searchQuery = (event.target as HTMLInputElement).value;
+    render();
+    const input = document.getElementById("dest-search") as HTMLInputElement | null;
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const actionId = button.dataset.action;
+      if (actionId) void runReceptionAction(actionId);
+    });
   });
 
   document.querySelectorAll<HTMLButtonElement>("[data-dest]").forEach((button) => {
@@ -361,6 +273,7 @@ function bindEvents(): void {
   });
 
   document.getElementById("btn-restart")?.addEventListener("click", () => {
+    touch();
     if (activeFlow === "destination") {
       screen = "destinations";
       selectedDestination = null;
@@ -373,17 +286,25 @@ function bindEvents(): void {
     }
     render();
   });
+
   document.getElementById("btn-stop")?.addEventListener("click", () => void stopTour());
+}
+
+function touch(): void {
+  lastInteractionAt = Date.now();
 }
 
 async function openDestinations(): Promise<void> {
   if (busy) return;
+  touch();
   busy = true;
   render();
   try {
     destinations = await api.getDestinations();
+    featuredDestinations = pickFeatured(destinations, config);
     screen = "destinations";
     activeFlow = null;
+    searchQuery = "";
   } catch {
     showToast(tr().actionError);
   } finally {
@@ -394,6 +315,7 @@ async function openDestinations(): Promise<void> {
 
 async function goToDestination(pointName: string): Promise<void> {
   if (busy) return;
+  touch();
   busy = true;
   selectedDestination = pointName;
   sawNavigating = false;
@@ -403,7 +325,6 @@ async function goToDestination(pointName: string): Promise<void> {
     activeFlow = "destination";
     screen = "dest_running";
     robotStatus = await api.getRobotStatus();
-    startPolling();
   } catch (err) {
     const text = err instanceof Error ? err.message : tr().actionError;
     showToast(text);
@@ -417,6 +338,7 @@ async function goToDestination(pointName: string): Promise<void> {
 
 async function startTour(): Promise<void> {
   if (busy) return;
+  touch();
   busy = true;
   render();
   try {
@@ -424,7 +346,6 @@ async function startTour(): Promise<void> {
     status = result.status ?? (await api.getTourStatus());
     activeFlow = "tour";
     screen = "running";
-    startPolling();
   } catch (err) {
     const text = err instanceof Error ? err.message : tr().actionError;
     showToast(text);
@@ -436,12 +357,12 @@ async function startTour(): Promise<void> {
 
 async function stopTour(): Promise<void> {
   if (busy) return;
+  touch();
   busy = true;
   render();
   try {
     const result = await api.stopTour();
     status = result.status ?? (await api.getTourStatus());
-    stopPolling();
     screen = "completed";
   } catch {
     showToast(tr().actionError);
@@ -451,18 +372,66 @@ async function stopTour(): Promise<void> {
   }
 }
 
-export async function initApp(): Promise<void> {
+async function runAssistance(): Promise<void> {
+  if (busy) return;
+  touch();
+  busy = true;
   render();
   try {
-    [tour, status, destinations] = await Promise.all([
+    await api.runAction("inform_waiting", lang);
+    showToast(tr().assistanceHint);
+  } catch (err) {
+    const text = err instanceof Error ? err.message : tr().actionError;
+    showToast(text);
+  } finally {
+    busy = false;
+    render();
+  }
+}
+
+async function runReceptionAction(actionId: string): Promise<void> {
+  if (busy) return;
+  touch();
+  busy = true;
+  render();
+  try {
+    await api.runAction(actionId, lang);
+    showToast(tr().assistanceHint);
+  } catch (err) {
+    const text = err instanceof Error ? err.message : tr().actionError;
+    showToast(text);
+  } finally {
+    busy = false;
+    render();
+  }
+}
+
+export async function initApp(): Promise<void> {
+  render();
+  startClock();
+  startTelemetry();
+  try {
+    const [tourInfo, tourStatus, dests, actions, kioskConfig, robot, speech] = await Promise.all([
       api.getTour(),
       api.getTourStatus(),
       api.getDestinations(),
+      api.getActions(),
+      api.getConfig(),
+      api.getRobotStatus().catch(() => null),
+      api.getSpeechStatus().catch(() => null),
     ]);
+    tour = tourInfo;
+    status = tourStatus;
+    destinations = dests;
+    config = kioskConfig;
+    featuredDestinations = pickFeatured(destinations, config);
+    receptionActions = pickReceptionActions(actions, config);
+    robotStatus = robot;
+    speechStatus = speech;
     syncScreenFromTourStatus();
     if (status?.state === "running") {
       activeFlow = "tour";
-      startPolling();
+      screen = "running";
     }
   } catch {
     showToast(t.fr.actionError);

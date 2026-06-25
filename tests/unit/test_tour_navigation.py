@@ -16,6 +16,17 @@ def test_parse_localization_from_confidence_topic():
     assert loc == 65.0
 
 
+def test_parse_localization_from_matching_degree():
+    loc = parse_localization_percent({"matching_degree": 72.5}, None)
+    assert loc == 72.5
+
+
+def test_assess_tour_readiness_blocks_unknown_localization():
+    ok, msg = assess_tour_readiness(601, None, require_known_localization=True)
+    assert not ok
+    assert "inconnue" in msg.lower()
+
+
 def test_assess_tour_readiness_blocks_604():
     ok, msg = assess_tour_readiness(604, 80.0)
     assert not ok
