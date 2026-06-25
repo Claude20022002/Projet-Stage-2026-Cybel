@@ -162,15 +162,48 @@ def parse_localization_percent(status_msg: dict, loc_msg: dict | None = None) ->
     return None
 
 
+    605: (
+        "État navigation bloqué (605) — annulez la navigation en cours puis relancez."
+    ),
+}
+
+ON_CHARGER_HINT = (
+    "Robot branché sur la borne — détachez-le du socle pour naviguer."
+)
+
+
+def parse_charger_flag(raw: object) -> bool:
+    """Interprète le champ ``charger`` ROS (0/1, parfois chaîne)."""
+    if raw is None:
+        return False
+    try:
+        return int(raw) != 0
+    except (TypeError, ValueError):
+        return bool(raw)
+
+
 CHARGING_NAV_STATUS = 605
 
 
-def is_charging_navigation_block(nav_status: int) -> bool:
-    """605 observé sur TY1251D lorsque le robot est sur la borne de recharge."""
+def is_stuck_nav_605(nav_status: int) -> bool:
+    """605 = objectif nav en attente / stack bloqué (pas forcément en charge)."""
     return nav_status == CHARGING_NAV_STATUS
 
 
-def charging_navigation_message() -> str:
+def is_charging_navigation_block(
+    nav_status: int,
+    *,
+    charger: bool = False,
+) -> bool:
+    """Bloque la nav si sur la borne OU état 605 persistant après annulation."""
+    if charger:
+        return True
+    return is_stuck_nav_605(nav_status)
+
+
+def charging_navigation_message(*, charger: bool = False) -> str:
+    if charger:
+        return ON_CHARGER_HINT
     return NAV_STATUS_HINTS[CHARGING_NAV_STATUS]
 
 
@@ -202,12 +235,13 @@ def assess_tour_readiness(
     velocity: Sequence[float] | None = None,
     navigating_to: str | None = None,
     ghost_nav_recovered: bool = False,
+    charger: bool = False,
 ) -> tuple[bool, str]:
     """Vérifie si le robot peut démarrer une visite."""
     if nav_status == 600:
         return False, NAV_STATUS_HINTS[600]
-    if is_charging_navigation_block(nav_status):
-        return False, charging_navigation_message()
+    if is_charging_navigation_block(nav_status, charger=charger):
+        return False, charging_navigation_message(charger=charger)
     if nav_status == 604:
         return False, (
             f"{NAV_STATUS_HINTS[604]} "

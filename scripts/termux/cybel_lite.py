@@ -368,10 +368,9 @@ async def _publish_charge_leave() -> None:
 
 
 async def ensure_leave_charge_if_needed(timeout: float = 15.0) -> dict:
-    """Sortie de borne si nav_status 605 ou robot signalé en charge."""
+    """Sortie de borne uniquement si le robot signale charger=1."""
     snap = await fetch_robot_snapshot(timeout=6.0)
-    nav_status = int(snap.get("nav_status") or 0)
-    if nav_status != _tour_navigation.CHARGING_NAV_STATUS and not snap.get("charger"):
+    if not _tour_navigation.parse_charger_flag(snap.get("charger")):
         return snap
 
     await cancel_navigation_full(
@@ -401,10 +400,12 @@ async def ensure_leave_charge_if_needed(timeout: float = 15.0) -> dict:
         await asyncio.sleep(0.6)
         snap = await fetch_robot_snapshot(timeout=6.0)
         nav_status = int(snap.get("nav_status") or 0)
-        if nav_status in (601, 603) and not snap.get("charger"):
+        if nav_status in (601, 603) and not _tour_navigation.parse_charger_flag(
+            snap.get("charger")
+        ):
             return snap
-        if nav_status not in (_tour_navigation.CHARGING_NAV_STATUS,) and not snap.get(
-            "charger"
+        if nav_status not in (_tour_navigation.CHARGING_NAV_STATUS,) and not _tour_navigation.parse_charger_flag(
+            snap.get("charger")
         ):
             return snap
     return snap
@@ -445,7 +446,10 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status in (604, 600, _tour_navigation.CHARGING_NAV_STATUS):
+    if nav_status in (604, 600) or (
+        nav_status == _tour_navigation.CHARGING_NAV_STATUS
+        and not _tour_navigation.parse_charger_flag(snap.get("charger"))
+    ):
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
@@ -506,8 +510,17 @@ async def prepare_for_nav_goal() -> dict:
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
+    if nav_status == _tour_navigation.CHARGING_NAV_STATUS and _tour_navigation.parse_charger_flag(
+        snap.get("charger")
+    ):
+        raise RuntimeError(
+            _tour_navigation.charging_navigation_message(charger=True)
+        )
+
     if nav_status == _tour_navigation.CHARGING_NAV_STATUS:
-        raise RuntimeError(_tour_navigation.charging_navigation_message())
+        raise RuntimeError(
+            _tour_navigation.charging_navigation_message(charger=False)
+        )
 
     if nav_status == 602 and not ghost_recovered:
         _, reason = _tour_navigation.assess_tour_readiness(
@@ -663,7 +676,7 @@ def _merge_robot_state(
         "localization_percent": localization,
         "velocity": status_msg.get("velocity") or [0.0, 0.0],
         "battery": int(status_msg.get("battery") or 0),
-        "charger": bool(status_msg.get("charger")),
+        "charger": _tour_navigation.parse_charger_flag(status_msg.get("charger")),
         "connected": bool(pose_msg or status_msg),
         "nav_mode_label": "Automatique",
         "navigating_to": status_msg.get("navigating_to"),

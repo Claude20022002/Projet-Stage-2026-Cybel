@@ -141,8 +141,7 @@ NAV_STATUS_HINTS: dict[int, str] = {
         "puis relancez."
     ),
     605: (
-        "Robot en recharge sur la borne — éloignez-le du socle ou attendez "
-        "la fin de charge avant de naviguer."
+        "État navigation bloqué (605) — annulez la navigation en cours puis relancez."
     ),
 }
 
