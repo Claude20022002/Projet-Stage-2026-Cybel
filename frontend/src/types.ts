@@ -47,6 +47,8 @@ export interface Point {
   y: number;
   theta: number;
   floor: string;
+  kiosk_visible?: boolean;
+  source?: "ros" | "local" | "merged";
 }
 
 export interface MapMetadata {
@@ -104,7 +106,7 @@ export interface SpeechStatus {
   mock: boolean;
 }
 
-export type AppPage = "dashboard" | "tour" | "settings";
+export type AppPage = "dashboard" | "tour" | "patrol" | "settings";
 
 export interface TourStopData {
   id: string;
@@ -151,6 +153,56 @@ export interface TourStatus {
   error: string | null;
 }
 
+export type PatrolMode = "cycle" | "round_trip" | "random";
+export type PatrolState = "idle" | "running" | "stopped" | "error";
+
+export interface PatrolStopData {
+  id: string;
+  name: string;
+  name_en?: string;
+  speech_fr?: string;
+  speech_en?: string;
+  target_point?: string;
+  x?: number;
+  y?: number;
+  theta?: number;
+  dwell_seconds?: number;
+}
+
+export interface PatrolTaskData {
+  id: string;
+  name: string;
+  mode: PatrolMode;
+  intro_speech_fr?: string;
+  intro_speech_en?: string;
+  stops: PatrolStopData[];
+}
+
+export interface PatrolStatus {
+  state: PatrolState;
+  task_id: string | null;
+  task_name: string;
+  mode: PatrolMode;
+  lang: string;
+  current_index: number;
+  total_stops: number;
+  cycle_count: number;
+  current_stop_id: string | null;
+  current_stop_name: string;
+  phase: string;
+  message: string;
+  error: string | null;
+}
+
+export interface DiagnosticsSnapshot {
+  mock: boolean;
+  overall_ok: boolean;
+  rosbridge: { ok: boolean; connected?: boolean; host?: string; last_message_age_s?: number | null; stale?: boolean };
+  mqtt: { ok: boolean; enabled?: boolean; active?: boolean };
+  adb_tts: { ok: boolean; configured_serial?: string; last_connect_ok?: boolean; queue_size?: number };
+  persistence: { ok: boolean; backend: string; data_dir: string };
+}
+
 export interface AppState {
   page: AppPage;
   status: RobotStatus | null;
@@ -165,6 +217,10 @@ export interface AppState {
   tour: LabTourData | null;
   tourStatus: TourStatus | null;
   tourEditingStopId: string | null;
+  patrolTasks: PatrolTaskData[];
+  selectedPatrolTaskId: string | null;
+  patrolStatus: PatrolStatus | null;
+  patrolEditingStopId: string | null;
   events: string[];
   wsConnected: boolean;
   voiceListening: boolean;

@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import subprocess
+import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
@@ -23,6 +24,9 @@ from sdk.models import SpeechStatus
 from sdk.rosbridge import RosbridgeClient
 
 logger = logging.getLogger(__name__)
+
+SpeechPriority = Literal["urgent", "normal", "background"]
+SPEECH_PRIORITY_VALUES = {"urgent": 0, "normal": 1, "background": 2}
 
 EmitCallback = Callable[[str, dict], Awaitable[None]]
 
@@ -56,6 +60,11 @@ class RobotSpeech:
         self._status = SpeechStatus(mock=mock)
         self._speech_task: asyncio.Task | None = None
         self._known_services: set[str] | None = None
+        self._queue: asyncio.PriorityQueue[tuple[int, int, dict[str, Any]]] = asyncio.PriorityQueue()
+        self._queue_seq = 0
+        self._worker_task: asyncio.Task | None = None
+        self._last_adb_connect_at = 0.0
+        self._last_adb_connect_ok = False
 
     def get_status(self) -> SpeechStatus:
         return self._status.model_copy(deep=True)
@@ -92,9 +101,7 @@ class RobotSpeech:
                 },
             )
 
-    async def _resolve_adb_serial(self) -> str | None:
-        """Retourne le serial ADB à utiliser (configuré ou premier appareil USB)."""
-        configured = self._adb_serial
+    async def _list_adb_devices(self) -> list[str]:
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
@@ -103,41 +110,160 @@ class RobotSpeech:
                 timeout=2.0,
                 text=True,
             )
-            connected = [
+            return [
                 line.split("\t")[0].strip()
                 for line in (result.stdout or "").splitlines()[1:]
                 if "\tdevice" in line
             ]
-            if configured and configured in connected:
-                return configured
-            if connected:
-                if configured:
-                    logger.info(
-                        "ADB %s absent — utilisation de %s (USB)",
-                        configured,
-                        connected[0],
-                    )
-                return connected[0]
         except (OSError, subprocess.TimeoutExpired) as exc:
             logger.debug("Liste adb devices échouée: %s", exc)
+            return []
+
+    async def _resolve_adb_serial(self) -> str | None:
+        """Retourne le serial ADB à utiliser (configuré ou premier appareil USB)."""
+        configured = self._adb_serial
+        connected = await self._list_adb_devices()
+        if configured and configured in connected:
+            return configured
+        if connected:
+            if configured:
+                logger.info(
+                    "ADB %s absent — utilisation de %s (USB)",
+                    configured,
+                    connected[0],
+                )
+            return connected[0]
         return configured or None
+
+    async def _ensure_adb_connected(self, serial: str | None = None) -> bool:
+        """Reconnecte ADB Wi-Fi si nécessaire (CYB-063)."""
+        target = serial or self._adb_serial
+        if not target:
+            return False
+        devices = await self._list_adb_devices()
+        if target in devices:
+            self._last_adb_connect_ok = True
+            return True
+        if ":" not in target:
+            self._last_adb_connect_ok = False
+            return False
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["adb", "connect", target],
+                capture_output=True,
+                timeout=8.0,
+                text=True,
+            )
+            self._last_adb_connect_at = time.monotonic()
+            output = ((result.stdout or "") + (result.stderr or "")).lower()
+            devices = await self._list_adb_devices()
+            self._last_adb_connect_ok = target in devices or "connected" in output
+            if self._last_adb_connect_ok:
+                logger.info("ADB reconnecté : %s", target)
+            return self._last_adb_connect_ok
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.warning("ADB connect %s échoué: %s", target, exc)
+            self._last_adb_connect_ok = False
+            return False
+
+    async def ensure_adb_connected(self) -> dict[str, Any]:
+        serial = self._adb_serial or SPEECH_ADB_SERIAL
+        ok = await self._ensure_adb_connected(serial)
+        ready = await self._adb_device_ready()
+        return {"ok": ok and ready, "serial": serial, "device_ready": ready}
+
+    def diagnostics(self) -> dict[str, Any]:
+        return {
+            "configured_serial": self._adb_serial or SPEECH_ADB_SERIAL,
+            "last_connect_ok": self._last_adb_connect_ok,
+            "last_connect_age_s": (
+                round(time.monotonic() - self._last_adb_connect_at, 1)
+                if self._last_adb_connect_at
+                else None
+            ),
+            "queue_size": self._queue.qsize(),
+            "worker_running": self._worker_task is not None and not self._worker_task.done(),
+            "speaking": self._status.speaking,
+            "last_method": self._status.last_method,
+        }
 
     async def _adb_device_ready(self) -> bool:
         return bool(await self._resolve_adb_serial())
 
-    async def speak(self, text: str, interrupt: bool = True) -> dict[str, Any]:
+    def _priority_value(self, priority: SpeechPriority | str) -> int:
+        return SPEECH_PRIORITY_VALUES.get(str(priority), 1)
+
+    async def _flush_queue(self) -> None:
+        if self._speech_task and not self._speech_task.done():
+            self._speech_task.cancel()
+            try:
+                await self._speech_task
+            except asyncio.CancelledError:
+                pass
+            self._speech_task = None
+        while True:
+            try:
+                _, _, item = self._queue.get_nowait()
+                future = item.get("future")
+                if future and not future.done():
+                    future.set_result(
+                        {"ok": False, "error": "interrompu", "text": item.get("text", "")}
+                    )
+                self._queue.task_done()
+            except asyncio.QueueEmpty:
+                break
+
+    def _ensure_worker(self) -> None:
+        if self._worker_task is None or self._worker_task.done():
+            self._worker_task = asyncio.create_task(self._worker_loop())
+
+    async def _worker_loop(self) -> None:
+        while True:
+            _, _, item = await self._queue.get()
+            try:
+                result = await self._speak_immediate(item["text"])
+                future = item.get("future")
+                if future and not future.done():
+                    future.set_result(result)
+            except Exception as exc:
+                future = item.get("future")
+                if future and not future.done():
+                    future.set_exception(exc)
+            finally:
+                self._queue.task_done()
+
+    async def speak(
+        self,
+        text: str,
+        interrupt: bool = True,
+        priority: SpeechPriority | str = "normal",
+    ) -> dict[str, Any]:
         text = text.strip()
         if not text:
             return {"ok": False, "error": "Texte vide"}
 
-        if interrupt and self._speech_task:
-            self._speech_task.cancel()
+        if interrupt:
+            await self._flush_queue()
 
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[dict[str, Any]] = loop.create_future()
+        self._queue_seq += 1
+        await self._queue.put(
+            (self._priority_value(priority), self._queue_seq, {"text": text, "future": future})
+        )
+        self._ensure_worker()
+        return await future
+
+    async def _speak_immediate(self, text: str) -> dict[str, Any]:
         if self._mock:
             self._speech_task = asyncio.create_task(self._mock_speak(text))
             return {"ok": True, "method": "mock", "text": text}
 
         # ADB en premier : canal fiable (CybelTTSBridge) sur la tête Android.
+        adb_serial = self._adb_serial or SPEECH_ADB_SERIAL
+        if adb_serial:
+            await self._ensure_adb_connected(adb_serial)
         adb_serial = await self._resolve_adb_serial()
         if adb_serial:
             adb_method = await self._try_adb_speak(text, adb_serial)
@@ -430,9 +556,7 @@ class RobotSpeech:
         await asyncio.sleep(0.25)
 
     async def stop(self) -> dict[str, Any]:
-        if self._speech_task:
-            self._speech_task.cancel()
-            self._speech_task = None
+        await self._flush_queue()
 
         self._status.speaking = False
         if self._emit:

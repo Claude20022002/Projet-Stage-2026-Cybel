@@ -1,4 +1,7 @@
 from pydantic_settings import BaseSettings
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -21,6 +24,14 @@ class Settings(BaseSettings):
     navigation_wait_timeout: float = 300.0
     low_battery_threshold: int = 20
     auto_return_charge: bool = True
+    mqtt_enabled: bool = True
+    mqtt_host: str = ""
+    mqtt_port: int = 1883
+    mqtt_topics: list[str] = ["test_mul"]
+    mqtt_subscribe_all: bool = False
+    mqtt_connect_timeout: float = 10.0
+    data_dir: Path = ROOT / "data"
+    history_max_entries: int = 500
     backend_port: int = 8000
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

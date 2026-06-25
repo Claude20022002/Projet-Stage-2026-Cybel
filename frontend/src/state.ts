@@ -12,6 +12,8 @@ import type {
   RobotStatus,
   SpeechStatus,
   TourStatus,
+  PatrolStatus,
+  PatrolTaskData,
 } from "./types";
 
 type Listener = () => void;
@@ -32,6 +34,10 @@ export const state: AppState = {
   tour: null,
   tourStatus: null,
   tourEditingStopId: null,
+  patrolTasks: [],
+  selectedPatrolTaskId: null,
+  patrolStatus: null,
+  patrolEditingStopId: null,
   events: [],
   wsConnected: false,
   voiceListening: false,
@@ -121,6 +127,26 @@ export function setTourStatus(status: TourStatus | null): void {
 
 export function setTourEditingStopId(id: string | null): void {
   state.tourEditingStopId = id;
+  notify();
+}
+
+export function setPatrolTasks(tasks: PatrolTaskData[]): void {
+  state.patrolTasks = tasks;
+  notify();
+}
+
+export function setSelectedPatrolTaskId(id: string | null): void {
+  state.selectedPatrolTaskId = id;
+  notify();
+}
+
+export function setPatrolStatus(status: PatrolStatus | null): void {
+  state.patrolStatus = status;
+  notify();
+}
+
+export function setPatrolEditingStopId(id: string | null): void {
+  state.patrolEditingStopId = id;
   notify();
 }
 

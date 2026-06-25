@@ -120,6 +120,16 @@ adb connect <ip_wifi>:5555
 
 </details>
 
+### Reconnexion ADB automatique (CYBEL Phase 6)
+
+Le backend tente désormais automatiquement :
+
+1. **`adb connect <SPEECH_ADB_SERIAL>`** avant chaque annonce TTS si l'appareil Wi-Fi n'est pas listé dans `adb devices`.
+2. Un **health check toutes les 90 s** au démarrage du backend (lifespan FastAPI).
+3. Un **diagnostic unifié** via `GET /api/diagnostics` et la page **Paramètres** du contrôleur.
+
+Si le TTS reste muet, ouvrez Paramètres → Diagnostic et vérifiez la ligne **ADB TTS**.
+
 ## 5. Checklist après un redémarrage du robot
 
 Un redémarrage du robot (châssis ou tête Android) peut casser un ou

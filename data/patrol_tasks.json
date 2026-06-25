@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "lab_patrol",
+      "name": "Patrouille laboratoire",
+      "mode": "cycle",
+      "intro_speech_fr": "Démarrage de la patrouille du laboratoire. Je vais surveiller les points de contrôle.",
+      "intro_speech_en": "Starting laboratory patrol. I will monitor the checkpoints.",
+      "stops": [
+        {
+          "id": "lg_10",
+          "name": "Station LG-10",
+          "name_en": "LG-10 station",
+          "speech_fr": "Point de contrôle : station LG-10. Zone opérationnelle.",
+          "speech_en": "Checkpoint: LG-10 station. Operational area.",
+          "x": -2.45,
+          "y": 0.79,
+          "theta": -2.63,
+          "dwell_seconds": 8
+        },
+        {
+          "id": "lg_09",
+          "name": "Station LG-09",
+          "name_en": "LG-09 station",
+          "speech_fr": "Point de contrôle : station LG-09.",
+          "speech_en": "Checkpoint: LG-09 station.",
+          "x": -3.01,
+          "y": -0.89,
+          "theta": 2.87,
+          "dwell_seconds": 8
+        },
+        {
+          "id": "extraction_soufflage",
+          "name": "Extraction et soufflage",
+          "name_en": "Extraction and blowing",
+          "speech_fr": "Point de contrôle : zone extraction et soufflage.",
+          "speech_en": "Checkpoint: extraction and blowing area.",
+          "x": -3.0,
+          "y": -1.8,
+          "theta": -1.69,
+          "dwell_seconds": 8
+        }
+      ]
+    }
+  ]
+}

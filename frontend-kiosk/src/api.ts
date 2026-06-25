@@ -1,4 +1,4 @@
-import type { LabTourInfo, Lang, TourStatus } from "./types";
+import type { KioskDestination, LabTourInfo, Lang, RobotStatus, TourStatus } from "./types";
 
 const API_BASE = "";
 
@@ -29,4 +29,11 @@ export const api = {
     }),
   stopTour: () =>
     request<{ ok: boolean; status?: TourStatus }>("/api/tour/stop", { method: "POST" }),
+  getDestinations: () => request<KioskDestination[]>("/api/reception/destinations"),
+  goDestination: (pointName: string, lang: Lang) =>
+    request<{ ok: boolean; point: string; events?: string[] }>("/api/reception/go", {
+      method: "POST",
+      body: JSON.stringify({ point_name: pointName, lang }),
+    }),
+  getRobotStatus: () => request<RobotStatus>("/api/robot/status"),
 };

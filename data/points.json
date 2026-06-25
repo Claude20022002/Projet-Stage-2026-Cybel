@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "updated_at": "2026-06-25T10:36:24.478028+00:00",
+  "points": [
+    {
+      "id": "extraction_soufflage",
+      "name": "Extraction et soufflage",
+      "type": "common",
+      "x": -3.0,
+      "y": -1.8,
+      "theta": -1.69,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "dtf_c31_xp600",
+      "name": "Imprimante DTF C31 XP600",
+      "type": "common",
+      "x": -13.6,
+      "y": 0.53,
+      "theta": -2.08,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "remplissage_bouchonnage",
+      "name": "Poste remplissage et bouchonnage",
+      "type": "common",
+      "x": -0.83,
+      "y": -1.6,
+      "theta": -0.21,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "cnc_router",
+      "name": "Routeur CNC",
+      "type": "common",
+      "x": -8.38,
+      "y": 1.45,
+      "theta": 0.88,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "lg_09",
+      "name": "Station LG-09",
+      "type": "common",
+      "x": -3.01,
+      "y": -0.89,
+      "theta": 2.87,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "lg_10",
+      "name": "Station LG-10",
+      "type": "common",
+      "x": -2.45,
+      "y": 0.79,
+      "theta": -2.63,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "serigraphie",
+      "name": "Sérigraphie",
+      "type": "common",
+      "x": -11.58,
+      "y": 2.86,
+      "theta": -2.66,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    },
+    {
+      "id": "thermoformage",
+      "name": "Thermoformage",
+      "type": "common",
+      "x": -10.83,
+      "y": -11.64,
+      "theta": -0.18,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "local"
+    }
+  ]
+}

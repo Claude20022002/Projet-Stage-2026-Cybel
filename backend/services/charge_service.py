@@ -40,6 +40,7 @@ class ChargeService:
                 await self._robot_service.speak(
                     "Je retourne à la borne de recharge.",
                     interrupt=True,
+                    priority="urgent",
                 )
             except Exception as exc:
                 logger.debug("TTS retour borne ignoré : %s", exc)
@@ -77,7 +78,15 @@ class ChargeService:
             from services.tour_service import tour_service
 
             await tour_service.halt()
-            await self.go_home(speak=True)
+            try:
+                await self._robot_service.speak(
+                    f"Attention, batterie faible à {battery} pour cent. Je retourne à la borne.",
+                    interrupt=True,
+                    priority="urgent",
+                )
+            except Exception as exc:
+                logger.debug("TTS alerte batterie ignoré : %s", exc)
+            await self.go_home(speak=False)
         except Exception as exc:
             logger.error("Retour charge auto échoué : %s", exc)
             self._auto_return_in_progress = False

@@ -1421,6 +1421,193 @@ body {
     flex-shrink: 0;
 }
 
+/* ── Patrol page / panel ── */
+.patrol-page {
+    padding: 1.5rem;
+    max-width: 820px;
+}
+
+.patrol-page__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.patrol-page__header h1 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.patrol-page__header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.patrol-page__meta {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface);
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+}
+
+.patrol-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.patrol-panel__badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.patrol-panel__badge--running {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.patrol-panel__badge--error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.patrol-panel__task-select {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.patrol-panel__task-select label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.patrol-panel__task-select select {
+    min-width: 220px;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+}
+
+.patrol-panel__mode {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.patrol-panel__hint,
+.patrol-panel__live {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.patrol-panel__phase {
+    color: var(--primary);
+    font-size: 0.85rem;
+}
+
+.patrol-panel__error {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.patrol-panel__controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.patrol-panel__stops-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.patrol-stop-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.patrol-stop-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.patrol-stop-item--active {
+    border-color: var(--primary);
+    background: #eff6ff;
+}
+
+.patrol-stop-item__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+}
+
+.patrol-stop-item__num {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.patrol-stop-item__coords {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.patrol-stop-item__actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
 /* ── Settings page ── */
 .settings-page {
     padding: 1.5rem;
@@ -1508,6 +1695,37 @@ body {
 
 .settings-info a:hover {
     text-decoration: underline;
+}
+
+.diag-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.4rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    margin-right: 0.5rem;
+}
+
+.diag-badge--ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.diag-badge--fail {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.settings-info--diag div {
+    align-items: center;
+}
+
+.settings-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
 }
 
 @media (max-width: 900px) {

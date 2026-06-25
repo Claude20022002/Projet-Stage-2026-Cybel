@@ -134,6 +134,9 @@ class MockRobot:
     def get_points(self) -> list[Point]:
         return [point.model_copy(deep=True) for point in self.points]
 
+    def set_points(self, points: list[Point]) -> None:
+        self.points = [p.model_copy(deep=True) for p in points]
+
     async def add_point(
         self,
         name: str,
@@ -150,6 +153,7 @@ class MockRobot:
             y=y if y is not None else self.pose.y,
             theta=theta if theta is not None else self.pose.theta,
             floor=self.status.current_floor_name,
+            source="local",
         )
         self.points.append(point)
         await self._emit("points", {"points": [p.model_dump() for p in self.points]})
@@ -173,11 +177,25 @@ class MockRobot:
     def get_map(self) -> MapData | None:
         return self.map_data.model_copy(deep=True)
 
+    def connection_diagnostics(self) -> dict:
+        return {
+            "connected": True,
+            "host": "mock",
+            "last_message_age_s": 0.0,
+            "stale": False,
+        }
+
+    def speech_diagnostics(self) -> dict:
+        return self._speech.diagnostics()
+
+    async def ensure_adb_tts(self) -> dict:
+        return await self._speech.ensure_adb_connected()
+
     def get_speech_status(self) -> SpeechStatus:
         return self._speech.get_status()
 
-    async def speak(self, text: str, interrupt: bool = True) -> dict:
-        return await self._speech.speak(text, interrupt=interrupt)
+    async def speak(self, text: str, interrupt: bool = True, priority: str = "normal") -> dict:
+        return await self._speech.speak(text, interrupt=interrupt, priority=priority)
 
     async def wait_for_speech(self, text: str) -> None:
         await self._speech.wait_for_completion(text)
@@ -270,18 +288,36 @@ class MockRobot:
     ) -> bool:
         return await self.wait_for_localization(min_percent, timeout)
 
+    async def config_mqtt_server(self, host: str, *, switch_on: bool = True) -> bool:
+        await self._emit("event", {"message": f"Config MQTT mock → {host}"})
+        return True
+
     async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool:
+        from sdk.tour_navigation import evaluate_navigation_arrival
+
         limit = timeout if timeout is not None else 300.0
         loop = asyncio.get_running_loop()
         deadline = loop.time() + limit
         saw_active = False
         activation_deadline = loop.time() + 12.0
+        goal = self.status.current_goal
         while loop.time() < deadline:
-            if self.status.nav_status == 602:
+            nav_status = self.status.nav_status
+            if nav_status == 602:
                 saw_active = True
-            if self.status.nav_status == 604:
+            if nav_status == 604:
                 return False
-            if saw_active and self.status.nav_status == 603:
+            goal_x = goal.x if goal else None
+            goal_y = goal.y if goal else None
+            if evaluate_navigation_arrival(
+                nav_status=nav_status,
+                saw_active=saw_active,
+                pose_x=self.pose.x,
+                pose_y=self.pose.y,
+                goal_x=goal_x,
+                goal_y=goal_y,
+                velocity=self.status.velocity,
+            ):
                 return True
             if not saw_active and loop.time() > activation_deadline:
                 return False

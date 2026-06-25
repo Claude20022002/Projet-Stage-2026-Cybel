@@ -10,6 +10,7 @@ from config import settings
 from sdk.mock_robot import MockRobot
 from sdk.models import MapData, MoveCommand, Point, Pose, RobotSettings, RobotStatus, SpeechStatus
 from sdk.real_robot import RealRobot
+from services.persistence_service import persistence_service
 
 
 class RobotBackend(Protocol):
@@ -19,6 +20,7 @@ class RobotBackend(Protocol):
     def get_status(self) -> RobotStatus: ...
     def get_pose(self) -> Pose: ...
     def get_points(self) -> list[Point]: ...
+    def set_points(self, points: list[Point]) -> None: ...
     def get_map(self) -> MapData | None: ...
     async def move(self, linear_x: float, angular_z: float) -> None: ...
     async def stop(self) -> None: ...
@@ -31,6 +33,7 @@ class RobotBackend(Protocol):
     async def ensure_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
     async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool: ...
     async def go_home(self) -> bool: ...
+    async def config_mqtt_server(self, host: str, *, switch_on: bool = True) -> bool: ...
     async def navigate_to_point(self, point_name: str) -> bool: ...
     async def navigate_to_coordinate(
         self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
@@ -50,7 +53,8 @@ class RobotService:
     def __init__(self) -> None:
         self._backend: RobotBackend | None = None
         self._use_mock = settings.robot_mock
-        self._settings = RobotSettings()
+        saved = persistence_service.load_robot_settings()
+        self._settings = saved or RobotSettings()
         self._telemetry_callbacks: list = []
 
     @property
@@ -62,6 +66,7 @@ class RobotService:
 
     def update_settings(self, data: RobotSettings) -> RobotSettings:
         self._settings = data
+        persistence_service.save_robot_settings(self._settings)
         return self.get_settings()
 
     async def connect(self) -> None:
@@ -88,6 +93,9 @@ class RobotService:
                 stale_seconds=settings.robot_stale_seconds,
             )
         await self._backend.start()
+        merged = persistence_service.merge_robot_points(self._backend.get_points())
+        if hasattr(self._backend, "set_points"):
+            self._backend.set_points(merged)
         for callback in self._telemetry_callbacks:
             self._backend.on_telemetry(callback)
 
@@ -153,38 +161,97 @@ class RobotService:
         return await self._require().wait_for_navigation_arrival(timeout)
 
     async def go_home(self) -> bool:
-        return await self._require().go_home()
+        success = await self._require().go_home()
+        status = self.get_status()
+        persistence_service.log_navigation(
+            kind="go_home",
+            success=success,
+            nav_status=status.nav_status,
+            detail="retour borne",
+        )
+        return success
+
+    async def config_mqtt_server(self, host: str, *, switch_on: bool = True) -> bool:
+        return await self._require().config_mqtt_server(host, switch_on=switch_on)
 
     async def navigate_to_point(self, point_name: str) -> bool:
-        return await self._require().navigate_to_point(point_name)
+        success = await self._require().navigate_to_point(point_name)
+        status = self.get_status()
+        persistence_service.log_navigation(
+            kind="navigate_point",
+            success=success,
+            point_name=point_name,
+            nav_status=status.nav_status,
+        )
+        return success
 
     async def navigate_to_coordinate(
         self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
     ) -> bool:
-        return await self._require().navigate_to_coordinate(
+        success = await self._require().navigate_to_coordinate(
             x, y, theta, check_map=check_map
         )
+        status = self.get_status()
+        persistence_service.log_navigation(
+            kind="navigate_coordinate",
+            success=success,
+            x=x,
+            y=y,
+            theta=theta,
+            nav_status=status.nav_status,
+        )
+        return success
 
     async def add_point(
         self, name: str, type: str = "common", x: float | None = None,
         y: float | None = None, theta: float | None = None
     ) -> Point:
-        return await self._require().add_point(name, type=type, x=x, y=y, theta=theta)
+        point = await self._require().add_point(name, type=type, x=x, y=y, theta=theta)
+        persistence_service.upsert_point(point)
+        return point
 
     async def delete_point(self, name: str) -> bool:
-        return await self._require().delete_point(name)
+        success = await self._require().delete_point(name)
+        if success:
+            persistence_service.remove_point(name)
+        return success
 
     def get_speech_status(self) -> SpeechStatus:
         return self._require().get_speech_status()
 
-    async def speak(self, text: str, interrupt: bool = True) -> dict:
-        return await self._require().speak(text, interrupt=interrupt)
+    async def speak(self, text: str, interrupt: bool = True, priority: str = "normal") -> dict:
+        result = await self._require().speak(text, interrupt=interrupt, priority=priority)
+        persistence_service.log_speech(
+            text=text,
+            ok=bool(result.get("ok")),
+            method=str(result.get("method", "")),
+            error=str(result.get("error", "")),
+        )
+        return result
 
     async def wait_for_speech(self, text: str) -> None:
         await self._require().wait_for_speech(text)
 
     async def stop_speech(self) -> dict:
         return await self._require().stop_speech()
+
+    def get_connection_diagnostics(self) -> dict:
+        backend = self._require()
+        if hasattr(backend, "connection_diagnostics"):
+            return backend.connection_diagnostics()
+        return {"connected": False}
+
+    def get_speech_diagnostics(self) -> dict:
+        backend = self._require()
+        if hasattr(backend, "speech_diagnostics"):
+            return backend.speech_diagnostics()
+        return {}
+
+    async def ensure_adb_tts(self) -> dict:
+        backend = self._require()
+        if hasattr(backend, "ensure_adb_tts"):
+            return await backend.ensure_adb_tts()
+        return {"ok": False}
 
 
 robot_service = RobotService()

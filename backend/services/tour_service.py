@@ -22,6 +22,7 @@ from sdk.lab_tour import (
 )
 from sdk.tour_navigation import (
     assess_tour_readiness,
+    navigation_recovery_hint,
     navigation_wait_failure_message,
 )
 from sdk.tour_trace import (
@@ -147,6 +148,7 @@ class TourService:
                         destination=dest,
                         never_started=status.nav_status == 601,
                     )
+                    err = f"{err} {navigation_recovery_hint(status.nav_status)}"
                     if tracer:
                         tracer.nav_result(
                             stop,
@@ -203,6 +205,7 @@ class TourService:
                         destination=stop.target_point or "",
                         never_started=status.nav_status == 601,
                     )
+                    err = f"{err} {navigation_recovery_hint(status.nav_status)}"
                     if tracer:
                         tracer.nav_result(
                             stop,
@@ -263,6 +266,11 @@ class TourService:
     async def start(self, lang: str = "fr") -> dict:
         if self._engine and self._engine.is_running():
             return {"ok": False, "error": "Une visite est déjà en cours"}
+
+        from services.patrol_service import patrol_service
+
+        if patrol_service.is_running():
+            return {"ok": False, "error": "Une patrouille est en cours"}
         self.reset_engine()
         tour = load_lab_tour(self._tour_path)
         tracer = start_tour_logger(tour_id=tour.id)

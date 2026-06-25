@@ -15,7 +15,12 @@ from sdk.constants import (
     ROS_MSG_TYPES,
     ROS_SERVICES,
     ROS_TOPICS,
+)
+from sdk.tour_navigation import (
+    evaluate_navigation_arrival,
     navigation_failure_message,
+    navigation_recovery_hint,
+    pose_distance_to_goal,
 )
 from sdk.lidar_utils import parse_laser_scan
 from sdk.map_utils import is_coordinate_navigable, parse_map_metadata, parse_occupancy_grid
@@ -94,6 +99,7 @@ def _parse_marker(raw: dict, index: int) -> Point | None:
         y=y,
         theta=theta,
         floor=str(raw.get("floor") or raw.get("floor_name") or "0"),
+        source="ros",
     )
 
 
@@ -537,14 +543,34 @@ class RealRobot:
     def get_points(self) -> list[Point]:
         return [p.model_copy(deep=True) for p in self._points]
 
+    def set_points(self, points: list[Point]) -> None:
+        self._points = [p.model_copy(deep=True) for p in points]
+
     def get_map(self) -> MapData | None:
         return self.map_data.model_copy(deep=True) if self.map_data else None
+
+    def connection_diagnostics(self) -> dict[str, Any]:
+        age = None
+        if self._last_ros_message_at > 0:
+            age = round(time.monotonic() - self._last_ros_message_at, 1)
+        return {
+            "connected": self._client.connected,
+            "host": self._host,
+            "last_message_age_s": age,
+            "stale": age is not None and age > self._stale_seconds,
+        }
 
     def get_speech_status(self) -> SpeechStatus:
         return self._speech.get_status()
 
-    async def speak(self, text: str, interrupt: bool = True) -> dict:
-        return await self._speech.speak(text, interrupt=interrupt)
+    def speech_diagnostics(self) -> dict[str, Any]:
+        return self._speech.diagnostics()
+
+    async def ensure_adb_tts(self) -> dict[str, Any]:
+        return await self._speech.ensure_adb_connected()
+
+    async def speak(self, text: str, interrupt: bool = True, priority: str = "normal") -> dict:
+        return await self._speech.speak(text, interrupt=interrupt, priority=priority)
 
     async def wait_for_speech(self, text: str) -> None:
         await self._speech.wait_for_completion(text)
@@ -694,6 +720,11 @@ class RealRobot:
         await self._emit("status", self.status.model_dump())
 
     async def release_emergency_stop(self) -> None:
+        if self._client.connected:
+            try:
+                await self._client.publish(ROS_TOPICS["soft_stop"], {"data": False})
+            except Exception:
+                pass
         await self._cancel_navigation()
         self.status.soft_estop = False
         await self._emit("event", {"message": "E-Stop relâché — objectif de navigation effacé"})
@@ -803,24 +834,75 @@ class RealRobot:
             if nav_status == 602:
                 self._nav_saw_active = True
             if nav_status == 604:
+                dest = self.navigating_to or ""
+                distance = (
+                    pose_distance_to_goal(self.pose.x, self.pose.y, goal.x, goal.y)
+                    if goal
+                    else None
+                )
+                message = navigation_failure_message(604, destination=dest)
+                hint = navigation_recovery_hint(604)
                 await self._emit(
                     "event",
-                    {"message": navigation_failure_message(604)},
+                    {
+                        "message": message,
+                        "recovery_hint": hint,
+                        "nav_status": 604,
+                        "distance_to_goal_m": distance,
+                    },
                 )
                 return False
-            if self._nav_saw_active and nav_status == 603:
-                if goal is None or _pose_near_goal(self.pose, goal):
-                    vel = self.status.velocity
-                    if abs(vel[0]) < 0.05 and abs(vel[1]) < 0.05:
-                        return True
+            goal_x = goal.x if goal else None
+            goal_y = goal.y if goal else None
+            if evaluate_navigation_arrival(
+                nav_status=nav_status,
+                saw_active=self._nav_saw_active,
+                pose_x=self.pose.x,
+                pose_y=self.pose.y,
+                goal_x=goal_x,
+                goal_y=goal_y,
+                velocity=self.status.velocity,
+            ):
+                return True
             if not self._nav_saw_active and loop.time() > activation_deadline:
+                distance = pose_distance_to_goal(self.pose.x, self.pose.y, goal_x, goal_y)
                 logger.warning(
-                    "Navigation non démarrée (nav_status=%s, goal=%s)",
+                    "Navigation non démarrée (nav_status=%s, goal=%s, distance=%.2f m)",
                     nav_status,
                     goal,
+                    distance if distance is not None else -1.0,
+                )
+                await self._emit(
+                    "event",
+                    {
+                        "message": (
+                            f"Navigation non démarrée (statut {nav_status}). "
+                            f"{navigation_recovery_hint(nav_status)}"
+                        ),
+                        "recovery_hint": navigation_recovery_hint(nav_status),
+                        "distance_to_goal_m": distance,
+                    },
                 )
                 return False
             await asyncio.sleep(0.4)
+
+        distance = pose_distance_to_goal(
+            self.pose.x,
+            self.pose.y,
+            goal.x if goal else None,
+            goal.y if goal else None,
+        )
+        await self._emit(
+            "event",
+            {
+                "message": (
+                    f"Délai d'attente navigation dépassé "
+                    f"({self.status.nav_status_label}). {navigation_recovery_hint(self.status.nav_status)}"
+                ),
+                "recovery_hint": navigation_recovery_hint(self.status.nav_status),
+                "distance_to_goal_m": distance,
+            },
+        )
         return False
 
     async def _wait_nav_ready_after_cancel(self, timeout: float = 8.0) -> bool:
@@ -917,6 +999,7 @@ class RealRobot:
             y=y if y is not None else self.pose.y,
             theta=theta if theta is not None else self.pose.theta,
             floor=self.status.current_floor_name,
+            source="local",
         )
 
         if self._client.connected:
@@ -1070,6 +1153,44 @@ class RealRobot:
             {
                 "message": "Retour borne de recharge lancé" if ok else "Retour borne — service refusé",
                 "method": ROS_SERVICES["start_recharge"],
+            },
+        )
+        return ok
+
+    async def config_mqtt_server(self, host: str, *, switch_on: bool = True) -> bool:
+        """Configure le broker MQTT du châssis (APK configStationServer)."""
+        if not self._client.connected:
+            return False
+        response = await self._client.call_service(
+            ROS_SERVICES["config_mqtt_server"],
+            {"cmd": "set", "host": host, "switch_on": switch_on},
+            timeout=8.0,
+        )
+        ok = response.get("result", True) is not False
+        await self._emit(
+            "event",
+            {
+                "message": f"Config MQTT châssis → {host} ({'on' if switch_on else 'off'})",
+                "method": ROS_SERVICES["config_mqtt_server"],
+            },
+        )
+        return ok
+
+    async def config_mqtt_server(self, host: str, *, switch_on: bool = True) -> bool:
+        """Configure le broker MQTT du châssis (APK configStationServer)."""
+        if not self._client.connected:
+            return False
+        response = await self._client.call_service(
+            ROS_SERVICES["config_mqtt_server"],
+            {"cmd": "set", "host": host, "switch_on": switch_on},
+            timeout=8.0,
+        )
+        ok = response.get("result", True) is not False
+        await self._emit(
+            "event",
+            {
+                "message": f"Config MQTT châssis → {host} ({'on' if switch_on else 'off'})",
+                "method": ROS_SERVICES["config_mqtt_server"],
             },
         )
         return ok

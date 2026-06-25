@@ -4,7 +4,11 @@ Sans import ``sdk.*`` pour rester chargeable sur Termux lite (pas de pydantic).
 """
 from __future__ import annotations
 
+import math
+
 DEFAULT_LOCALIZATION_MIN_PERCENT = 60.0
+GOAL_TOLERANCE_M = 0.45
+VELOCITY_STOP_THRESHOLD = 0.05
 
 NAV_STATUS_HINTS: dict[int, str] = {
     600: "Robot non localisé — utilisez Relocaliser avant de naviguer.",
@@ -24,6 +28,57 @@ def navigation_failure_message(nav_status: int, *, destination: str = "") -> str
     if destination:
         return f"{hint} (destination : {destination})"
     return hint
+
+
+def navigation_recovery_hint(nav_status: int) -> str:
+    """Conseil opérateur après échec ou blocage navigation (CYB-061)."""
+    return {
+        604: (
+            "Dégagez le passage, relocalisez le robot depuis le contrôleur, "
+            "puis relancez la navigation."
+        ),
+        600: "Placez le robot dans une zone connue et lancez la relocalisation.",
+        601: (
+            "Le robot n'a pas démarré — vérifiez le mode automatique et la destination sur la carte."
+        ),
+        602: "Attendez la fin du déplacement ou annulez la navigation en cours.",
+    }.get(nav_status, "Consultez le diagnostic connexion (Paramètres) si le problème persiste.")
+
+
+def pose_distance_to_goal(
+    pose_x: float,
+    pose_y: float,
+    goal_x: float | None,
+    goal_y: float | None,
+) -> float | None:
+    if goal_x is None or goal_y is None:
+        return None
+    return math.hypot(pose_x - goal_x, pose_y - goal_y)
+
+
+def evaluate_navigation_arrival(
+    *,
+    nav_status: int,
+    saw_active: bool,
+    pose_x: float,
+    pose_y: float,
+    goal_x: float | None,
+    goal_y: float | None,
+    velocity: tuple[float, float],
+    tolerance: float = GOAL_TOLERANCE_M,
+) -> bool:
+    """Combine nav_status, proximité objectif et vitesse nulle (CYB-061)."""
+    distance = pose_distance_to_goal(pose_x, pose_y, goal_x, goal_y)
+    if distance is not None and distance <= tolerance:
+        return True
+    if nav_status == 604:
+        return False
+    if saw_active and nav_status == 603:
+        if distance is None or distance <= tolerance:
+            vx, vy = velocity[0], velocity[1]
+            if abs(vx) < VELOCITY_STOP_THRESHOLD and abs(vy) < VELOCITY_STOP_THRESHOLD:
+                return True
+    return False
 
 
 def normalize_localization_percent(value: float) -> float:

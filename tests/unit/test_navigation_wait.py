@@ -27,6 +27,8 @@ async def test_wait_accepts_after_navigation_cycle():
 
     async def finish_nav():
         await asyncio.sleep(0.3)
+        robot.pose.x = 1.0
+        robot.pose.y = 0.0
         robot.status.nav_status = 603
 
     asyncio.create_task(finish_nav())

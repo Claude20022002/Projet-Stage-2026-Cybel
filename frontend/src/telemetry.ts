@@ -78,6 +78,8 @@ export function connectTelemetry(): void {
       }
     } else if (type === "event" && typeof data.message === "string") {
       pushEvent(data.message);
+    } else if (type === "mqtt" && typeof data.message === "string") {
+      pushEvent(data.message);
     }
   };
 }

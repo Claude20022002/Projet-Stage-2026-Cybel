@@ -6,8 +6,11 @@ import type {
   Pose,
   ReceptionAction,
   RobotSettings,
+  DiagnosticsSnapshot,
   RobotStatus,
   SpeechStatus,
+  PatrolStatus,
+  PatrolTaskData,
   TourStatus,
   TourStopData,
 } from "./types";
@@ -85,6 +88,7 @@ export const api = {
   cancelNavigation: () =>
     request("/api/navigation/cancel", { method: "POST" }),
   getSettings: () => request<RobotSettings>("/api/settings"),
+  getDiagnostics: () => request<DiagnosticsSnapshot>("/api/diagnostics"),
   updateSettings: (settings: RobotSettings) =>
     request<RobotSettings>("/api/settings", {
       method: "PUT",
@@ -134,5 +138,19 @@ export const api = {
   deleteTourStop: (stopId: string) =>
     request<{ ok: boolean; tour: LabTourData }>(`/api/tour/stops/${stopId}`, {
       method: "DELETE",
+    }),
+  getPatrolTasks: () => request<PatrolTaskData[]>("/api/patrol"),
+  getPatrolStatus: () => request<PatrolStatus>("/api/patrol/status"),
+  getPatrolTask: (taskId: string) => request<PatrolTaskData>(`/api/patrol/${taskId}`),
+  startPatrol: (taskId: string, lang: "fr" | "en" = "fr") =>
+    request<{ ok: boolean; status?: PatrolStatus; error?: string }>(
+      `/api/patrol/${encodeURIComponent(taskId)}/start?lang=${lang}`,
+      { method: "POST" }
+    ),
+  stopPatrol: () => request<{ ok: boolean; status?: PatrolStatus }>("/api/patrol/stop", { method: "POST" }),
+  updatePatrolTask: (taskId: string, task: Partial<PatrolTaskData>) =>
+    request<{ ok: boolean; task: PatrolTaskData }>(`/api/patrol/${encodeURIComponent(taskId)}`, {
+      method: "PUT",
+      body: JSON.stringify(task),
     }),
 };

@@ -20,7 +20,7 @@ async def get_speech_status() -> SpeechStatus:
 
 @router.post("/say")
 async def say(request: SpeechRequest) -> dict:
-    result = await robot_service.speak(request.text, interrupt=request.interrupt)
+    result = await robot_service.speak(request.text, interrupt=request.interrupt, priority=request.priority)
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("error", "Échec TTS"))
     return result

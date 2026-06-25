@@ -57,7 +57,16 @@ ROS_SERVICES = {
     # Annulation (services)
     "move_base_cancel": "/move_base/cancel",
     "cancel_nav": "/path_follower/cancel",
+    # MQTT (châssis — MsgManager.configStationServer)
+    "config_mqtt_server": "/config_mqtt_server",
 }
+
+# Topics MQTT broker châssis (observation passive)
+MQTT_DEFAULT_TOPICS: list[str] = [
+    "test_mul",
+]
+
+MQTT_TOPIC_TEST_MUL = "test_mul"
 
 # Ordre de tentative pour relocalisation (CYB-003)
 GLOBAL_LOCATE_SERVICE_CHAIN: list[str] = [

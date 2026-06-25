@@ -26,6 +26,21 @@ export const t = {
     stoppedHint: "La visite a été interrompue. Vous pouvez en relancer une nouvelle.",
     errorHint:
       "Échec de navigation possible (code 604) : obstacle sur le chemin, destination hors carte, ou robot mal localisé. Dégagez le passage, relocalisez depuis le contrôleur PC, puis relancez.",
+    chooseMode: "Que souhaitez-vous faire ?",
+    modeTour: "Visite guidée",
+    modeTourHint: "Parcours complet avec présentation des équipements",
+    modeDestinations: "Choisir une destination",
+    modeDestinationsHint: "Le robot vous accompagne vers un point du laboratoire",
+    destinationsTitle: "Où souhaitez-vous aller ?",
+    destinationsHint: "Touchez une destination pour que le robot vous y conduise.",
+    back: "Retour",
+    destRunning: "En route",
+    destCompleted: "Destination atteinte",
+    destCompletedHint: "Vous êtes arrivé. Le robot reste à votre disposition.",
+    destError: "Navigation impossible",
+    destErrorHint: "Un obstacle ou un problème de localisation a empêché le déplacement.",
+    destFollow: "Suivez le robot jusqu'à votre destination",
+    newDestination: "Autre destination",
   },
   en: {
     title: "Laboratory tour",
@@ -53,6 +68,21 @@ export const t = {
     completedHint: "Thank you for visiting the laboratory. The robot remains available.",
     stoppedHint: "The tour was interrupted. You can start a new one.",
     errorHint: "Check that the robot is ready and navigation points exist on the map.",
+    chooseMode: "What would you like to do?",
+    modeTour: "Guided tour",
+    modeTourHint: "Full route with equipment presentations",
+    modeDestinations: "Pick a destination",
+    modeDestinationsHint: "The robot will take you to a lab location",
+    destinationsTitle: "Where would you like to go?",
+    destinationsHint: "Tap a destination and the robot will guide you there.",
+    back: "Back",
+    destRunning: "On the way",
+    destCompleted: "Destination reached",
+    destCompletedHint: "You have arrived. The robot remains available.",
+    destError: "Navigation failed",
+    destErrorHint: "An obstacle or localization issue prevented the trip.",
+    destFollow: "Follow the robot to your destination",
+    newDestination: "Another destination",
   },
 } as const;
 
@@ -72,4 +102,19 @@ export function phaseLabel(phase: string, lang: keyof typeof t): string {
     default:
       return "";
   }
+}
+
+const POINT_ICONS: Record<string, string> = {
+  charging: "🔌",
+  gate: "🚪",
+  access: "🚪",
+  ride: "🛗",
+  wait: "⏳",
+  stop: "🛑",
+  label: "🏷️",
+  common: "📍",
+};
+
+export function pointIcon(type: string): string {
+  return POINT_ICONS[type] ?? POINT_ICONS.common;
 }

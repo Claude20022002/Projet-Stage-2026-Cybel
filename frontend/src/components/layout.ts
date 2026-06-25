@@ -33,6 +33,14 @@ export function renderLayout(
             ${tourActive ? '<span class="sidebar__link-dot" aria-hidden="true"></span>' : ""}
           </button>
           <button
+            class="sidebar__link ${activePage === "patrol" ? "sidebar__link--active" : ""}"
+            data-page="patrol"
+            type="button"
+          >
+            ${icons.patrol("icon", 18)}
+            <span>Patrouille</span>
+          </button>
+          <button
             class="sidebar__link ${activePage === "settings" ? "sidebar__link--active" : ""}"
             data-page="settings"
             type="button"

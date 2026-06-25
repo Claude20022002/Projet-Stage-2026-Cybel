@@ -1,7 +1,7 @@
 import { api } from "../api";
 import { icons } from "../icons";
 import { pushEvent } from "../state";
-import type { RobotSettings } from "../types";
+import type { DiagnosticsSnapshot, RobotSettings } from "../types";
 
 const SPEED_LABELS = { low: "Lente (0.3 m/s)", medium: "Moyenne (0.5 m/s)", high: "Rapide (0.8 m/s)" };
 const TRAVEL_LABELS = {
@@ -10,7 +10,34 @@ const TRAVEL_LABELS = {
   efficiency: "Efficacité — couloirs étroits",
 };
 
-export function renderSettingsPage(settings: RobotSettings | null): string {
+function diagBadge(ok: boolean): string {
+  return `<span class="diag-badge ${ok ? "diag-badge--ok" : "diag-badge--fail"}">${ok ? "OK" : "KO"}</span>`;
+}
+
+function renderDiagnostics(diag: DiagnosticsSnapshot | null): string {
+  if (!diag) {
+    return `<p class="settings-hint">Diagnostic indisponible.</p>`;
+  }
+  const rosAge =
+    diag.rosbridge.last_message_age_s != null
+      ? `${diag.rosbridge.last_message_age_s}s`
+      : "—";
+  return `
+    <dl class="settings-info settings-info--diag">
+      <div>${diagBadge(diag.overall_ok)}<dt>État global</dt><dd>${diag.overall_ok ? "Opérationnel" : "Problème détecté"}</dd></div>
+      <div>${diagBadge(!!diag.rosbridge.ok)}<dt>ROSBridge</dt><dd>${diag.rosbridge.host ?? "—"} · dernier msg ${rosAge}</dd></div>
+      <div>${diagBadge(!!diag.mqtt.ok)}<dt>MQTT</dt><dd>${diag.mqtt.active ? "Connecté" : diag.mqtt.enabled ? "Inactif" : "Désactivé"}</dd></div>
+      <div>${diagBadge(!!diag.adb_tts.ok)}<dt>ADB TTS</dt><dd>${diag.adb_tts.configured_serial || "—"}</dd></div>
+      <div>${diagBadge(!!diag.persistence.ok)}<dt>Persistance</dt><dd>${diag.persistence.backend} · ${diag.persistence.data_dir}</dd></div>
+    </dl>
+    <button id="btn-refresh-diagnostics" class="btn btn--secondary btn--sm" type="button">Actualiser</button>
+  `;
+}
+
+export function renderSettingsPage(
+  settings: RobotSettings | null,
+  diagnostics: DiagnosticsSnapshot | null = null
+): string {
   const s = settings ?? {
     speed_gear: "medium" as const,
     travel_mode: "balance" as const,
@@ -71,11 +98,20 @@ export function renderSettingsPage(settings: RobotSettings | null): string {
           <div><dt>Interface usine</dt><dd><a href="http://${s.robot_host}:8082" target="_blank" rel="noopener">Déploiement :8082</a></dd></div>
         </dl>
       </section>
+
+      <section class="settings-card" id="settings-diagnostics">
+        <h2>${icons.alertTriangle("icon", 18)} Diagnostic</h2>
+        ${renderDiagnostics(diagnostics)}
+      </section>
     </div>
   `;
 }
 
-export function bindSettingsEvents(onSaved: () => void): void {
+export function bindSettingsEvents(onSaved: () => void, onRefreshDiagnostics?: () => void): void {
+  document.getElementById("btn-refresh-diagnostics")?.addEventListener("click", () => {
+    onRefreshDiagnostics?.();
+  });
+
   document.getElementById("btn-save-settings")?.addEventListener("click", async () => {
     const speed = (document.getElementById("speed-gear") as HTMLSelectElement).value;
     const travel = (document.getElementById("travel-mode") as HTMLSelectElement).value;

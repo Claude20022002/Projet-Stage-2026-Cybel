@@ -1,10 +1,43 @@
 export type Lang = "fr" | "en";
 
-export type TourScreen = "welcome" | "running" | "completed";
+export type TourScreen =
+  | "welcome"
+  | "destinations"
+  | "dest_running"
+  | "running"
+  | "completed";
+
+export type ActiveFlow = "tour" | "destination" | null;
 
 export type TourState = "idle" | "running" | "completed" | "stopped" | "error";
 
 export type TourPhase = "" | "intro" | "navigating" | "presenting" | "dwell" | "outro";
+
+export type PointType =
+  | "charging"
+  | "common"
+  | "gate"
+  | "access"
+  | "ride"
+  | "wait"
+  | "label"
+  | "stop";
+
+export interface KioskDestination {
+  id: string;
+  name: string;
+  type: PointType;
+  x: number;
+  y: number;
+  theta?: number;
+}
+
+export interface RobotStatus {
+  connected: boolean;
+  nav_status: number;
+  nav_status_label: string;
+  navigating_to: string | null;
+}
 
 export interface TourStopPreview {
   id: string;

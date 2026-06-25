@@ -55,6 +55,8 @@ class Point(BaseModel):
     y: float
     theta: float = 0.0
     floor: str = "0"
+    kiosk_visible: bool = True
+    source: Literal["ros", "local", "merged"] = "ros"
 
 
 class MoveCommand(BaseModel):
@@ -144,9 +146,20 @@ class VoiceCommand(BaseModel):
     text: str
 
 
+class GoDestinationRequest(BaseModel):
+    point_name: str = Field(..., min_length=1)
+    lang: Literal["fr", "en"] = "fr"
+
+
+class KnowledgeAskRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+    lang: Literal["fr", "en"] = "fr"
+
+
 class SpeechRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=500)
     interrupt: bool = True
+    priority: Literal["urgent", "normal", "background"] = "normal"
 
 
 class SpeechStatus(BaseModel):

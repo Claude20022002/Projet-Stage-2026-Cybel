@@ -1,18 +1,38 @@
 import { api } from "./api";
-import { phaseLabel, t } from "./i18n";
-import type { LabTourInfo, Lang, TourScreen, TourStatus } from "./types";
+import { phaseLabel, pointIcon, t } from "./i18n";
+import type {
+  ActiveFlow,
+  KioskDestination,
+  Lang,
+  LabTourInfo,
+  RobotStatus,
+  TourScreen,
+  TourStatus,
+} from "./types";
 
 let lang: Lang = "fr";
 let screen: TourScreen = "welcome";
+let activeFlow: ActiveFlow = null;
 let tour: LabTourInfo | null = null;
 let status: TourStatus | null = null;
+let destinations: KioskDestination[] = [];
+let selectedDestination: string | null = null;
+let robotStatus: RobotStatus | null = null;
 let busy = false;
 let message = "";
 let pollTimer: number | null = null;
 let toastTimer: number | null = null;
+let sawNavigating = false;
 
 function tr() {
   return t[lang];
+}
+
+function headerTitle(): string {
+  if (screen === "destinations" || screen === "dest_running") {
+    return tr().destinationsTitle;
+  }
+  return tourTitle();
 }
 
 function tourTitle(): string {
@@ -43,8 +63,8 @@ function showToast(text: string): void {
   }, 3500);
 }
 
-function syncScreenFromStatus(): void {
-  if (!status) return;
+function syncScreenFromTourStatus(): void {
+  if (!status || activeFlow !== "tour") return;
   if (status.state === "running") {
     screen = "running";
     return;
@@ -54,16 +74,38 @@ function syncScreenFromStatus(): void {
   }
 }
 
+function syncScreenFromRobotStatus(): void {
+  if (!robotStatus || activeFlow !== "destination" || screen !== "dest_running") return;
+  if (robotStatus.nav_status === 602) {
+    sawNavigating = true;
+  }
+  if (robotStatus.nav_status === 604) {
+    stopPolling();
+    screen = "completed";
+    return;
+  }
+  if (sawNavigating && robotStatus.nav_status === 603) {
+    stopPolling();
+    screen = "completed";
+  }
+}
+
 function startPolling(): void {
   stopPolling();
   pollTimer = window.setInterval(async () => {
     try {
-      status = await api.getTourStatus();
-      syncScreenFromStatus();
-      if (status.state !== "running") stopPolling();
+      if (activeFlow === "tour") {
+        status = await api.getTourStatus();
+        syncScreenFromTourStatus();
+        if (status.state !== "running") stopPolling();
+      } else if (activeFlow === "destination") {
+        robotStatus = await api.getRobotStatus();
+        syncScreenFromRobotStatus();
+        if (screen !== "dest_running") stopPolling();
+      }
       render();
     } catch {
-      /* ignore transient network errors during tour */
+      /* ignore transient network errors */
     }
   }, 1500);
 }
@@ -84,13 +126,15 @@ function render(): void {
       <header class="kiosk__header">
         <div class="kiosk__brand">
           <span class="kiosk__logo">CYBEL</span>
-          <span class="kiosk__title">${tourTitle()}</span>
+          <span class="kiosk__title">${headerTitle()}</span>
         </div>
         <button id="btn-lang" class="kiosk__lang" type="button" ${busy ? "disabled" : ""}>
           ${tr().langToggle}
         </button>
       </header>
       ${screen === "welcome" ? renderWelcome() : ""}
+      ${screen === "destinations" ? renderDestinations() : ""}
+      ${screen === "dest_running" ? renderDestRunning() : ""}
       ${screen === "running" ? renderRunning() : ""}
       ${screen === "completed" ? renderCompleted() : ""}
       ${message ? `<div class="kiosk__toast">${message}</div>` : ""}
@@ -108,12 +152,22 @@ function renderWelcome(): string {
         <div class="hero__icon" aria-hidden="true">🤖</div>
         <h1 class="hero__title">${tourTitle()}</h1>
         <p class="hero__subtitle">${tourSubtitle()}</p>
-        <p class="hero__hint">${tr().idleHint}</p>
-        <button id="btn-start" class="btn-primary" type="button" ${busy ? "disabled" : ""}>
-          <span class="btn-primary__icon" aria-hidden="true">▶</span>
-          ${tr().startTour}
+        <p class="hero__hint">${tr().chooseMode}</p>
+      </section>
+
+      <section class="mode-picker">
+        <button id="btn-mode-tour" class="mode-card" type="button" ${busy ? "disabled" : ""}>
+          <span class="mode-card__icon" aria-hidden="true">🗺️</span>
+          <strong class="mode-card__title">${tr().modeTour}</strong>
+          <span class="mode-card__hint">${tr().modeTourHint}</span>
+        </button>
+        <button id="btn-mode-dest" class="mode-card" type="button" ${busy ? "disabled" : ""}>
+          <span class="mode-card__icon" aria-hidden="true">📍</span>
+          <strong class="mode-card__title">${tr().modeDestinations}</strong>
+          <span class="mode-card__hint">${tr().modeDestinationsHint}</span>
         </button>
       </section>
+
       ${
         stops.length
           ? `
@@ -138,6 +192,64 @@ function renderWelcome(): string {
       `
           : ""
       }
+    </main>
+  `;
+}
+
+function renderDestinations(): string {
+  if (!destinations.length) {
+    return `
+      <main class="kiosk__main kiosk__main--destinations">
+        <section class="hero hero--compact">
+          <p class="hero__hint">${tr().actionError}</p>
+          <button id="btn-back-welcome" class="btn-secondary" type="button">${tr().back}</button>
+        </section>
+      </main>
+    `;
+  }
+
+  return `
+    <main class="kiosk__main kiosk__main--destinations">
+      <p class="destinations__hint">${tr().destinationsHint}</p>
+      <div class="destinations-grid">
+        ${destinations
+          .map(
+            (dest) => `
+          <button
+            class="dest-card"
+            type="button"
+            data-dest="${dest.name}"
+            ${busy ? "disabled" : ""}
+          >
+            <span class="dest-card__icon" aria-hidden="true">${pointIcon(dest.type)}</span>
+            <span class="dest-card__name">${dest.name}</span>
+          </button>
+        `
+          )
+          .join("")}
+      </div>
+      <button id="btn-back-welcome" class="btn-secondary" type="button" ${busy ? "disabled" : ""}>
+        ${tr().back}
+      </button>
+    </main>
+  `;
+}
+
+function renderDestRunning(): string {
+  const label = selectedDestination || tr().destRunning;
+  const statusLabel = robotStatus?.nav_status_label || tr().destRunning;
+
+  return `
+    <main class="kiosk__main kiosk__main--running">
+      <div class="tour-status">
+        <div class="tour-status__badge">${tr().destRunning}</div>
+        <p class="tour-status__step">${statusLabel}</p>
+      </div>
+
+      <section class="tour-focus">
+        <h2 class="tour-focus__equipment">${label}</h2>
+        <p class="tour-focus__follow">${tr().destFollow}</p>
+      </section>
     </main>
   `;
 }
@@ -185,6 +297,22 @@ function renderRunning(): string {
 }
 
 function renderCompleted(): string {
+  if (activeFlow === "destination") {
+    const failed = robotStatus?.nav_status === 604;
+    return `
+      <main class="kiosk__main kiosk__main--completed">
+        <section class="hero hero--compact">
+          <div class="hero__icon" aria-hidden="true">${failed ? "⚠️" : "✅"}</div>
+          <h1 class="hero__title">${failed ? tr().destError : tr().destCompleted}</h1>
+          <p class="hero__hint">${failed ? tr().destErrorHint : tr().destCompletedHint}</p>
+          <button id="btn-restart" class="btn-primary" type="button" ${busy ? "disabled" : ""}>
+            ${tr().newDestination}
+          </button>
+        </section>
+      </main>
+    `;
+  }
+
   const state = status?.state;
   let title: string = tr().tourCompleted;
   let hint: string = tr().completedHint;
@@ -217,13 +345,74 @@ function bindEvents(): void {
     render();
   });
 
-  document.getElementById("btn-start")?.addEventListener("click", () => void startTour());
-  document.getElementById("btn-restart")?.addEventListener("click", () => {
+  document.getElementById("btn-mode-tour")?.addEventListener("click", () => void startTour());
+  document.getElementById("btn-mode-dest")?.addEventListener("click", () => void openDestinations());
+  document.getElementById("btn-back-welcome")?.addEventListener("click", () => {
     screen = "welcome";
-    status = null;
+    activeFlow = null;
+    render();
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-dest]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.dest;
+      if (name) void goToDestination(name);
+    });
+  });
+
+  document.getElementById("btn-restart")?.addEventListener("click", () => {
+    if (activeFlow === "destination") {
+      screen = "destinations";
+      selectedDestination = null;
+      robotStatus = null;
+      sawNavigating = false;
+    } else {
+      screen = "welcome";
+      status = null;
+      activeFlow = null;
+    }
     render();
   });
   document.getElementById("btn-stop")?.addEventListener("click", () => void stopTour());
+}
+
+async function openDestinations(): Promise<void> {
+  if (busy) return;
+  busy = true;
+  render();
+  try {
+    destinations = await api.getDestinations();
+    screen = "destinations";
+    activeFlow = null;
+  } catch {
+    showToast(tr().actionError);
+  } finally {
+    busy = false;
+    render();
+  }
+}
+
+async function goToDestination(pointName: string): Promise<void> {
+  if (busy) return;
+  busy = true;
+  selectedDestination = pointName;
+  sawNavigating = false;
+  render();
+  try {
+    await api.goDestination(pointName, lang);
+    activeFlow = "destination";
+    screen = "dest_running";
+    robotStatus = await api.getRobotStatus();
+    startPolling();
+  } catch (err) {
+    const text = err instanceof Error ? err.message : tr().actionError;
+    showToast(text);
+    screen = "destinations";
+    selectedDestination = null;
+  } finally {
+    busy = false;
+    render();
+  }
 }
 
 async function startTour(): Promise<void> {
@@ -233,11 +422,12 @@ async function startTour(): Promise<void> {
   try {
     const result = await api.startTour(lang);
     status = result.status ?? (await api.getTourStatus());
+    activeFlow = "tour";
     screen = "running";
     startPolling();
   } catch (err) {
-    const message = err instanceof Error ? err.message : tr().actionError;
-    showToast(message);
+    const text = err instanceof Error ? err.message : tr().actionError;
+    showToast(text);
   } finally {
     busy = false;
     render();
@@ -264,9 +454,16 @@ async function stopTour(): Promise<void> {
 export async function initApp(): Promise<void> {
   render();
   try {
-    [tour, status] = await Promise.all([api.getTour(), api.getTourStatus()]);
-    syncScreenFromStatus();
-    if (status?.state === "running") startPolling();
+    [tour, status, destinations] = await Promise.all([
+      api.getTour(),
+      api.getTourStatus(),
+      api.getDestinations(),
+    ]);
+    syncScreenFromTourStatus();
+    if (status?.state === "running") {
+      activeFlow = "tour";
+      startPolling();
+    }
   } catch {
     showToast(t.fr.actionError);
   }

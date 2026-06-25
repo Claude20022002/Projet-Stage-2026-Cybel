@@ -4,11 +4,13 @@ import { renderLayout } from "./components/layout";
 import { canvasToWorld, computeScaleMetersPerPixel, drawMap, getCellValue, renderMapCanvas } from "./components/mapView";
 import { renderPointsList } from "./components/pointsList";
 import { renderReceptionPanel } from "./components/receptionPanel";
+import { renderPatrolPanel } from "./components/patrolPanel";
 import { renderTourBanner } from "./components/tourBanner";
 import { renderTourPanel } from "./components/tourPanel";
 import { renderRobotCard, renderStatusBar } from "./components/statusBar";
 import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
+import { renderPatrolPage } from "./pages/patrol";
 import { renderTourPage } from "./pages/tour";
 import { connectTelemetry } from "./telemetry";
 import {
@@ -20,12 +22,16 @@ import {
   setPoints,
   setSelectedPoint,
   setSettings,
+  setPatrolEditingStopId,
+  setPatrolStatus,
+  setPatrolTasks,
+  setSelectedPatrolTaskId,
   setTour,
   setTourEditingStopId,
   setTourStatus,
   pushEvent,
 } from "./state";
-import type { AppPage } from "./types";
+import type { AppPage, DiagnosticsSnapshot } from "./types";
 import { isNavigating, isTeleopEnabled } from "./robotUi";
 
 const MOVE_SPEED = 0.2;
@@ -41,9 +47,12 @@ let lastSpeechSpeaking = false;
 let lastPeopleCount = 0;
 let pingStartedAt: number | null = null;
 let tourPollTimer: number | null = null;
+let patrolPollTimer: number | null = null;
 let pingRaf: number | null = null;
 let lastTourPanelKey = "";
 let lastTourBannerKey = "";
+let lastPatrolPanelKey = "";
+let diagnosticsSnapshot: DiagnosticsSnapshot | null = null;
 
 function renderDashboardContent(): string {
   const softEstop = state.status?.soft_estop ?? false;
@@ -71,10 +80,17 @@ function renderApp(): void {
 
   const content =
     state.page === "settings"
-      ? renderSettingsPage(state.settings)
+      ? renderSettingsPage(state.settings, diagnosticsSnapshot)
       : state.page === "tour"
         ? renderTourPage(state.tour, state.tourStatus, state.tourEditingStopId)
-        : renderDashboardContent();
+        : state.page === "patrol"
+          ? renderPatrolPage(
+              state.patrolTasks,
+              state.selectedPatrolTaskId,
+              state.patrolStatus,
+              state.patrolEditingStopId
+            )
+          : renderDashboardContent();
 
   app.innerHTML = renderLayout(state.page, content, {
     tourActive: state.tourStatus?.state === "running",
@@ -92,8 +108,13 @@ function renderApp(): void {
     updateMapCanvas();
   } else if (state.page === "tour") {
     bindTourEvents();
+  } else if (state.page === "patrol") {
+    bindPatrolEvents();
   } else {
-    bindSettingsEvents(() => api.getSettings().then(setSettings).catch(() => {}));
+    bindSettingsEvents(
+      () => api.getSettings().then(setSettings).catch(() => {}),
+      () => void refreshDiagnostics(true)
+    );
   }
 }
 
@@ -101,9 +122,21 @@ function bindLayoutEvents(): void {
   document.querySelectorAll("[data-page]").forEach((el) => {
     el.addEventListener("click", () => {
       const page = (el as HTMLElement).dataset.page as AppPage;
-      if (page && page !== state.page) setPage(page);
+      if (page && page !== state.page) {
+        setPage(page);
+        if (page === "settings") void refreshDiagnostics(true);
+      }
     });
   });
+}
+
+async function refreshDiagnostics(rerender = false): Promise<void> {
+  try {
+    diagnosticsSnapshot = await api.getDiagnostics();
+    if (rerender && state.page === "settings") renderApp();
+  } catch {
+    diagnosticsSnapshot = null;
+  }
 }
 
 function updateStatusBar(): void {
@@ -509,6 +542,184 @@ function startTourPolling(): void {
   }, 1500);
 }
 
+function updatePatrolPanel(force = false): void {
+  if (state.page !== "patrol") return;
+  const key = JSON.stringify({
+    tasks: state.patrolTasks.length,
+    selected: state.selectedPatrolTaskId,
+    state: state.patrolStatus?.state,
+    cycle: state.patrolStatus?.cycle_count,
+    index: state.patrolStatus?.current_index,
+    editing: state.patrolEditingStopId,
+  });
+  if (!force && key === lastPatrolPanelKey) return;
+  lastPatrolPanelKey = key;
+
+  const el = document.getElementById("patrol-panel-container");
+  if (el) {
+    el.innerHTML = renderPatrolPanel(
+      state.patrolTasks,
+      state.selectedPatrolTaskId,
+      state.patrolStatus,
+      state.patrolEditingStopId,
+      { pageMode: true }
+    );
+    bindPatrolEvents();
+  }
+}
+
+function bindPatrolEvents(): void {
+  document.getElementById("patrol-task-select")?.addEventListener("change", (e) => {
+    const value = (e.target as HTMLSelectElement).value;
+    setSelectedPatrolTaskId(value || null);
+    setPatrolEditingStopId(null);
+    updatePatrolPanel(true);
+  });
+
+  document.getElementById("btn-patrol-start")?.addEventListener("click", async () => {
+    const taskId = state.selectedPatrolTaskId ?? state.patrolTasks[0]?.id;
+    if (!taskId) return;
+    try {
+      const result = await api.startPatrol(taskId, "fr");
+      if (result.status) setPatrolStatus(result.status);
+      pushEvent("Patrouille démarrée");
+      startPatrolPolling();
+      updatePatrolPanel(true);
+    } catch (err) {
+      pushEvent(`Patrouille : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-patrol-stop")?.addEventListener("click", async () => {
+    try {
+      const result = await api.stopPatrol();
+      if (result.status) setPatrolStatus(result.status);
+      pushEvent("Patrouille interrompue");
+      updatePatrolPanel(true);
+    } catch (err) {
+      pushEvent(`Erreur : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-patrol-add")?.addEventListener("click", () => {
+    setPatrolEditingStopId(null);
+    updatePatrolPanel(true);
+  });
+
+  document.querySelectorAll("[data-patrol-edit]").forEach((el) => {
+    el.addEventListener("click", () => {
+      setPatrolEditingStopId((el as HTMLElement).dataset.patrolEdit ?? null);
+      updatePatrolPanel(true);
+    });
+  });
+
+  document.querySelectorAll("[data-patrol-delete]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const stopId = (el as HTMLElement).dataset.patrolDelete;
+      const taskId = state.selectedPatrolTaskId ?? state.patrolTasks[0]?.id;
+      if (!stopId || !taskId) return;
+      const task = state.patrolTasks.find((t) => t.id === taskId);
+      if (!task) return;
+      if (!window.confirm(`Supprimer le point « ${stopId} » ?`)) return;
+      const stops = task.stops.filter((s) => s.id !== stopId);
+      try {
+        const result = await api.updatePatrolTask(taskId, { ...task, stops });
+        setPatrolTasks(state.patrolTasks.map((t) => (t.id === taskId ? result.task : t)));
+        if (state.patrolEditingStopId === stopId) setPatrolEditingStopId(null);
+        pushEvent(`Point « ${stopId} » supprimé`);
+        updatePatrolPanel(true);
+      } catch (err) {
+        pushEvent(`Erreur : ${(err as Error).message}`);
+      }
+    });
+  });
+
+  document.getElementById("btn-patrol-use-pose")?.addEventListener("click", async () => {
+    try {
+      const pose = state.pose ?? (await api.getPose());
+      (document.getElementById("patrol-x") as HTMLInputElement).value = pose.x.toFixed(2);
+      (document.getElementById("patrol-y") as HTMLInputElement).value = pose.y.toFixed(2);
+      (document.getElementById("patrol-theta") as HTMLInputElement).value = pose.theta.toFixed(2);
+      pushEvent("Position du robot copiée");
+    } catch (err) {
+      pushEvent(`Pose indisponible : ${(err as Error).message}`);
+    }
+  });
+
+  document.getElementById("btn-patrol-cancel-edit")?.addEventListener("click", () => {
+    setPatrolEditingStopId(null);
+    updatePatrolPanel(true);
+  });
+
+  document.getElementById("patrol-stop-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const taskId =
+      (document.getElementById("patrol-task-id") as HTMLInputElement).value ||
+      state.selectedPatrolTaskId ||
+      "";
+    const task = state.patrolTasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const name = (document.getElementById("patrol-name") as HTMLInputElement).value.trim();
+    if (!name) return;
+
+    const payload = {
+      name,
+      speech_fr: (document.getElementById("patrol-speech-fr") as HTMLTextAreaElement).value.trim(),
+      x: parseFloat((document.getElementById("patrol-x") as HTMLInputElement).value),
+      y: parseFloat((document.getElementById("patrol-y") as HTMLInputElement).value),
+      theta: parseFloat((document.getElementById("patrol-theta") as HTMLInputElement).value) || 0,
+      dwell_seconds: parseFloat((document.getElementById("patrol-dwell") as HTMLInputElement).value) || 8,
+    };
+
+    if (Number.isNaN(payload.x) || Number.isNaN(payload.y)) {
+      pushEvent("Coordonnées X et Y requises");
+      return;
+    }
+
+    const existingId = (document.getElementById("patrol-stop-id") as HTMLInputElement).value.trim();
+    let stops = [...task.stops];
+    if (existingId) {
+      stops = stops.map((s) =>
+        s.id === existingId ? { ...s, ...payload, id: existingId } : s
+      );
+    } else {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      stops.push({ id: slug, ...payload });
+    }
+
+    try {
+      const result = await api.updatePatrolTask(taskId, { ...task, stops });
+      setPatrolTasks(state.patrolTasks.map((t) => (t.id === taskId ? result.task : t)));
+      setPatrolEditingStopId(null);
+      pushEvent(existingId ? "Point mis à jour" : "Point ajouté");
+      updatePatrolPanel(true);
+    } catch (err) {
+      pushEvent(`Erreur enregistrement : ${(err as Error).message}`);
+    }
+  });
+}
+
+function startPatrolPolling(): void {
+  if (patrolPollTimer !== null) return;
+  patrolPollTimer = window.setInterval(async () => {
+    try {
+      const status = await api.getPatrolStatus();
+      setPatrolStatus(status);
+      updatePatrolPanel();
+      if (status.state === "error" && status.error) {
+        pushEvent(`Patrouille : ${status.error}`);
+      }
+      if (status.state !== "running" && patrolPollTimer !== null) {
+        window.clearInterval(patrolPollTimer);
+        patrolPollTimer = null;
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 1500);
+}
+
 function updateControls(): void {
   if (state.page !== "dashboard") return;
   const el = document.getElementById("controls-panel-container");
@@ -765,6 +976,8 @@ function onStateChange(): void {
     }
   } else if (state.page === "tour") {
     updateTourPanel();
+  } else if (state.page === "patrol") {
+    updatePatrolPanel();
   }
 }
 
@@ -787,6 +1000,7 @@ export async function initApp(): Promise<void> {
     }
     try {
       setSettings(await api.getSettings());
+      await refreshDiagnostics();
     } catch {
       /* settings optionnels au démarrage */
     }
@@ -804,6 +1018,19 @@ export async function initApp(): Promise<void> {
       if (tourStatus.state === "running") startTourPolling();
     } catch {
       pushEvent("Parcours de visite non chargé");
+    }
+    try {
+      const patrolTasks = await api.getPatrolTasks();
+      setPatrolTasks(patrolTasks);
+      if (patrolTasks.length > 0) {
+        setSelectedPatrolTaskId(patrolTasks[0].id);
+      }
+      const patrolStatus = await api.getPatrolStatus();
+      setPatrolStatus(patrolStatus);
+      if (patrolStatus.state === "running") startPatrolPolling();
+      pushEvent(`${patrolTasks.length} tâche(s) de patrouille chargée(s)`);
+    } catch {
+      pushEvent("Tâches de patrouille non chargées");
     }
     if (state.points.length > 0) {
       setSelectedPoint(state.points[0].name);
