@@ -205,13 +205,22 @@ function renderBody(): string {
   }
 }
 
+function kioskVariantLabel(): string | undefined {
+  if (!config) return undefined;
+  const label =
+    lang === "en"
+      ? config.kiosk_variant_label_en
+      : config.kiosk_variant_label_fr;
+  return label?.trim() || undefined;
+}
+
 function render(): void {
   const app = document.getElementById("app");
   if (!app) return;
 
   app.innerHTML = `
     <div class="kiosk" data-screen="${screen}">
-      ${screen === "standby" ? "" : renderStatusBar(lang, robotStatus, speechStatus, busy)}
+      ${screen === "standby" ? "" : renderStatusBar(lang, robotStatus, speechStatus, busy, kioskVariantLabel())}
       ${renderBody()}
       ${message ? `<div class="kiosk-toast" role="status">${message}</div>` : ""}
     </div>

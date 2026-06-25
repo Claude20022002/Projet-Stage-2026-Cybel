@@ -42,6 +42,9 @@ export interface KioskConfig {
   standby_timeout_seconds: number;
   featured_destinations: string[];
   reception_actions?: string[];
+  kiosk_variant?: string;
+  kiosk_variant_label_fr?: string;
+  kiosk_variant_label_en?: string;
 }
 
 export interface ReceptionAction {

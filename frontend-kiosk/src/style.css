@@ -106,6 +106,20 @@ body {
 .status-pill--danger { background: var(--danger-soft); color: var(--danger); }
 .status-pill--offline { background: var(--surface-2); color: var(--text-muted); }
 
+.variant-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: #ffedd5;
+    color: #c2410c;
+    border: 1px solid #fdba74;
+}
+
 .status-net {
     width: 12px;
     height: 12px;

@@ -5,7 +5,8 @@ export function renderStatusBar(
   lang: Lang,
   robot: RobotStatus | null,
   speech: SpeechStatus | null,
-  busy: boolean
+  busy: boolean,
+  variantLabel?: string
 ): string {
   const labels = t[lang];
   const connected = robot?.connected ?? false;
@@ -48,6 +49,7 @@ export function renderStatusBar(
   return `
     <header class="kiosk-header">
       <div class="kiosk-header__left">
+        ${variantLabel ? `<span class="variant-pill">${variantLabel}</span>` : ""}
         <span class="status-pill ${statusClass}">${statusLabel}</span>
         <span class="status-net ${connected ? "status-net--on" : "status-net--off"}" title="${connected ? labels.statusConnected : labels.statusOffline}"></span>
       </div>
