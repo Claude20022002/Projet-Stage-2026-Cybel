@@ -18,8 +18,8 @@
 - [x] Visite guidée autonome
 - [x] Bascule FR / EN
 - [x] Démarrage auto backend (app Accueil v1.3)
-- [ ] Scénarios prédéfinis complets (accueil, salle, attente visiteur)
-- [ ] Retour à la base (kiosque)
+- [x] Scénarios prédéfinis complets (accueil, salle, attente visiteur)
+- [x] Retour à la base (kiosque)
 - [ ] Reconnaissance faciale
 - [ ] Météo / média
 
