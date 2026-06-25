@@ -134,29 +134,47 @@ function Invoke-SyncDryRun {
     }
 }
 
-function Test-LabTourTargets {
+function Test-LabTourStops {
     $path = Join-Path $RepoRoot "data\lab_tour.json"
     if (-not (Test-Path $path)) {
-        Add-Result -Name "lab_tour.json target_point" -Status "FAIL" -Detail "Fichier absent"
-        return
+        Add-Result -Name "lab_tour.json" -Status "FAIL" -Detail "Fichier absent"
+        return "none"
     }
     try {
         $tour = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
         $stops = @($tour.stops)
-        $withTarget = @($stops | Where-Object { $_.target_point -and $_.target_point.Trim() })
-        $count = $withTarget.Count
-        if ($count -ge 8) {
-            Add-Result -Name "lab_tour.json target_point" -Status "OK" -Detail "$count arrets avec target_point"
+        $poiCount = 0
+        $coordCount = 0
+        foreach ($stop in $stops) {
+            $hasPoi = $false
+            if ($stop.PSObject.Properties.Name -contains "target_point") {
+                $tp = [string]$stop.target_point
+                if ($tp.Trim()) { $hasPoi = $true }
+            }
+            if ($hasPoi) { $poiCount++ }
+            $hasCoords = ($stop.PSObject.Properties.Name -contains "x") -and
+                ($stop.PSObject.Properties.Name -contains "y")
+            if ($hasCoords -and $null -ne $stop.x -and $null -ne $stop.y) { $coordCount++ }
         }
-        elseif ($count -gt 0) {
-            Add-Result -Name "lab_tour.json target_point" -Status "WARN" -Detail "$count/8 arrets POI - branche hybrid?"
+        $total = $stops.Count
+        if ($poiCount -ge 8) {
+            Add-Result -Name "lab_tour.json (mode POI)" -Status "OK" -Detail "$poiCount arrets target_point / $total"
+            return "poi"
         }
-        else {
-            Add-Result -Name "lab_tour.json target_point" -Status "WARN" -Detail "Aucun target_point - approche coords (main)"
+        if ($coordCount -ge 8) {
+            Add-Result -Name "lab_tour.json (mode coords)" -Status "OK" -Detail "$coordCount arrets x,y / $total"
+            return "coords"
         }
+        if ($poiCount -gt 0 -or $coordCount -gt 0) {
+            Add-Result -Name "lab_tour.json" -Status "WARN" -Detail "POI:$poiCount coords:$coordCount / $total arrets"
+            return "partial"
+        }
+        Add-Result -Name "lab_tour.json" -Status "FAIL" -Detail "Aucun arret navigable detecte"
+        return "none"
     }
     catch {
-        Add-Result -Name "lab_tour.json target_point" -Status "FAIL" -Detail $_.Exception.Message
+        Add-Result -Name "lab_tour.json" -Status "FAIL" -Detail $_.Exception.Message
+        return "none"
     }
 }
 
@@ -261,7 +279,7 @@ else {
 }
 
 Write-Step "4/5 - Configuration parcours"
-Test-LabTourTargets
+$tourMode = Test-LabTourStops
 
 Write-Step "5/5 - ADB (optionnel)"
 Test-AdbDevices
@@ -284,10 +302,18 @@ if ($fail -gt 0) {
 
 Write-Host ""
 Write-Host "Prochaines etapes:" -ForegroundColor Cyan
-Write-Host "  1. POI dans Sentrymove (noms = target_point lab_tour.json)"
-Write-Host "  2. python scripts/sync_poi_from_robot.py --host $RobotHostEth"
-Write-Host "  3. python scripts/deploy_termux.py --host $TabletHost --lite-only --target test"
-Write-Host "  4. adb install -r android\CybelVisitorKioskTest\out\CybelVisitorKioskTest.apk"
+if ($tourMode -eq "poi") {
+    Write-Host "  1. POI dans Sentrymove (noms = target_point lab_tour.json)"
+    Write-Host "  2. python scripts/sync_poi_from_robot.py --host $RobotHostEth"
+    Write-Host "  3. python scripts/deploy_termux.py --host $TabletHost --lite-only --target test"
+    Write-Host "  4. adb install -r android\CybelVisitorKioskTest\out\CybelVisitorKioskTest.apk"
+}
+else {
+    Write-Host "  1. python scripts/deploy_termux.py --host $TabletHost --lite-only"
+    Write-Host "  2. adb install -r android\CybelVisitorKiosk\out\CybelVisitorKiosk.apk"
+    Write-Host "  3. Ouvrir CYBEL Accueil sur la tablette - demarrer la visite"
+    Write-Host "  (Variante POI: branche feature/hybrid-sentrymove-kiosk - docs/labo/KIOSK_AB_COMPARISON.md)"
+}
 Write-Host ""
 Write-Host "Guide complet: docs/labo/TERRAIN.md" -ForegroundColor DarkGray
 

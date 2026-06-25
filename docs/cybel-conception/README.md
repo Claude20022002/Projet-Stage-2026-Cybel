@@ -73,4 +73,5 @@ Index général : [`../README.md`](../README.md) · Carte : [`../STRUCTURE.md`](
 - Interface web : [`../INTERFACE.md`](../INTERFACE.md)
 - TTS : [`../TTS_BRIDGE.md`](../TTS_BRIDGE.md)
 - SDK Python : `sdk/`
+- Session labo : [`../labo/TERRAIN.md`](../labo/TERRAIN.md)
 - APK décompilés (gitignored) : `/welcomepatrol`, `/sentrymove`

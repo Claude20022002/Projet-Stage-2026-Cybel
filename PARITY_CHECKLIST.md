@@ -38,7 +38,6 @@
 
 ## Documentation
 
-- [x] UI_AUDIT.md
-- [x] FEATURES_STATUS.md
-- [x] MIGRATION_PLAN.md
-- [x] CHANGELOG.md
+- [docs/README.md](docs/README.md) — index documentation
+- [docs/STRUCTURE.md](docs/STRUCTURE.md) — architecture doc
+- [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) — procédure labo

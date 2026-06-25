@@ -1,5 +1,7 @@
 # Documentation de l'interface opérateur CYBEL
 
+> Index : [docs/README.md](README.md) · Guides : [guides/DEMARRAGE-RAPIDE.md](guides/DEMARRAGE-RAPIDE.md)
+
 Guide complet du fonctionnement de l'interface web CYBEL (v0.2.0) — plateforme de commande du robot de réception CIOT **TY1251D-03195**.
 
 ---

@@ -457,8 +457,8 @@ Guides opérationnels et index par thème : **[docs/README.md](docs/README.md)**
 | Guide | Fichier |
 |-------|---------|
 | Interface opérateur | [docs/INTERFACE.md](docs/INTERFACE.md) |
-| Déploiement Termux | [docs/kiosque/TERMUX_DEPLOY.md](docs/kiosque/TERMUX_DEPLOY.md) → [TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md) |
-| Kiosque visiteur | [docs/kiosque/VISITOR_KIOSK.md](docs/kiosque/VISITOR_KIOSK.md) → [VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md) |
+| Déploiement Termux | [docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md) |
+| Kiosque visiteur | [docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md) |
 
 **État (fin juin 2026)** : backend lite et kiosque opérationnels sur Termux ; visite guidée labo (8 arrêts).
 
