@@ -143,8 +143,20 @@
       "nav_status": 602,
       "detail": "",
       "at": "2026-06-25T13:06:40.516502+00:00"
+    },
+    {
+      "id": "7a084bfe-e049-46bb-b1eb-00c1f982005c",
+      "kind": "navigate_point",
+      "success": true,
+      "point_name": "point2",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 602,
+      "detail": "",
+      "at": "2026-06-25T14:07:34.106066+00:00"
     }
   ],
   "version": 1,
-  "updated_at": "2026-06-25T13:06:40.516529+00:00"
+  "updated_at": "2026-06-25T14:07:34.106096+00:00"
 }
