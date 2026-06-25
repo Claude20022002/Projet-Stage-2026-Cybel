@@ -6,5 +6,5 @@
   "logo_url": "/kiosk/logo.svg",
   "standby_timeout_seconds": 90,
   "featured_destinations": ["Extraction et soufflage", "Routeur CNC", "Sérigraphie"],
-  "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode"]
+  "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode", "return_charge"]
 }

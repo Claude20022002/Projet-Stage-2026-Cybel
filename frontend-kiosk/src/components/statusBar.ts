@@ -25,6 +25,9 @@ export function renderStatusBar(
   } else if (speaking) {
     statusLabel = labels.statusSpeaking;
     statusClass = "status-pill--speak";
+  } else if (robot?.nav_status === 605 || (charging && robot?.nav_status !== 601)) {
+    statusLabel = labels.statusChargingBlock;
+    statusClass = "status-pill--warn";
   } else if (robot?.nav_status === 602) {
     statusLabel = labels.statusNavigating;
     statusClass = "status-pill--nav";

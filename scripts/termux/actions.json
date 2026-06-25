@@ -2,47 +2,47 @@
   {
     "id": "welcome_guest",
     "label": "Accueillir un visiteur",
-    "description": "Annonce de bienvenue puis déplacement vers le point d'accueil",
+    "description": "Annonce de bienvenue puis déplacement vers la station d'accueil",
     "icon": "hand-wave",
     "category": "accueil",
-    "speech": "Bienvenue ! Je suis votre robot d'accueil. Suivez-moi.",
-    "target_point": "Accueil",
+    "speech": "Bienvenue ! Je suis CYBEL, votre robot d'accueil. Suivez-moi.",
+    "target_point": "Station LG-10",
     "label_en": "Welcome a visitor",
-    "description_en": "Welcome announcement, then move to the reception point",
-    "speech_en": "Welcome! I am your reception robot. Follow me."
+    "description_en": "Welcome announcement, then move to the reception station",
+    "speech_en": "Welcome! I am CYBEL, your reception robot. Follow me."
   },
   {
     "id": "go_reception",
     "label": "Aller à l'accueil",
-    "description": "Navigation autonome vers le poste d'accueil",
+    "description": "Navigation autonome vers la station LG-10",
     "icon": "map-pin",
     "category": "navigation",
-    "target_point": "Accueil",
+    "target_point": "Station LG-10",
     "label_en": "Go to reception",
-    "description_en": "Autonomous navigation to the reception desk"
+    "description_en": "Autonomous navigation to station LG-10"
   },
   {
     "id": "go_meeting_room",
     "label": "Conduire en salle",
-    "description": "Accompagner le visiteur vers la salle de réunion",
+    "description": "Accompagner le visiteur vers le poste de remplissage",
     "icon": "navigation",
     "category": "navigation",
-    "speech": "Je vous accompagne en salle. Suivez-moi s'il vous plaît.",
-    "target_point": "Salle A",
-    "label_en": "Lead to meeting room",
-    "description_en": "Accompany the visitor to the meeting room",
-    "speech_en": "I will take you to the meeting room. Please follow me."
+    "speech": "Je vous accompagne. Suivez-moi s'il vous plaît.",
+    "target_point": "Poste remplissage et bouchonnage",
+    "label_en": "Lead to work area",
+    "description_en": "Accompany the visitor to the filling station",
+    "speech_en": "I will take you there. Please follow me."
   },
   {
     "id": "wait_mode",
     "label": "Mode attente",
-    "description": "Se placer au point d'attente et rester disponible",
+    "description": "Se placer à la station LG-09 et rester disponible",
     "icon": "clock",
     "category": "accueil",
     "speech": "Je reste à votre disposition.",
-    "target_point": "Attente",
+    "target_point": "Station LG-09",
     "label_en": "Standby mode",
-    "description_en": "Move to the waiting point and stay available",
+    "description_en": "Move to station LG-09 and stay available",
     "speech_en": "I remain available for you."
   },
   {
@@ -51,19 +51,17 @@
     "description": "Renvoyer le robot vers la station de charge",
     "icon": "plug",
     "category": "maintenance",
-    "target_point": "Pile"
+    "label_en": "Return to charger",
+    "description_en": "Send the robot back to the charging station"
   },
   {
     "id": "guided_tour",
     "label": "Visite guidée",
-    "description": "Lancer un parcours de visite prédéfini (GUIDED)",
+    "description": "Lancer le parcours de visite du laboratoire",
     "icon": "route",
     "category": "accueil",
-    "speech": "Bienvenue pour la visite guidée. Nous allons commencer.",
-    "route_name": "visite_standard",
     "label_en": "Guided tour",
-    "description_en": "Start a predefined visit route (GUIDED)",
-    "speech_en": "Welcome to the guided tour. Let's get started."
+    "description_en": "Start the laboratory tour route"
   },
   {
     "id": "inform_waiting",

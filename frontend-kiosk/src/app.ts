@@ -361,9 +361,17 @@ async function stopTour(): Promise<void> {
   busy = true;
   render();
   try {
-    const result = await api.stopTour();
-    status = result.status ?? (await api.getTourStatus());
-    screen = "completed";
+    if (activeFlow === "destination") {
+      await api.haltAll();
+      screen = "destinations";
+      selectedDestination = null;
+      sawNavigating = false;
+      showToast(tr().destStopped);
+    } else {
+      const result = await api.stopTour();
+      status = result.status ?? (await api.getTourStatus());
+      screen = "completed";
+    }
   } catch {
     showToast(tr().actionError);
   } finally {
@@ -392,11 +400,38 @@ async function runAssistance(): Promise<void> {
 async function runReceptionAction(actionId: string): Promise<void> {
   if (busy) return;
   touch();
+  if (actionId === "guided_tour") {
+    await startTour();
+    return;
+  }
+  if (actionId === "return_charge") {
+    busy = true;
+    render();
+    try {
+      await api.goHome();
+      showToast(lang === "fr" ? "Retour à la borne lancé" : "Returning to charger");
+    } catch (err) {
+      const text = err instanceof Error ? err.message : tr().actionError;
+      showToast(text);
+    } finally {
+      busy = false;
+      render();
+    }
+    return;
+  }
   busy = true;
   render();
   try {
-    await api.runAction(actionId, lang);
-    showToast(tr().assistanceHint);
+    const result = await api.runAction(actionId, lang);
+    if (result.events?.some((e) => e.includes("Navigation"))) {
+      activeFlow = "destination";
+      screen = "dest_running";
+      selectedDestination = result.events.find((e) => e.includes("vers"))?.split("vers ").pop() ?? null;
+      sawNavigating = false;
+      robotStatus = await api.getRobotStatus();
+    } else {
+      showToast(tr().assistanceHint);
+    }
   } catch (err) {
     const text = err instanceof Error ? err.message : tr().actionError;
     showToast(text);

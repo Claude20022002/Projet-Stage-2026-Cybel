@@ -202,17 +202,12 @@ def assess_tour_readiness(
     velocity: Sequence[float] | None = None,
     navigating_to: str | None = None,
     ghost_nav_recovered: bool = False,
-    charger: bool = False,
-    charging_recovered: bool = False,
 ) -> tuple[bool, str]:
     """Vérifie si le robot peut démarrer une visite."""
     if nav_status == 600:
         return False, NAV_STATUS_HINTS[600]
     if is_charging_navigation_block(nav_status):
-        if charging_recovered:
-            pass
-        else:
-            return False, charging_navigation_message()
+        return False, charging_navigation_message()
     if nav_status == 604:
         return False, (
             f"{NAV_STATUS_HINTS[604]} "

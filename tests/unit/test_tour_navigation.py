@@ -65,6 +65,12 @@ def test_assess_tour_readiness_ghost_recovered():
     assert msg == ""
 
 
+def test_assess_tour_readiness_blocks_605():
+    ok, msg = assess_tour_readiness(605, 80.0)
+    assert not ok
+    assert "recharge" in msg.lower()
+
+
 def test_assess_tour_readiness_active_navigation():
     ok, msg = assess_tour_readiness(
         602,

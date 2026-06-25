@@ -39,6 +39,14 @@ export const api = {
     }),
   stopTour: () =>
     request<{ ok: boolean; status?: TourStatus }>("/api/tour/stop", { method: "POST" }),
+  haltAll: () =>
+    request<{ ok: boolean; message?: string }>("/api/tour/halt", { method: "POST" }),
+  cancelNavigation: () =>
+    request<{ ok: boolean; error?: string }>("/api/navigation/cancel", { method: "POST" }),
+  goHome: () =>
+    request<{ ok: boolean; error?: string }>("/api/charge/go-home", { method: "POST" }),
+  getDiagnostics: () =>
+    request<{ overall_ok: boolean; blocking_reason?: string }>("/api/diagnostics"),
   getDestinations: () => request<KioskDestination[]>("/api/reception/destinations"),
   getActions: () => request<ReceptionAction[]>("/api/reception/actions"),
   goDestination: (pointName: string, lang: Lang) =>

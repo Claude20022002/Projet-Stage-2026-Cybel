@@ -264,7 +264,9 @@ export function renderTraveling(
         <p class="traveling__follow">${mode === "tour" ? labels.followRobot : labels.destFollow}</p>
       </section>
 
-      ${mode === "tour" ? `<button id="btn-stop" class="btn-danger" type="button">${labels.stopTour}</button>` : ""}
+      ${mode === "tour"
+        ? `<button id="btn-stop" class="btn-danger" type="button">${labels.stopTour}</button>`
+        : `<button id="btn-stop" class="btn-danger" type="button">${labels.stopTour}</button>`}
     </main>
   `;
 }

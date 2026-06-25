@@ -1292,6 +1292,57 @@ def robot_status_payload(snap: dict) -> dict:
     }
 
 
+async def navigation_cancel(_: Request) -> JSONResponse:
+    snap = await ensure_leave_charge_if_needed()
+    snap = await recover_navigation_state(timeout=15.0)
+    nav_status = int(snap.get("nav_status") or 0)
+    ghost = nav_status == 602 and _ghost_nav(snap)
+    ok = nav_status in (601, 603) or ghost
+    payload = {
+        "ok": ok,
+        **robot_status_payload(snap),
+    }
+    if not ok:
+        payload["error"] = (
+            f"État navigation {nav_status} non récupéré — relocalisez ou redémarrez "
+            "la stack ROS du robot."
+        )
+        return JSONResponse(payload, status_code=409)
+    return JSONResponse(payload)
+
+
+async def charge_go_home(_: Request) -> JSONResponse:
+    ok = await go_home()
+    snap = await fetch_robot_snapshot()
+    payload = {"ok": ok, **robot_status_payload(snap)}
+    if not ok:
+        payload["error"] = "Retour à la borne de recharge refusé"
+        return JSONResponse(payload, status_code=409)
+    return JSONResponse(payload)
+
+
+async def kiosk_diagnostics(_: Request) -> JSONResponse:
+    snap = await fetch_robot_snapshot(timeout=8.0)
+    nav_status = int(snap.get("nav_status") or 0)
+    loc = snap.get("localization_percent")
+    ready, reason = _tour_navigation.assess_tour_readiness(
+        nav_status,
+        loc,
+        min_localization=LOCALIZATION_MIN_PERCENT,
+        require_known_localization=True,
+        **_readiness_kwargs(snap, ghost_nav_recovered=_ghost_nav(snap)),
+    )
+    return JSONResponse(
+        {
+            "mode": "termux-lite",
+            "robot_host": ROBOT_HOST,
+            "overall_ok": ready,
+            "blocking_reason": reason or None,
+            "robot": robot_status_payload(snap),
+        }
+    )
+
+
 async def robot_relocalize(_: Request) -> JSONResponse:
     ok, snap = await ensure_global_localization()
     payload = {"ok": ok, **robot_status_payload(snap)}
@@ -1445,6 +1496,8 @@ def build_app() -> Starlette:
         Route("/api/robot/status", robot_status, methods=["GET"]),
         Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
         Route("/api/navigation/cancel", navigation_cancel, methods=["POST"]),
+        Route("/api/charge/go-home", charge_go_home, methods=["POST"]),
+        Route("/api/diagnostics", kiosk_diagnostics, methods=["GET"]),
         Route("/api/speech/status", speech_status, methods=["GET"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),
