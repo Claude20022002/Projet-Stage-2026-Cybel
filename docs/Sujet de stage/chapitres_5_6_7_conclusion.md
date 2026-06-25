@@ -5,7 +5,7 @@
 > **Encadrant** : Dr. Sridath Tula  
 > **Stagiaire** : [Nom de l'étudiant]  
 > **Période** : juin — septembre 2026  
-> **État du projet** : fin juin 2026 — plateforme opérationnelle en démonstration, validation terrain du parcours en cours
+> **État du projet** : fin juin 2026 — plateforme opérationnelle en démonstration ; recherche de stratégie applicative documentée (3 approches) ; branche `feature/hybrid-sentrymove-kiosk` prête pour validation terrain POI Sentrymove
 
 ---
 
@@ -13,7 +13,7 @@
 
 ## 5.1 Démarche adoptée
 
-La méthodologie retenue combine **rétro-ingénierie incrémentale non destructive** et **développement logiciel itératif mock-first**. Elle répond directement à l'absence de documentation constructeur et à la disponibilité limitée du robot physique.
+La méthodologie retenue combine **rétro-ingénierie incrémentale non destructive**, **développement logiciel itératif mock-first** et **recherche solutionnelle par essais successifs** (conception autonome → inspiration APK → option hybride). Elle répond directement à l'absence de documentation constructeur et à la disponibilité limitée du robot physique.
 
 ### Cycle de découverte protocolaire
 
@@ -37,6 +37,40 @@ flowchart LR
 3. **Simuler d'abord** — chaque fonctionnalité est validée dans `MockRobot` avant portage dans `RealRobot`.
 4. **Documenter au fil de l'eau** — scripts `scripts/` versionnés comme journal de bord exécutable.
 5. **Sécuriser le matériel** — annulation de navigation prête, E-Stop accessible, pas de commandes destructives.
+
+### Cycle de recherche de solution applicative
+
+Au-delà du protocole ROS, le stage a confronté une **deuxième problématique** : comment concevoir deux applications (kiosque visiteur + supervision opérateur) sans documentation UX ni API constructeur. La démarche suivie repose sur l'**essai–mesure–décision** :
+
+```mermaid
+flowchart TD
+    P[Problème observé sur le terrain] --> H[Formulation d'hypothèse]
+    H --> S[Stratégie / prototype]
+    S --> T[Test sur robot ou mock]
+    T --> E{Effet attendu?}
+    E -->|Oui partiel| I[Intégrer ce qui fonctionne]
+    E -->|Non| R[Rejeter ou reformuler]
+    I --> P
+    R --> H
+```
+
+**Critères d'évaluation d'une stratégie :**
+
+| Critère | Question posée |
+|---------|----------------|
+| **Fiabilité navigation** | Le robot se déplace-t-il réellement (`nav_status` 602→603) ? |
+| **Indépendance constructeur** | Peut-on déployer sans compte cloud CIOT ni APK propriétaire actif ? |
+| **Maintenabilité** | Le code est-il compilable, testable et documenté ? |
+| **Adéquation métier** | Visiteur vs technicien : la bonne UI pour le bon rôle ? |
+| **Reproductibilité hors robot** | Peut-on avancer sans accès permanent au matériel ? |
+
+**Sources de connaissance mobilisées :**
+
+1. Observation passive (MQTT, rosbridge, scripts `scripts/`).
+2. Décompilation JADX des APK `welcomepatrol` et `sentrymove` (audit documenté).
+3. Tests comparatifs : application constructeur qui fonctionne vs CYBEL.
+4. Journaux de visite (`GET /api/tour/trace`) pour corréler parole / mouvement / `nav_status`.
+5. Identification terrain via ADB (`dumpsys window`) de l'application « Deployment Tool ».
 
 ### Phases du stage (alignement sujet HESTIM)
 
@@ -125,8 +159,8 @@ flowchart TB
 | Élément | Usage CYBEL |
 |---------|-------------|
 | Topics lecture | `/robot_pose`, `/robot_status`, `/scan_filter`, `/get_current_map`, `/detected_people_array` |
-| Topics commande | `/mobile_base/commands/velocity`, `/navi_goal`, `/path_follower/cancel` |
-| Services | `/poi`, `/change_location_mode`, `/global_localization`, `/marker_manager/get_markers_details` |
+| Topics commande | `/cmd_vel_mux/input/teleop`, `/navi_goal`, `/path_follower/cancel` |
+| Services | `/tag_manager/navi`, `/poi`, `/change_location_mode`, `/global_locate`, `/marker_manager/get_markers_details` |
 | Introspection | `/rosapi/topics`, `/rosapi/services`, `/rosapi/subscribers` |
 
 **Codes `nav_status` documentés** :
@@ -227,7 +261,7 @@ gantt
 
     section Phase 4 — Validation
     Tests navigation terrain        :active, p4a, 2026-07-01, 30d
-    Ajustement coordonnées parcours :p4b, after p4a, 20d
+    Ajustement POI / sync Sentrymove   :active, p4b, 2026-07-01, 25d
     Tests intégration & rapport     :p4c, 2026-08-01, 30d
     Soutenance & démonstration        :milestone, p4d, 2026-09-15, 1d
 ```
@@ -241,7 +275,8 @@ gantt
 | Interface opérateur complète | fin juin 2026 | ✅ |
 | Kiosque affiché sur tablette | fin juin 2026 | ✅ |
 | Parcours 8 arrêts configuré | fin juin 2026 | ✅ |
-| Navigation terrain sans erreur 604 | juillet 2026 | ⏳ |
+| Navigation terrain POI (hybride) | juillet 2026 | ⏳ |
+| Branche `feature/hybrid-sentrymove-kiosk` | fin juin 2026 | ✅ |
 
 ---
 
@@ -270,14 +305,182 @@ gantt
 | Difficulté | Impact | Solution |
 |------------|--------|----------|
 | SSH verrouillé | Pas d'accès shell châssis | rosbridge + ADB tête uniquement |
-| Application propriétaire boîte noire | Pas de doc API | Rétro-ingénierie, pas de décompilation |
-| `nav_status` 604 fréquent | Visite interrompue | Affiner coordonnées `lab_tour.json` sur carte réelle |
+| Application propriétaire boîte noire | Pas de doc API | Rétro-ingénierie réseau + **audit JADX** (lecture seule) |
+| `nav_status` 604 fréquent | Visite interrompue | Garde-fous `tour_navigation.py`, traces JSON ; pivot vers POI Sentrymove |
 
 ---
 
-## 5.6 Conclusion (chapitre 5)
+## 5.6 Recherche de solution applicative — problèmes, hypothèses et stratégies
 
-La méthodologie adoptée — observation, vérification, simulation puis intégration — s'est avérée **indispensable** face à un système fermé et partiellement documenté. Le planning en quatre phases a été globalement respecté, avec un avance sur le déploiement tablette (phase 3) et un retard acceptable sur la validation navigation complète (phase 4). Les outils choisis (Python/FastAPI, TypeScript/Vite, rosbridge, ADB, Termux) forment un écosystème cohérent, adapté à un stage individuel et à des contraintes matérielles fortes.
+Cette section documente la **démarche de recherche** menée pour les deux applications cibles du stage : une interface **visiteur** (tablette) et une interface **superviseur** (PC ou tablette). Elle complète la rétro-ingénierie protocolaire (§5.5) en explicitant les choix d'architecture et les échecs partiels qui ont orienté la solution retenue.
+
+### 5.6.1 Problème central reformulé
+
+| Dimension | Énoncé |
+|-----------|--------|
+| **Problème principal** | Concevoir une plateforme d'accueil et de supervision **sans documentation constructeur**, alors que les APK d'origine (`welcomepatrol`, `sentrymove`) sont des boîtes noires. |
+| **Symptômes terrain (kiosque CYBEL)** | Robot qui **parle sans bouger**, **n'atteint pas** la destination, **reste immobile** longtemps, ou **échoue à se localiser** avant une visite. |
+| **Constat décisif** | L'application « Deployment Tool » du constructeur — identifiée comme **`com.ciot.sentrymove`** via `adb shell dumpsys window` — **navigue et gère les POI de façon fiable**, alors que le kiosque CYBEL échoue sur les mêmes trajets lorsqu'il utilise des coordonnées estimées. |
+| **Contrainte pédagogique** | Deux profils utilisateurs distincts : **visiteur** (parcours simple, autonome) et **superviseur/technicien** (carte, POI, diagnostic). |
+
+### 5.6.2 Synthèse problème → hypothèse → stratégie → décision
+
+| # | Problème | Hypothèse | Stratégie testée | Résultat | Décision |
+|---|----------|-----------|------------------|----------|----------|
+| **S1** | Pas de spec ROS/API publique | Le protocole est reconstructible par observation | **Conception from scratch** (SDK + web sans lire les APK) | Échec partiel : connexion OK, navigation incohérente, topics incorrects ou incomplets | Abandonner l'isolement ; chercher la spec dans le matériel existant |
+| **S2** | UI et logique métier constructeur inconnues | Les APK décompilés contiennent la spec ROS et les flux UX | **Inspiration JADX** (`welcomepatrol`, `sentrymove`, `selfchassislibrary`) | Succès partiel : audit ROS riche (`TopicContent`, `MsgManager`) ; recompilation/fork APK impossible (Iflytek, Realm, cloud, Gradle absent) | Extraire la **spec**, pas fork le binaire |
+| **S3** | Kiosque parle sans bouger / mauvaise destination | CYBEL envoie `/navi_goal` avec coords non calibrées ; Sentrymove utilise `/tag_manager/navi` + POI carte | **Plateforme CYBEL autonome** avec coords `lab_tour.json` | Échec terrain récurrent (`nav_status` 601 sans 602, traces `tour_*.log`) | Corréler échec à la **source de vérité des destinations** |
+| **S4** | Superviseur doit être sur tablette sans PC | Reprendre l'outil technicien qui marche déjà | **Option hybride** : Sentrymove (superviseur) + kiosque CYBEL (visiteur) + **sync POI** | En cours de validation — branche `feature/hybrid-sentrymove-kiosk` | **Stratégie retenue** pour la suite du stage |
+
+### 5.6.3 Stratégie 1 — Conception autonome (from scratch)
+
+**Problème adressé :** dépendance au constructeur et manque de contrôle sur l'expérience utilisateur.
+
+**Hypothèse :** ROS/rosbridge étant un standard ouvert, une plateforme web (FastAPI + TypeScript) peut piloter le robot sans étudier les APK propriétaires.
+
+**Mise en œuvre :**
+
+- SDK Python (`rosbridge.py`, `real_robot.py`), backend FastAPI, interfaces opérateur et kiosque.
+- Navigation par publication `/navi_goal` et service `/poi`.
+- Données parcours dans `lab_tour.json` dérivées de `knowledgeV2-lab.json`.
+
+**Résultats :**
+
+| Aspect | Bilan |
+|--------|-------|
+| Protocole de base | ✅ Connexion, télémétrie, TTS (ADB), téléopération |
+| Navigation autonome visite | ❌ Instable — coords non alignées sur carte SLAM active |
+| UX visiteur | ⚠️ Kiosque v0.3 fonctionnel visuellement, pas fiable fonctionnellement |
+| Documentation | ✅ Base solide (`README`, `docs/`) |
+
+**Pourquoi insuffisant :** la valeur critique du constructeur n'est pas l'UI mais **`selfchassislibrary`** — noms de topics, chaînes de fallback, orchestration `NavigationHelper`. Sans cette spec, on réinvente des appels ROS **syntaxiquement valides mais sémantiquement ignorés** par le planificateur.
+
+**Décision :** poursuivre CYBEL comme plateforme ouverte, mais **alimenter le SDK depuis l'audit APK**, pas depuis l'intuition.
+
+---
+
+### 5.6.4 Stratégie 2 — Inspiration des APK constructeur (JADX)
+
+**Problème adressé :** lacunes de la stratégie 1 (topics manquants, comportements navigation inexpliqués).
+
+**Hypothèse :** la décompilation des APK `com.ciot.welcomepatrol` (accueil visiteur) et `com.ciot.sentrymove` (outil déploiement) fournit une spécification ROS et une référence UX exploitable.
+
+**Méthodologie de recherche :**
+
+1. Extraction APK depuis la tablette (`adb pull`) ou dossiers `welcomepatrol/`, `sentrymove/` dans le dépôt.
+2. Décompilation **JADX** — lecture de `TopicContent.java`, `ServiceContent.java`, `MsgManager.java`, `NavigationHelper.java`.
+3. Rédaction de l'audit formalisé : `docs/cybel-conception/AUDIT_APK_CONSTRUCTEUR.md`.
+4. Portage vers `sdk/constants.py`, `sdk/ros_ops.py`, garde-fous `sdk/tour_navigation.py`.
+5. Comparaison écarts : `docs/cybel-conception/04-ecart-etat-actuel.md`, `docs/movement-audit/CYBEL_GAP_ANALYSIS.md`.
+
+**Résultats :**
+
+| Apport | Détail |
+|--------|--------|
+| Spec ROS | Topics `/cmd_vel_mux/input/teleop`, `/tag_manager/navi`, `/global_locate`, codes `nav_status` |
+| Rôles clarifiés | `welcomepatrol` = visiteur ; `sentrymove` = technicien (carte, POI, joystick) |
+| Parité fonctionnelle | ~50 % du périmètre v1 documenté (`PARITY_CHECKLIST.md`) |
+| Fork APK | ❌ Non viable — Iflytek, SROS cloud, Realm, 40+ fragments, projet non recompilable |
+
+**Pourquoi succès partiel seulement :** copier-coller le Java JADX ne produit pas une application maintenable ; en revanche, **l'audit informe CYBEL** (Phase 0 SDK, fallbacks, smoke test `phase0_robot_check.py`).
+
+**Décision :** utiliser les APK comme **référence et spec**, pas comme base de code à modifier intégralement.
+
+---
+
+### 5.6.5 Stratégie 3 — Option hybride retenue (Sentrymove + kiosque CYBEL)
+
+**Problème adressé :** écart de fiabilité navigation entre Deployment Tool (Sentrymove) et kiosque CYBEL ; besoin de supervision sur tablette sans PC permanent.
+
+**Hypothèse :** si les **POI sont créés et testés dans Sentrymove** (source de vérité sur le châssis ROS), le kiosque CYBEL peut naviguer **par nom de POI** (`/tag_manager/navi`) — même mécanisme que l'outil constructeur — sans fork de l'APK.
+
+**Architecture retenue :**
+
+```mermaid
+flowchart TB
+    subgraph Tablette["Tête Android — tablette robot"]
+        SM["Sentrymove\n(superviseur / technicien)"]
+        K["CybelVisitorKiosk\n(WebView visiteur)"]
+        L["cybel_lite.py\n(backend Termux)"]
+    end
+
+    subgraph Donnees["Persistance CYBEL"]
+        PJ["data/points.json"]
+        LT["data/lab_tour.json\ntarget_point"]
+    end
+
+    SM -->|"Crée / modifie POI"| ROS["marker_manager ROS"]
+    ROS -->|"sync POI"| PJ
+    PJ --> L
+    LT --> L
+    K --> L
+    L -->|" /tag_manager/navi "| ROS
+```
+
+**Mise en œuvre (branche `feature/hybrid-sentrymove-kiosk`) :**
+
+| Composant | Rôle |
+|-----------|------|
+| **Sentrymove** | Supervision, carte SLAM, création POI, relocalisation manuelle, tests trajet |
+| **`scripts/sync_poi_from_robot.py`** | Sync ROS → `data/points.json` |
+| **`POST /api/navigation/sync`** | Sync depuis PC ou tablette |
+| **`lab_tour.json`** | Arrêts via `target_point` (plus de coords brutes) |
+| **Kiosque CYBEL** | UX visiteur conservée ; navigation alignée Sentrymove |
+
+**Pourquoi cette stratégie :**
+
+1. **Séparation des rôles** — Sentrymove est un outil technicien (3166 lignes `MainActivity`) ; le forker pour le visiteur serait disproportionné.
+2. **Même canal navigation** — POI nommés = même fiabilité que Deployment Tool.
+3. **Indépendance partielle acceptable** — Sentrymove reste installé pour le superviseur, mais le **parcours visiteur et la voix** passent par CYBEL (pas de cloud Wuhan, pas d'Iflytek).
+4. **Travail offline possible** — sync script, migration `lab_tour.json`, tests unitaires sans robot ; validation POI sur site.
+
+**Documentation associée :** `docs/cybel-conception/06-plan-hybride-sentrymove-kiosk.md`, `docs/SENTRYMOVE_POI_SYNC.md`.
+
+---
+
+### 5.6.6 Scénarios d'usage cibles
+
+Les scénarios ci-dessous structurent la validation et la rédaction du chapitre 7. Ils distinguent **scénarios métier** (utilisateur final) et **scénarios de recherche** (validation des hypothèses).
+
+#### Scénarios métier (utilisateurs)
+
+| ID | Acteur | Scénario | Prérequis | Succès |
+|----|--------|----------|-----------|--------|
+| **M1** | Technicien | Créer un POI « Routeur CNC » dans Sentrymove et naviguer vers lui | Robot localisé, `nav_status` 601 | Robot arrive au marqueur |
+| **M2** | Technicien | Synchroniser POI vers CYBEL (`sync_poi_from_robot.py`) | Wi-Fi robot, POI Sentrymove existants | `points.json` à jour, destinations kiosque visibles |
+| **M3** | Visiteur | Choisir une destination sur le kiosque | Sync POI effectuée | TTS accueil + déplacement réel |
+| **M4** | Visiteur | Lancer la visite guidée 8 arrêts | POI labo créés, noms = `target_point` | 8 segments sans parole sans mouvement |
+| **M5** | Superviseur | Superviser depuis Sentrymove (carte, joystick) sans PC | APK constructeur installée | Téléop et POI opérationnels |
+| **M6** | Superviseur | Arrêt d'urgence pendant visite (`POST /api/tour/halt`) | Visite en cours | Nav + TTS stoppés |
+| **M7** | Visiteur | Parcours 100 % tablette (Termux + kiosque, sans PC) | `deploy_termux.py` | Health 200, TTS local |
+
+#### Scénarios de recherche (validation hypothèses)
+
+| ID | Hypothèse testée | Procédure | Indicateur de succès | Statut |
+|----|------------------|-----------|----------------------|--------|
+| **R1** | ROS reconstructible sans APK | Scripts `ros_explore.py`, mock-first | Topics identifiés, mock vert | ✅ |
+| **R2** | Coords `lab_tour.json` suffisantes | Visite avec `/navi_goal` | `nav_status` 602→603 sur 8 arrêts | ❌ |
+| **R3** | Garde-fous loc + mode auto suffisent | `tour_navigation.py`, traces JSON | Messages d'erreur explicites ; blocage 604 réduit | ⚠️ partiel |
+| **R4** | Sentrymove = Deployment Tool | `adb shell dumpsys window windows` | Focus `com.ciot.sentrymove/...MainActivity` | ✅ |
+| **R5** | POI Sentrymove = nav kiosque fiable | Sync + `/tag_manager/navi` | Même POI OK Sentrymove et kiosque | ⏳ validation terrain |
+| **R6** | Écart téléop CYBEL vs Sentrymove | `CYBEL_GAP_ANALYSIS.md`, `joystick_capture.py` | Topic `cmd_vel_mux`, mode manuel auto | ✅ corrigé SDK |
+| **R7** | Parité spec APK dans SDK | `phase0_robot_check.py` | Checks Phase 0 verts | ⏳ |
+
+#### Scénario narratif — journée type au laboratoire (cible)
+
+1. **Matin** — Allumer robot ; lancer Sentrymove ; relocaliser ; vérifier `nav_status` 601.
+2. **Configuration** — Créer ou ajuster POI labo ; lancer sync POI ; redeploy Termux si besoin.
+3. **Accueil** — Mode kiosque : visiteur lance visite guidée ou choisit une destination.
+4. **Supervision** — En cas d'incident : superviseur bascule Sentrymove (annulation, relocalisation) ou opérateur CYBEL (`/api/tour/halt`).
+5. **Analyse** — Consulter `GET /api/tour/trace` pour corréler parole, pose et `nav_status`.
+
+---
+
+## 5.7 Conclusion (chapitre 5)
+
+La méthodologie adoptée — observation, vérification, simulation puis intégration — s'est avérée **indispensable** face à un système fermé et partiellement documenté. La **recherche solutionnelle en trois temps** (conception autonome, audit APK, option hybride) montre qu'aucune approche isolée ne suffit : le protocole s'apprend par rétro-ingénierie, la fiabilité navigation par **alignement sur les POI Sentrymove**, et l'expérience visiteur par le kiosque CYBEL.
+
+Le planning en quatre phases a été globalement respecté, avec un avance sur le déploiement tablette (phase 3) et un **pivot méthodologique en fin de phase 4** : remplacer la navigation par coordonnées estimées par une **sync POI constructeur → kiosque**. Les outils choisis (Python/FastAPI, TypeScript/Vite, rosbridge, ADB, Termux) forment un écosystème cohérent ; Sentrymove est retenu comme **outil superviseur complémentaire**, non comme dépendance du parcours visiteur.
 
 ---
 
@@ -363,17 +566,39 @@ flowchart LR
 3. **HTTP** — interfaces constructeur non exploitées pour CYBEL.
 4. **ADB** — accès tête Android pour TTS.
 
-### 6.3.3 Étude des commandes
+### 6.3.4 Décompilation APK (JADX) et audit constructeur
+
+En complément de l'exploration réseau, une **décompilation non destructive** des applications Android du robot a été réalisée :
+
+| APK | Package | Rôle identifié |
+|-----|---------|----------------|
+| Welcome Patrol | `com.ciot.welcomepatrol` | Accueil visiteur, guidage, voix, patrouille |
+| Sentry Move | `com.ciot.sentrymove` | Outil technicien — **« Deployment Tool »** sur tablette |
+
+**Méthode :** extraction APK (`adb pull` ou dossiers `welcomepatrol/`, `sentrymove/`), décompilation **JADX**, lecture des packages `selfchassislibrary`, `NavigationHelper`, fragments UI.
+
+**Livrable :** `docs/cybel-conception/AUDIT_APK_CONSTRUCTEUR.md` — registre topics ROS, services, flux navigation, limites (Iflytek, cloud SROS, Realm).
+
+**Découverte terrain (juin 2026) :** l'application utilisée quotidiennement pour cartographier et déplacer le robot correspond à :
+
+```text
+mCurrentFocus=Window{... com.ciot.sentrymove/mc.csst.com.selfchassis.ui.activity.main.MainActivity}
+```
+
+Cette identification a **validé l'hypothèse R4** (§5.6.6) et orienté la stratégie hybride : réutiliser la **création de POI Sentrymove** comme source de vérité, plutôt que répliquer tout l'APK.
+
+### 6.3.5 Étude des commandes
 
 | Action | Mécanisme validé |
 |--------|------------------|
-| Téléopération | `/mobile_base/commands/velocity` (mode manuel requis) |
-| Navigation point | Service `/poi` — `command: go` |
-| Navigation coordonnée | Publication `/navi_goal` |
-| Annuler navigation | `/poi stop` + `/path_follower/cancel` |
+| Téléopération | `/cmd_vel_mux/input/teleop` (aligné APK ; mode manuel auto au 1er mouvement) |
+| Navigation POI | Service `/tag_manager/navi` puis fallback `/poi` — **prioritaire Sentrymove** |
+| Navigation coordonnée | Publication `/navi_goal` (fallback ; coords à calibrer sur SLAM) |
+| Annuler navigation | Chaîne multi-canal : `/poi stop`, `/move_base/cancel`, vitesse nulle |
 | Mode manuel/auto | Service `/change_location_mode` — `mode: 0/1` |
-| Relocalisation | Service `/global_localization` |
+| Relocalisation | `/global_locate` puis fallback `/global_localization` |
 | Parole | `am broadcast` → CybelTTSBridge (hors ROS) |
+| Sync POI | `/marker_manager/get_markers_details` → `data/points.json` |
 
 ---
 
@@ -411,12 +636,12 @@ flowchart TB
 | Domaine | Endpoints clés |
 |---------|----------------|
 | Robot | `/api/robot/status`, `/move`, `/stop`, `/emergency-stop`, `/relocalize` |
-| Navigation | `/api/navigation/goto`, `/goto-coordinate`, `/cancel` |
+| Navigation | `/api/navigation/goto`, `/goto-coordinate`, `/cancel`, **`/sync`** |
 | Carte | `/api/map/current` |
 | Visite | `/api/tour/start`, `/stop`, `/halt`, CRUD `/stops` |
 | Télémétrie | WebSocket `/ws/telemetry` |
 
-**Tests automatisés** : 14 tests unitaires (`pytest tests/`).
+**Tests automatisés** : 83 tests unitaires (`pytest tests/unit`) — juin 2026.
 
 ---
 
@@ -490,11 +715,11 @@ sequenceDiagram
 
     K->>L: POST /api/tour/start
     L->>E: start(lang)
-    E->>R: navigate_to_coordinate(x,y,θ)
-    R->>ROS: /navi_goal + mode auto
+    E->>R: navigate_to_point(target_point) ou /navi_goal
+    R->>ROS: /tag_manager/navi + mode auto + prérequis loc
     ROS-->>R: nav_status 602→603
     E->>L: speak(présentation)
-    Note over E: Répète pour chaque arrêt
+    Note over E: Répète pour chaque arrêt (POI Sentrymove)
     E->>K: status completed
 ```
 
@@ -504,9 +729,27 @@ sequenceDiagram
 
 ---
 
-## 6.9 Conclusion (chapitre 6)
+## 6.10 Option hybride Sentrymove + sync POI (fin juin 2026)
 
-L'implémentation CYBEL couvre l'intégralité de la chaîne **du protocole robot aux interfaces utilisateur**, en passant par une API structurée et un déploiement embarqué sur tablette. L'architecture en couches (SDK / API / UI) a absorbé les évolutions (visite guidée, TTS, Termux) sans remise en cause du cœur logiciel. Le principal travail restant porte sur l'**alignement des données** (`lab_tour.json`) avec la carte SLAM réelle du laboratoire.
+Suite à l'analyse des échecs navigation kiosque (§5.6), une **branche dédiée** `feature/hybrid-sentrymove-kiosk` implémente la stratégie retenue :
+
+| Élément | Description |
+|---------|-------------|
+| **Superviseur** | Sentrymove (`com.ciot.sentrymove`) — conservé tel quel sur tablette |
+| **Visiteur** | Kiosque CYBEL (`frontend-kiosk` + `CybelVisitorKiosk`) |
+| **Pont données** | `scripts/sync_poi_from_robot.py`, `sdk/poi_sync.py`, `sdk/marker_utils.py` |
+| **Visite guidée** | `data/lab_tour.json` — champs `target_point` (noms POI), sans coordonnées brutes |
+| **API sync** | `POST /api/navigation/sync` (backend PC + `cybel_lite` tablette) |
+
+**Flux opérateur documenté :** `docs/SENTRYMOVE_POI_SYNC.md`.
+
+---
+
+## 6.11 Conclusion (chapitre 6)
+
+L'implémentation CYBEL couvre l'intégralité de la chaîne **du protocole robot aux interfaces utilisateur**, en passant par une API structurée et un déploiement embarqué sur tablette. L'architecture en couches (SDK / API / UI) a absorbé les évolutions (visite guidée, TTS, Termux, audit APK, sync POI) sans remise en cause du cœur logiciel.
+
+Le principal enseignement de la phase d'implémentation est que **la fiabilité navigation ne dépend pas de l'UI kiosque** mais de la **source des destinations** : POI calibrés dans Sentrymove plutôt que coordonnées estimées dans un fichier JSON. La validation terrain de cette hypothèse constitue le jalon immédiat du stage.
 
 ---
 
@@ -514,36 +757,68 @@ L'implémentation CYBEL couvre l'intégralité de la chaîne **du protocole robo
 
 ## 7.1 Stratégie de validation
 
+La validation s'articule autour de **deux axes** : (1) conformité technique (protocole, API, tests automatisés) ; (2) **validation des hypothèses de recherche solutionnelle** (§5.6.6).
+
 | Niveau | Méthode | Périmètre |
 |--------|---------|-----------|
-| Unitaire | `pytest` (14 tests) | SDK, utils, tour, rosbridge |
+| Unitaire | `pytest` (83 tests) | SDK, sync POI, tour, persistance, rosbridge |
 | Intégration mock | `ROBOT_MOCK=true` | API + frontend sans robot |
-| Intégration réelle | Tests manuels sur robot | Navigation, TTS, télémétrie |
-| Acceptation terrain | Visite complète 8 arrêts | Tablette + laboratoire |
+| Intégration réelle | Tests manuels + scripts | Navigation POI, TTS, télémétrie |
+| Recherche hypothèse | Scénarios R1–R7 | Comparaison Sentrymove vs CYBEL |
+| Acceptation terrain | Scénarios M1–M7 | Visite POI, sync, supervision tablette |
 
-**Critères de succès visite guidée** :
+**Critères de succès visite guidée (version hybride POI) :**
 
-1. Démarrage depuis kiosque sans erreur.
-2. Robot atteint chaque coordonnée (`nav_status` → 603).
-3. Annonces vocales audibles à chaque arrêt.
-4. Arrêt visiteur et E-Stop opérateur fonctionnels.
+1. POI créés dans Sentrymove et synchronisés vers `points.json`.
+2. Démarrage visite depuis kiosque sans erreur 409 (prérequis loc OK).
+3. Robot atteint chaque POI (`nav_status` → 603) — **pas de TTS sans mouvement**.
+4. Annonces vocales audibles à chaque arrêt.
+5. Arrêt visiteur et E-Stop opérateur fonctionnels.
 
 ---
 
 ## 7.2 Scénarios de tests
 
+### 7.2.1 Tests techniques (infrastructure)
+
 | ID | Scénario | Résultat attendu | Statut |
 |----|----------|------------------|--------|
 | T1 | `ping 10.42.0.1` + `robot_status.py` | Messages JSON `/robot_status` | ✅ |
-| T2 | Téléop mode manuel | Robot se déplace au D-pad | ✅ |
-| T3 | Navigation vers point carte | `nav_status` 602→603 | ✅ |
-| T4 | Annulation navigation | Robot s'arrête, trait bleu disparaît | ✅ (après correctifs) |
+| T2 | Téléop mode manuel / auto | Robot se déplace au D-pad | ✅ |
+| T3 | Navigation vers POI carte | `nav_status` 602→603 | ✅ (Sentrymove) ; ⏳ kiosque POI |
+| T4 | Annulation navigation | Robot s'arrête, objectif effacé | ✅ |
 | T5 | TTS via ADB | Audio audible | ✅ |
 | T6 | TTS tablette (broadcast) | Audio sans PC | ✅ |
-| T7 | Kiosque affiché WebView | Écran accueil CYBEL | ✅ |
-| T8 | Visite 8 arrêts complète | Sans 604 | ⏳ |
-| T9 | Relâcher E-Stop sans reprise nav | Robot immobile | ✅ (après correctifs) |
-| T10 | `pytest tests/` | 14/14 passés | ✅ |
+| T7 | Kiosque affiché WebView | Écran accueil CYBEL v0.3 | ✅ |
+| T8 | Visite 8 arrêts (coords) | Sans 604 | ❌ — pivot POI |
+| T9 | Visite 8 arrêts (POI sync) | Sans parole sans mouvement | ⏳ |
+| T10 | Relâcher E-Stop sans reprise nav | Robot immobile | ✅ |
+| T11 | `pytest tests/unit` | 83/83 passés | ✅ |
+| T12 | `POST /api/navigation/sync` | `points.json` fusionné | ✅ (code) ; ⏳ terrain |
+| T13 | `phase0_robot_check.py --nav-poi` | Check vert | ⏳ |
+
+### 7.2.2 Scénarios métier et de recherche
+
+Les scénarios **M1–M7** (métier) et **R1–R7** (recherche) sont détaillés au §5.6.6. Le tableau ci-dessous résume leur statut au moment de la rédaction :
+
+| Famille | Objectif | Statut global |
+|---------|----------|---------------|
+| **M** — Utilisateur final | Parcours visiteur + supervision tablette | ⏳ validation juillet 2026 |
+| **R** — Hypothèses stage | Comparer approches from scratch / APK / hybride | ✅ documenté ; R5 en cours |
+
+### 7.2.3 Scénario d'échec documenté — « parle sans bouger »
+
+**Contexte :** journal `tour_20260623_142601` (analyse `docs/TOUR_NAVIGATION.md`).
+
+| Étape | Observation | Interprétation |
+|-------|-------------|----------------|
+| 1 | Intro TTS jouée | Backend considère visite démarrée |
+| 2 | `/navi_goal` publié | Goal accepté syntaxiquement |
+| 3 | `nav_status` reste 601 | Planificateur **n'a pas démarré** (602 jamais atteint) |
+| 4 | Pose inchangée 14 s | Aucun mouvement réel |
+| 5 | Message « échec 604 » | **Trompeur** — vrai problème : objectif ignoré |
+
+**Hypothèse validée :** le blocage n'est pas l'UI kiosque mais l'**inadéquation coords / état châssis**. **Solution :** POI Sentrymove + prérequis `prepare_for_tour()` + traces JSON.
 
 ---
 
@@ -555,16 +830,19 @@ L'implémentation CYBEL couvre l'intégralité de la chaîne **du protocole robo
 - Kiosque visiteur bilingue déployé sur tablette Termux.
 - Protocole ROS documenté et intégré dans `sdk/constants.py`.
 - Pont TTS Android opérationnel.
-- Parcours laboratoire 8 arrêts configuré dans `data/lab_tour.json`.
+- Parcours laboratoire 8 arrêts — navigation **par POI** (`target_point`) après sync Sentrymove.
+- Documentation recherche solutionnelle (§5.6) et plan hybride (`06-plan-hybride-sentrymove-kiosk.md`).
 
 ### Incidents terrain documentés
 
 | Incident | Cause | Résolution |
 |----------|-------|------------|
-| Erreur 604 visite | Coordonnée dans obstacle / chemin bloqué | Ajuster `lab_tour.json` |
+| Erreur 604 / visite bloquée | Coords dans obstacle ou objectif ignoré (601) | Pivot POI Sentrymove ; `tour_navigation.py` |
+| Robot parle sans bouger | TTS avant nav + `/navi_goal` ignoré | Prérequis loc avant TTS ; POI `/tag_manager/navi` |
 | Handshake rosbridge timeout | Wi-Fi ou connexions saturées | Retries, pas de reload, redémarrage robot |
-| Objectif conservé après annulation | Télémétrie robot non effacée | `_suppress_robot_goal` + `/poi stop` |
+| Objectif conservé après annulation | Télémétrie robot non effacée | `_suppress_robot_goal` + cancel multi-canal |
 | Bouton Arrêt inefficace | Appelait `haltTour` au lieu de `cancel` | Correction `app.ts` |
+| Écart CYBEL vs Deployment Tool | Topic téléop legacy, garde-fous stricts | `CYBEL_GAP_ANALYSIS.md`, alignement `cmd_vel_mux` |
 
 ---
 
@@ -579,8 +857,8 @@ L'implémentation CYBEL couvre l'intégralité de la chaîne **du protocole robo
 | **Fréquence télémétrie** pose | ~10 Hz | `/robot_pose` |
 | **Fréquence télémétrie** LiDAR | ~25 Hz | `/scan_filter` |
 | **Latence Wi-Fi** ping robot | 89–1654 ms | Variable |
-| **Robustesse** navigation | Erreurs 604 sur certains arrêts | Coordonnées à calibrer |
-| **Tests unitaires** | 14/14 passés | Juin 2026 |
+| **Robustesse** navigation coords | Échecs fréquents | Pivot POI Sentrymove |
+| **Tests unitaires** | 83/83 passés | Juin 2026 |
 
 ---
 
@@ -595,6 +873,7 @@ En tant que stagiaire HESTIM en charge du robot, les contributions principales i
 5. **Conception du parcours pédagogique** laboratoire (`lab_tour.json` depuis `knowledgeV2-lab.json`).
 6. **Documentation technique** exhaustive (`docs/`, scripts, diagrammes Mermaid).
 7. **Correction itérative** des problèmes terrain (annulation nav, rosbridge, erreurs 604).
+8. **Recherche solutionnelle structurée** — trois stratégies comparées (§5.6), identification Sentrymove = Deployment Tool, conception option hybride POI.
 
 ---
 
@@ -609,7 +888,8 @@ En tant que stagiaire HESTIM en charge du robot, les contributions principales i
 | TTS | Aucun canal réseau | APK CybelTTSBridge |
 | Tablette | FastAPI impossible Termux | `cybel_lite.py` Starlette |
 | Tablette | Écran blanc WebView | Build IIFE + safe-area |
-| Navigation | 604, annulation | Multi-cancel, masquage objectif |
+| Navigation | 604, coords ignorées | POI Sentrymove + sync + `target_point` |
+| Recherche | Approches multiples | Méthodologie essai–mesure–décision (§5.6) |
 | Dev | `--reload` sature rosbridge | `dev.py` sans reload par défaut |
 
 ---
@@ -618,12 +898,14 @@ En tant que stagiaire HESTIM en charge du robot, les contributions principales i
 
 1. **Dépendance Wi-Fi robot** — pas de contrôle hors réseau `TY1251D-03195`.
 2. **Un seul robot de test** — généralisation non garantie.
-3. **Coordonnées parcours** — calibrage manuel sur carte SLAM.
-4. **Pas de ROS natif** — dépendance totale à rosbridge.
-5. **Android 7.1** — contraintes WebView, pas de modules ES modernes.
-6. **Backend lite Termux** — sous-ensemble des fonctions opérateur.
-7. **Pas de CI/CD** ni déploiement production industrialisé.
-8. **Reconnaissance vocale visiteur** — non implémentée (v1).
+3. **Coordonnées parcours** — remplacées par **POI nommés** (sync Sentrymove) ; validation terrain en cours.
+4. **Dépendance partielle Sentrymove** — conservé pour supervision/POI ; kiosque reste CYBEL.
+5. **Pas de ROS natif** — dépendance totale à rosbridge.
+6. **Android 7.1** — contraintes WebView, pas de modules ES modernes.
+7. **Backend lite Termux** — sous-ensemble des fonctions opérateur.
+8. **Pas de CI/CD** ni déploiement production industrialisé.
+9. **Reconnaissance vocale / faciale visiteur** — non implémentée (v1).
+10. **Fork APK constructeur** — non retenu (dépendances propriétaires, non recompilable).
 
 ---
 
@@ -631,20 +913,21 @@ En tant que stagiaire HESTIM en charge du robot, les contributions principales i
 
 | Priorité | Amélioration |
 |----------|--------------|
-| Haute | Calibrer les 8 arrêts sur carte réelle (éliminer 604) |
-| Haute | Connexion rosbridge non bloquante au démarrage FastAPI |
+| **Haute** | Valider visite 8 arrêts via POI sync (scénarios M3, M4, T9) |
+| **Haute** | Exposer interface opérateur sur tablette (URL `/` ou mode PIN) |
+| Moyenne | Connexion rosbridge non bloquante au démarrage FastAPI |
 | Moyenne | Aligner `cybel_lite.py` sur toute la logique `real_robot.py` |
-| Moyenne | Tests d'intégration rosbridge simulé |
 | Moyenne | Boot auto Termux (`termux-boot.sh`) |
-| Basse | Sync POI robot ↔ `lab_tour.json` |
-| Basse | Reconnaissance vocale visiteur (micro tablette) |
-| Basse | Conteneurisation Docker pour poste opérateur dédié |
+| Basse | Reconnaissance faciale / annuaire (welcomepatrol — hors scope v1) |
+| Basse | Fork rebrand Sentrymove (v2 — si indépendance totale requise) |
 
 ---
 
 ## 7.9 Conclusion (chapitre 7)
 
-La validation démontre que CYBEL atteint son objectif principal : **commander et faire interagir le robot sans l'application propriétaire**. Les tests unitaires et d'intégration mock sont verts ; les tests terrain confirment téléopération, TTS, télémétrie et navigation ponctuelle. La visite guidée complète sur huit arrêts reste le **dernier jalon de validation**, conditionnée par l'affinage des coordonnées et la stabilité réseau. Les limites identifiées sont connues et documentées ; les perspectives d'amélioration constituent une feuille de route claire pour la suite du stage et une éventuelle exploitation au laboratoire HESTIM.
+La validation démontre que CYBEL atteint son objectif principal : **commander et faire interagir le robot avec une stack ouverte**. Les tests unitaires (83/83) et d'intégration mock sont verts ; les tests terrain confirment téléopération, TTS, télémétrie et navigation POI via Sentrymove.
+
+La visite guidée kiosque sur huit arrêts constitue le **dernier jalon**, conditionnée par la **validation de l'hypothèse R5** : navigation par POI synchronisés plutôt que par coordonnées. La démarche de recherche documentée au §5.6 constitue une contribution méthodologique du stage : elle montre comment arbitrer entre conception autonome, audit de solutions existantes et **option hybride pragmatique** lorsque le matériel imposé fournit déjà un composant fiable (Deployment Tool).
 
 ---
 
@@ -652,11 +935,11 @@ La validation démontre que CYBEL atteint son objectif principal : **commander e
 
 Le stage réalisé au sein de HESTIM sur le robot de réception CIOT TY1251D-03195 a permis de répondre à une problématique exigeante : **concevoir une plateforme tierce de commande et d'interaction en l'absence de toute documentation officielle**.
 
-La démarche de rétro-ingénierie incrémentale, combinée à une architecture logicielle en couches et à un mode simulation, a permis de livrer en quelques semaines un système **fonctionnel et démontrable** : interface opérateur riche, visite guidée autonome du laboratoire sur tablette, synthèse vocale, et documentation technique reproductible.
+La démarche de rétro-ingénierie incrémentale, combinée à une **recherche solutionnelle en trois stratégies** (conception autonome, audit APK JADX, option hybride Sentrymove + kiosque), a permis de livrer un système **fonctionnel et démontrable** malgré l'absence de documentation constructeur.
 
-Ce travail démontre qu'un robot de service « fermé » peut être intégré dans un écosystème pédagogique personnalisé, à condition d'accepter une phase d'investigation protocolaire substantielle et de maintenir une discipline stricte de validation sur le matériel réel.
+Ce travail démontre qu'un robot de service « fermé » peut être intégré dans un écosystème pédagogique personnalisé, à condition d'accepter une phase d'investigation substantielle, de **comparer systématiquement** les solutions existantes sur le terrain, et de retenir une architecture **pragmatique** lorsque l'outil constructeur apporte une brique fiable (POI, cartographie) que la stack ouverte réutilise sans fork complet.
 
-Les compétences mobilisées — réseaux, ROS/rosbridge, développement full-stack, Android embarqué, robotique mobile — correspondent au profil visé par la formation en Informatique et Intelligence Artificielle à HESTIM. La suite du stage consacrera ses efforts à la **validation terrain complète du parcours** et à la rédaction finale du mémoire de soutenance.
+Les compétences mobilisées — réseaux, ROS/rosbridge, reverse engineering applicatif, développement full-stack, Android embarqué, robotique mobile, méthodologie essai–hypothèse–validation — correspondent au profil visé par la formation en Informatique et Intelligence Artificielle à HESTIM. La suite du stage consacrera ses efforts à la **validation terrain de la sync POI** (scénarios M3–M4) et à la rédaction finale du mémoire de soutenance.
 
 ---
 
@@ -726,8 +1009,14 @@ python scripts\robot_status.py
 # Lancement développement
 python scripts\dev.py
 
-# Tests
-python -m pytest tests/ -v
+# Tests unitaires
+python -m pytest tests/unit -q
+
+# Sync POI Sentrymove → kiosque
+python scripts\sync_poi_from_robot.py --host 192.168.20.22
+
+# Validation Phase 0
+python scripts\phase0_robot_check.py --host 192.168.20.22 --nav-poi "Routeur CNC"
 
 # TTS test (USB branché)
 adb shell am broadcast -n com.cybel.ttsbridge/.SpeakReceiver `
@@ -742,6 +1031,7 @@ python scripts\deploy_termux.py --skip-kiosk-build --lite-only --host <IP> --pas
 cd ~/cybel/scripts/termux
 ./stop_cybel.sh && ./start_cybel.sh
 curl http://127.0.0.1:8000/api/health
+curl -X POST http://127.0.0.1:8000/api/navigation/sync
 ```
 
 ## Annexe C — Extraits de code significatifs
@@ -771,17 +1061,19 @@ await self._client.publish(ROS_TOPICS["navi_goal"], {
 })
 ```
 
-### C.3 Structure d'un arrêt (`data/lab_tour.json`)
+### C.3 Structure d'un arrêt visite POI (`data/lab_tour.json`)
 
 ```json
 {
   "id": "cnc_router",
   "equipment_fr": "Routeur CNC",
-  "x": 2.72, "y": -0.83, "theta": -0.48,
+  "target_point": "Routeur CNC",
   "speech_fr": "Le routeur CNC permet d'usiner...",
   "dwell_seconds": 12
 }
 ```
+
+> **Note méthodologique :** la version initiale utilisait des champs `x`, `y`, `theta` (navigation `/navi_goal`). La stratégie hybride (§5.6.5) privilégie `target_point` — nom POI créé dans Sentrymove — pour aligner le kiosque sur Deployment Tool.
 
 ## Annexe D — Diagrammes détaillés
 
@@ -812,6 +1104,11 @@ Voir `diagrammes/README.md` pour la procédure d'export (Mermaid Live Editor ou 
 | Kiosque visiteur | `docs/VISITOR_KIOSK.md` |
 | Déploiement Termux | `docs/TERMUX_DEPLOY.md` |
 | Connexion robot | `docs/ROBOT_CONNECTION.md` |
+| Audit APK constructeur | `docs/cybel-conception/AUDIT_APK_CONSTRUCTEUR.md` |
+| Plan hybride Sentrymove | `docs/cybel-conception/06-plan-hybride-sentrymove-kiosk.md` |
+| Procédure sync POI | `docs/SENTRYMOVE_POI_SYNC.md` |
+| Diagnostic navigation | `docs/TOUR_NAVIGATION.md` |
+| Écarts CYBEL vs Sentrymove | `docs/movement-audit/CYBEL_GAP_ANALYSIS.md` |
 | Rapport complet (base) | `docs/Sujet de stage/rapport_stage_cybel.md` |
 
 ---
