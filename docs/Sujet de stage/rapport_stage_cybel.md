@@ -4,7 +4,7 @@
 
 > Document de travail destiné à servir de base au rapport de stage (PFA, 3ᵉ année — Informatique et Intelligence Artificielle), réalisé dans le cadre du stage proposé par HESTIM Engineering & Business School (encadrant : Dr. Sridath Tula).
 >
-> Ce document suit le plan académique imposé. Les sections relevant de l'état d'avancement (Implémentation, Résultats, Analyse critique) reflètent l'état réel du projet à la **fin juin 2026** : le kiosque visiteur est opérationnel sur la tablette ; une **validation terrain A/B** compare l'approche navigation par coordonnées (`/navi_goal`) et l'approche hybride **POI Sentrymove** (sync ROS → kiosque), documentée dans [chapitres_5_6_7_conclusion.md](chapitres_5_6_7_conclusion.md) et [KIOSK_AB_COMPARISON.md](../KIOSK_AB_COMPARISON.md).
+> Ce document suit le plan académique imposé. Les sections relevant de l'état d'avancement (Implémentation, Résultats, Analyse critique) reflètent l'état réel du projet à la **fin juin 2026** : le kiosque visiteur est opérationnel sur la tablette ; une **validation terrain A/B** compare l'approche navigation par coordonnées (`/navi_goal`) et l'approche hybride **POI Sentrymove** (sync ROS → kiosque), documentée dans [chapitres_5_6_7_conclusion.md](chapitres_5_6_7_conclusion.md), [labo/TERRAIN.md](../labo/TERRAIN.md) et [labo/KIOSK_AB_COMPARISON.md](../labo/KIOSK_AB_COMPARISON.md).
 
 ---
 
@@ -567,7 +567,7 @@ Le planning ci-dessous reprend les quatre phases proposées dans le sujet de sta
 - **Application web kiosque** orientée **visite autonome du laboratoire** : écran d'accueil, bouton « Démarrer la visite », progression, phases (déplacement / présentation / observation), bouton arrêt visiteur, bascule **FR/EN**.
 - **Moteur de visite** (`sdk/lab_tour.py`, `TourEngine`) : enchaînement intro → pour chaque arrêt (approche vocale, navigation, présentation, pause) → conclusion.
 - **Données de parcours** : `data/lab_tour.json` (8 arrêts), synthétisé depuis `data/knowledgeV2-lab.json`.
-- **Deux stratégies de navigation** (comparaison A/B, voir `docs/KIOSK_AB_COMPARISON.md`) :
+- **Deux stratégies de navigation** (comparaison A/B, voir `docs/labo/KIOSK_AB_COMPARISON.md`) :
   - **S1 — Coords** (production, port 8000) : publication `/navi_goal` (x, y, θ) ; config `kiosk_config.coords.json`.
   - **S3 — POI hybride** (test, port 8001) : arrêts par `target_point`, sync ROS `sdk/poi_sync.py`, POI créés dans Sentrymove ; config `kiosk_config.poi.json`.
 - **Sync POI** : `scripts/sync_poi_from_robot.py`, endpoints `POST /api/navigation/sync`, `GET /api/navigation/points`.
@@ -699,7 +699,7 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 ### 12.1 Limites
 
 - **Validation navigation multi-arrêts (S1 coords)** : les coordonnées proviennent de `knowledgeV2-lab.json` ; symptômes terrain (parle sans bouger, mauvaise cible) suggèrent un décalage repère SLAM ou une commande `/navi_goal` ignorée partiellement — d'où la stratégie S3 POI alignée sur Sentrymove.
-- **Comparaison A/B en cours** : deux backends Termux (8000/8001) et deux APK distincts ; protocole de test dans `docs/KIOSK_AB_COMPARISON.md`.
+- **Comparaison A/B en cours** : deux backends Termux (8000/8001) et deux APK distincts ; procédure dans `docs/labo/TERRAIN.md` et `scripts/preflight_labo.ps1`.
 - **Backend complet non déployable sur Termux** : FastAPI + pydantic nécessite `pydantic-core` (compilation Rust), impossible sur Python 3.13 Termux. Le backend lite (Starlette) couvre le kiosque et l'API tour, mais pas toutes les fonctionnalités opérateur.
 - **Contrôle opérateur / visite** : l'arrêt total depuis le PC repose sur `CYBEL_KIOSK_BACKEND_URL` pour interrompre la visite sur la tablette ; si l'IP Wi-Fi change, cette URL doit être mise à jour.
 - **Routage réseau asymétrique** : la tête Android ne peut pas initier de connexion vers le PC développeur (`10.42.0.0/24`). Contourné par l'hébergement Termux.
