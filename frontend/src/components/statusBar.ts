@@ -59,6 +59,10 @@ export function renderStatusBar(
   const locClass = localizationClass(status.localization_percent);
   const batClass = batteryClass(status.battery);
   const deviceState = status.soft_estop || status.hard_estop ? "E-STOP" : "Normal";
+  const chargeLabel =
+    status.returning_to_charge || status.charge_state === "returning"
+      ? "Retour borne…"
+      : status.charge_state_label || (status.charger ? "En charge" : "");
 
   return `
     <header class="status-bar">

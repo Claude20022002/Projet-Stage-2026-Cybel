@@ -55,6 +55,10 @@ export function renderControls(status: RobotStatus | null, softEstop: boolean): 
           ${icons.crosshair("icon", 14)}
           <span>Relocaliser</span>
         </button>
+        <button id="btn-go-home" class="btn btn--secondary btn--with-icon" type="button" title="Retour vers la borne de recharge">
+          ${icons.plug("icon", 14)}
+          <span>Retour borne</span>
+        </button>
         ${
           softEstop
             ? `<button id="btn-release-estop" class="btn btn--warning btn--with-icon" type="button">

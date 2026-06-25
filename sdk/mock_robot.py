@@ -332,6 +332,34 @@ class MockRobot:
         self._navigation_task = asyncio.create_task(self._simulate_navigation(target))
         return True
 
+    async def go_home(self) -> bool:
+        if self._navigation_task:
+            self._navigation_task.cancel()
+        self.navigating_to = None
+        self.status.navigating_to = None
+        self.status.returning_to_charge = True
+        self.status.charge_state = "returning"
+        self.status.charge_state_label = "Retour borne…"
+        self.status.nav_status = 602
+        self.status.nav_status_label = "En navigation"
+        await self._emit("event", {"message": "Retour borne de recharge lancé", "method": "mock"})
+        await self._emit("status", self.status.model_dump())
+        self._navigation_task = asyncio.create_task(self._simulate_go_home())
+        return True
+
+    async def _simulate_go_home(self) -> None:
+        try:
+            pile = next((p for p in self.points if p.type == "charging"), self.points[2])
+            await self._simulate_navigation(pile)
+            self.status.charger = True
+            self.status.returning_to_charge = False
+            self.status.charge_state = "charging"
+            self.status.charge_state_label = "En charge"
+            await self._emit("event", {"message": "Robot en recharge (simulation)"})
+            await self._emit("status", self.status.model_dump())
+        except asyncio.CancelledError:
+            raise
+
     async def _simulate_navigation(self, target: Point) -> None:
         try:
             steps = 40

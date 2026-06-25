@@ -30,6 +30,7 @@ class RobotBackend(Protocol):
     async def wait_for_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
     async def ensure_localization(self, min_percent: float | None = None, timeout: float = 45.0) -> bool: ...
     async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool: ...
+    async def go_home(self) -> bool: ...
     async def navigate_to_point(self, point_name: str) -> bool: ...
     async def navigate_to_coordinate(
         self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
@@ -150,6 +151,9 @@ class RobotService:
 
     async def wait_for_navigation_arrival(self, timeout: float | None = None) -> bool:
         return await self._require().wait_for_navigation_arrival(timeout)
+
+    async def go_home(self) -> bool:
+        return await self._require().go_home()
 
     async def navigate_to_point(self, point_name: str) -> bool:
         return await self._require().navigate_to_point(point_name)

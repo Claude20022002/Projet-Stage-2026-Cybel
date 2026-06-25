@@ -8,6 +8,7 @@ from typing import Any, Awaitable, Callable
 from sdk.constants import (
     CANCEL_NAV_PUBLISH_TOPICS,
     CANCEL_NAV_SERVICE_CHAIN,
+    CHARGE_STATE_LABELS,
     LIDAR_TOPICS,
     MARKER_TYPE_MAP,
     NAV_STATUS_LABELS,
@@ -55,6 +56,10 @@ def nav_mode_label(mode: str) -> str:
 
 def nav_status_label(code: int) -> str:
     return NAV_STATUS_LABELS.get(code, f"Code {code}")
+
+
+def charge_state_label(state: str) -> str:
+    return CHARGE_STATE_LABELS.get(state, state)
 
 
 def _pose_near_goal(pose: Pose, goal: Coordinate, tolerance: float = 0.45) -> bool:
@@ -281,6 +286,7 @@ class RealRobot:
             (ROS_TOPICS["map_metadata"], 2000),
             (ROS_TOPICS["people"], 500),
             (ROS_TOPICS["localization_confidence"], 500),
+            (ROS_TOPICS["charge_result"], 1000),
         ):
             await self._client.subscribe(topic, throttle_rate=throttle)
         for topic in LIDAR_TOPICS:
@@ -355,6 +361,9 @@ class RealRobot:
             self.status.localization_percent = self._localization_percent
             self.status.localization_label = localization_label(self._localization_percent)
             await self._emit("status", self.status.model_dump())
+
+        elif topic == ROS_TOPICS["charge_result"]:
+            await self._handle_charge_result(msg)
 
     def _parse_people(self, msg: dict[str, Any]) -> list[DetectedPerson]:
         raw = self._extract_people_raw(msg)
@@ -481,7 +490,18 @@ class RealRobot:
             current_floor_name=str(msg.get("current_floor_name") or "0"),
             current_goal=current_goal,
             navigating_to=navigating_to,
+            returning_to_charge=self.status.returning_to_charge,
+            charge_state="charging" if charger else (
+                "idle" if self.status.charge_state == "charging" else self.status.charge_state
+            ),
+            charge_state_label=charge_state_label(
+                "charging" if charger else (
+                    "idle" if self.status.charge_state == "charging" else self.status.charge_state
+                )
+            ),
         )
+        if charger:
+            self.status.returning_to_charge = False
         await self._emit("status", self.status.model_dump())
 
     async def _load_points(self) -> None:
@@ -1002,3 +1022,54 @@ class RealRobot:
         await self._emit("event", event)
         await self._emit("status", self.status.model_dump())
         return True
+
+    async def _handle_charge_result(self, msg: dict[str, Any]) -> None:
+        code = msg.get("result", msg.get("success", msg.get("data", msg.get("status"))))
+        failed = code in (False, 0, "0", "failed", "fail", "error")
+        if failed:
+            self.status.charge_state = "failed"
+            self.status.returning_to_charge = False
+            await self._emit("event", {"message": "Échec retour borne de recharge"})
+        else:
+            self.status.charge_state = "charging"
+            self.status.returning_to_charge = False
+            await self._emit("event", {"message": "Robot en recharge"})
+        self.status.charge_state_label = charge_state_label(self.status.charge_state)
+        await self._emit("status", self.status.model_dump())
+
+    async def go_home(self) -> bool:
+        """Retour manuel vers la borne de recharge (APK SelfChassis.sendGoHome)."""
+        if not self._client.connected:
+            return False
+
+        await self._cancel_navigation()
+        if not await self.ensure_automatic_navigation():
+            return False
+
+        self.status.returning_to_charge = True
+        self.status.charge_state = "returning"
+        self.status.charge_state_label = charge_state_label("returning")
+        self.status.nav_status = 602
+        self.status.nav_status_label = nav_status_label(602)
+        await self._emit("status", self.status.model_dump())
+
+        try:
+            await self._client.publish(ROS_TOPICS["charge_home_pose"], {"data": True})
+        except Exception as exc:
+            logger.warning("Publish charge_home_pose échoué : %s", exc)
+
+        response: dict[str, Any] = {}
+        try:
+            response = await self._client.call_service(ROS_SERVICES["start_recharge"], {}, timeout=8.0)
+        except Exception as exc:
+            logger.warning("Service start_recharge échoué : %s", exc)
+
+        ok = response.get("result", True) is not False
+        await self._emit(
+            "event",
+            {
+                "message": "Retour borne de recharge lancé" if ok else "Retour borne — service refusé",
+                "method": ROS_SERVICES["start_recharge"],
+            },
+        )
+        return ok

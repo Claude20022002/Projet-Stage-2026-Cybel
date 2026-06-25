@@ -33,6 +33,9 @@ class RobotStatus(BaseModel):
     current_floor_name: str = "0"
     current_goal: Coordinate | None = None
     navigating_to: str | None = None
+    returning_to_charge: bool = False
+    charge_state: str = "idle"
+    charge_state_label: str = "Hors charge"
 
 
 class Point(BaseModel):

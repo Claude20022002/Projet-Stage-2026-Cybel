@@ -104,6 +104,14 @@ MARKER_TYPE_CODES: dict[str, int] = {
     "trajectory": -65535,
 }
 
+CHARGE_STATE_LABELS: dict[str, str] = {
+    "idle": "Hors charge",
+    "returning": "Retour borne…",
+    "charging": "En charge",
+    "failed": "Échec recharge",
+    "disconnect": "Borne déconnectée",
+}
+
 NAV_STATUS_LABELS: dict[int, str] = {
     600: "En initialisation",
     601: "Prêt",

@@ -12,7 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
-from routers import knowledge, map, navigation, reception, robot, settings as settings_router, speech, tour
+from routers import charge, knowledge, map, navigation, reception, robot, settings as settings_router, speech, tour
+from services.charge_service import charge_service
 from services.robot_service import robot_service
 from websocket.manager import ws_manager
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
 
     # Télémétrie enregistrée avant connect pour être rattachée au backend.
     robot_service.on_telemetry(on_telemetry)
+    charge_service.attach(robot_service)
     await robot_service.connect()
     yield
     await robot_service.disconnect()
@@ -45,6 +47,7 @@ app.add_middleware(
 )
 
 app.include_router(robot.router)
+app.include_router(charge.router)
 app.include_router(navigation.router)
 app.include_router(map.router)
 app.include_router(settings_router.router)

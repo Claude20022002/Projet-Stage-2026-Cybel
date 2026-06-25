@@ -71,6 +71,7 @@ export const api = {
       body: JSON.stringify({ enabled }),
     }),
   relocalize: () => request("/api/robot/relocalize", { method: "POST" }),
+  goHome: () => request<{ ok: boolean }>("/api/charge/go-home", { method: "POST" }),
   navigateTo: (pointName: string) =>
     request("/api/navigation/goto", {
       method: "POST",

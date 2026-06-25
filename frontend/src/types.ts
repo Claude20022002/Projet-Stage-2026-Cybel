@@ -34,6 +34,9 @@ export interface RobotStatus {
   current_floor_name: string;
   current_goal: Pose | null;
   navigating_to: string | null;
+  returning_to_charge: boolean;
+  charge_state: string;
+  charge_state_label: string;
 }
 
 export interface Point {

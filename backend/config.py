@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     localization_min_percent: float = 60.0
     auto_relocalize_on_connect: bool = True
     navigation_wait_timeout: float = 300.0
+    low_battery_threshold: int = 20
+    auto_return_charge: bool = True
     backend_port: int = 8000
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
