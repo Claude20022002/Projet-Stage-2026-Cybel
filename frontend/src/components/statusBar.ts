@@ -109,8 +109,15 @@ export function renderStatusBar(
           <span class="battery__level">${status.battery}%</span>
         </div>
         ${
-          status.charger
-            ? `<span class="badge badge--charge badge--with-icon">${icons.plug("icon icon--badge", 14)}<span>Sur socle</span></span>`
+          chargeLabel
+            ? `<span class="badge badge--charge badge--with-icon">${icons.plug("icon icon--badge", 14)}<span>${chargeLabel}</span></span>`
+            : status.charger
+              ? `<span class="badge badge--charge badge--with-icon">${icons.plug("icon icon--badge", 14)}<span>Sur socle</span></span>`
+              : ""
+        }
+        ${
+          !status.charger && status.battery <= 20
+            ? `<span class="badge badge--warn badge--with-icon">${icons.alertTriangle("icon icon--badge", 14)}<span>Batterie basse</span></span>`
             : ""
         }
         ${

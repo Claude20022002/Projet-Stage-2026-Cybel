@@ -638,6 +638,15 @@ function bindControlEvents(): void {
     }
   });
 
+  document.getElementById("btn-go-home")?.addEventListener("click", async () => {
+    try {
+      const result = await api.goHome();
+      pushEvent(result.ok ? "Retour borne lancé" : "Retour borne refusé");
+    } catch (err) {
+      pushEvent(`Erreur retour borne : ${(err as Error).message}`);
+    }
+  });
+
   document.querySelectorAll("[data-move]").forEach((el) => {
     const direction = (el as HTMLElement).dataset.move!;
 
