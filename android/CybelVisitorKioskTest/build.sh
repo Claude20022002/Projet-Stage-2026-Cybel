@@ -2,6 +2,13 @@
 # Builds CybelVisitorKioskTest.apk (variante POI, port 8001) — réutilise les icônes du kiosque principal.
 set -euo pipefail
 
+if [ -z "${ANDROID_HOME:-}" ]; then
+  echo "ERREUR: ANDROID_HOME non défini"
+  exit 1
+fi
+# Normaliser les chemins Windows pour Git Bash
+ANDROID_HOME="${ANDROID_HOME//\\//}"
+
 BUILD_TOOLS_VER="35.0.0"
 PLATFORM_VER="android-35"
 
@@ -18,17 +25,26 @@ RES_SRC="$DIR/../CybelVisitorKiosk/res"
 OUT="$DIR/out"
 
 rm -rf "$OUT"
-mkdir -p "$OUT/gen" "$OUT/obj"
+mkdir -p "$OUT/gen" "$OUT/obj" "$OUT/res"
 
 echo "== 1/7 Compiling launcher icons (shared res) =="
 "$AAPT2" compile --dir "$RES_SRC" -o "$OUT/res"
+# Inclure network_security_config local si présent
+if [ -d "$DIR/res" ]; then
+  "$AAPT2" compile --dir "$DIR/res" -o "$OUT/res"
+fi
 
 echo "== 2/7 Linking resources + manifest =="
+mapfile -t FLAT_FILES < <(find "$OUT/res" -maxdepth 1 -name '*.flat' -print | sort)
+if [ "${#FLAT_FILES[@]}" -eq 0 ]; then
+  echo "ERREUR: aucun fichier .flat dans $OUT/res"
+  exit 1
+fi
 "$AAPT2" link -o "$OUT/kiosk-unaligned.apk" \
   -I "$ANDROID_JAR" \
   --manifest "$DIR/AndroidManifest.xml" \
   --java "$OUT/gen" \
-  "$OUT/res"/*.flat
+  "${FLAT_FILES[@]}"
 
 echo "== 3/7 Compiling Java sources =="
 javac -source 8 -target 8 \
@@ -38,7 +54,8 @@ javac -source 8 -target 8 \
   "$DIR"/src/com/cybel/visitorkiosk/test/*.java
 
 echo "== 4/7 Converting to dex =="
-"$D8" --output "$OUT" --lib "$ANDROID_JAR" $(find "$OUT/obj" -name "*.class")
+mapfile -t CLASS_FILES < <(find "$OUT/obj" -name '*.class' -print)
+"$D8" --output "$OUT" --lib "$ANDROID_JAR" "${CLASS_FILES[@]}"
 
 echo "== 5/7 Adding classes.dex to APK =="
 ( cd "$OUT" && "$AAPT" add kiosk-unaligned.apk classes.dex )
