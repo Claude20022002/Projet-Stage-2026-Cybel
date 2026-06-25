@@ -2,6 +2,21 @@
 
 # CYBEL - Plateforme de Commande Robot CIOT TY1251D
 
+## Documentation
+
+**Index complet : [docs/README.md](docs/README.md)**
+
+| Parcours | Lien |
+|----------|------|
+| Démarrage dev | [docs/guides/DEMARRAGE-RAPIDE.md](docs/guides/DEMARRAGE-RAPIDE.md) |
+| Session labo | [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) · `scripts/preflight_labo.ps1` |
+| Kiosque visiteur | [docs/kiosque/README.md](docs/kiosque/README.md) |
+| Robot / ROS | [docs/robot/README.md](docs/robot/README.md) |
+| Conception | [docs/cybel-conception/README.md](docs/cybel-conception/README.md) |
+| Carte doc | [docs/STRUCTURE.md](docs/STRUCTURE.md) |
+
+---
+
 ## Vue d'ensemble
 
 Plateforme de commande complète pour le robot de réception mobile CIOT (modèle TY1251D-03195),
@@ -435,22 +450,17 @@ FRONTEND_PORT=3000
 
 ---
 
-## Documentation interface opérateur
+## Documentation (détail)
 
-Guide complet du fonctionnement de l'interface web (panneaux, workflows, API, WebSocket, mode simulation) :
+Guides opérationnels et index par thème : **[docs/README.md](docs/README.md)**
 
-**[docs/INTERFACE.md](docs/INTERFACE.md)**
+| Guide | Fichier |
+|-------|---------|
+| Interface opérateur | [docs/INTERFACE.md](docs/INTERFACE.md) |
+| Déploiement Termux | [docs/kiosque/TERMUX_DEPLOY.md](docs/kiosque/TERMUX_DEPLOY.md) → [TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md) |
+| Kiosque visiteur | [docs/kiosque/VISITOR_KIOSK.md](docs/kiosque/VISITOR_KIOSK.md) → [VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md) |
 
-## Déploiement kiosque sur Termux (tête Android)
-
-Backend + interface visiteur embarqués sur la tablette (`ssh -p 8022`) :
-
-- **[docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md)** — procédure, scripts, dépannage
-- **[docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md)** — interface visiteur, app Android, problèmes rencontrés
-
-**État (fin juin 2026)** : backend lite et kiosque **opérationnels** sur Termux ;
-visite guidée labo (8 arrêts) ; contrôle opérateur avec arrêt d'urgence.
-Voir [VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md).
+**État (fin juin 2026)** : backend lite et kiosque opérationnels sur Termux ; visite guidée labo (8 arrêts).
 
 ## Commandes de démarrage rapide
 

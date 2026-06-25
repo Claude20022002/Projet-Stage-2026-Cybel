@@ -21,6 +21,7 @@ Ce fichier est **autonome** : protocoles ROS/MQTT, tâches ordonnées, fichiers 
 4. [01-architecture-cible.md](01-architecture-cible.md) — architecture cible
 5. [02-cahier-des-charges-fonctionnel.md](02-cahier-des-charges-fonctionnel.md) — exigences métier
 6. [03-diagrammes.md](03-diagrammes.md) — flux et composants
+7. [06-plan-hybride-sentrymove-kiosk.md](06-plan-hybride-sentrymove-kiosk.md) — option POI (hybrid)
 
 ---
 
@@ -34,8 +35,13 @@ Ce fichier est **autonome** : protocoles ROS/MQTT, tâches ordonnées, fichiers 
 | 3 | [03-diagrammes.md](03-diagrammes.md) | Diagrammes UML | ✅ |
 | 4 | [04-ecart-etat-actuel.md](04-ecart-etat-actuel.md) | Écart CYBEL actuel vs constructeur | ✅ |
 | 5 | **[05-backlog.md](05-backlog.md)** | **Backlog agent IA — guide d'implémentation** | ✅ |
+| 6 | **[06-plan-hybride-sentrymove-kiosk.md](06-plan-hybride-sentrymove-kiosk.md)** | Plan hybride Sentrymove + kiosque POI (branche hybrid) | ✅ |
 
 ---
+
+## Documentation projet
+
+Index général : [`../README.md`](../README.md) · Carte : [`../STRUCTURE.md`](../STRUCTURE.md) · Labo : [`../labo/TERRAIN.md`](../labo/TERRAIN.md)
 
 ## Stack cible
 
