@@ -916,18 +916,30 @@ class RealRobot:
             await asyncio.sleep(0.4)
         return self.status.nav_status in (601, 603)
 
-    async def navigate_to_coordinate(
-        self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
-    ) -> bool:
+    async def _prepare_for_navigation(self) -> bool:
+        """Mode auto, relocalisation si besoin, annulation des états bloquants."""
         if not self._client.connected:
             return False
-
         if not await self.ensure_automatic_navigation():
             return False
 
         self._suppress_robot_goal = False
 
-        if self.status.nav_status in (604, 600):
+        if self.status.nav_status in (604, 602):
+            await self._cancel_navigation()
+            await asyncio.sleep(0.5)
+
+        if (
+            self.status.nav_status == 600
+            or self._localization_percent < self._localization_min_percent
+        ):
+            await self._emit(
+                "event",
+                {"message": "Relocalisation avant navigation…"},
+            )
+            await self.ensure_localization()
+
+        if self.status.nav_status == 604:
             if not await self._wait_nav_ready_after_cancel():
                 await self._emit(
                     "event",
@@ -945,6 +957,14 @@ class RealRobot:
                 "event",
                 {"message": "Navigation refusée — robot non localisé (nav_status 600)"},
             )
+            return False
+
+        return self.status.nav_status in (601, 603)
+
+    async def navigate_to_coordinate(
+        self, x: float, y: float, theta: float = 0.0, *, check_map: bool = True
+    ) -> bool:
+        if not await self._prepare_for_navigation():
             return False
 
         if (
@@ -1054,29 +1074,7 @@ class RealRobot:
         if not target and not self._client.connected:
             return False
 
-        if not await self.ensure_automatic_navigation():
-            return False
-
-        self._suppress_robot_goal = False
-
-        if self.status.nav_status in (604, 600):
-            if not await self._wait_nav_ready_after_cancel():
-                await self._emit(
-                    "event",
-                    {
-                        "message": (
-                            f"Navigation refusée — état {self.status.nav_status}. "
-                            "Relocalisez le robot."
-                        )
-                    },
-                )
-                return False
-
-        if self.status.nav_status == 600:
-            await self._emit(
-                "event",
-                {"message": "Navigation refusée — robot non localisé (nav_status 600)"},
-            )
+        if not await self._prepare_for_navigation():
             return False
 
         nav_method: str | None = None

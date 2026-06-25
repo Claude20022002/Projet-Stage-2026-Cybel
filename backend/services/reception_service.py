@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
 from config import settings
 from sdk.models import Point, ReceptionAction, VoiceCommand
 from sdk.reception_actions import DEFAULT_ACTIONS, match_point_navigation, match_voice_command
+from sdk.tour_navigation import NAV_STATUS_HINTS
 from services.knowledge_service import knowledge_service
 from services.persistence_service import persistence_service
 from services.robot_service import robot_service
@@ -40,6 +41,11 @@ class ReceptionService:
             return {"ok": True, "action": action_id, "events": events}
 
         speech_text = action.speech_en if lang == "en" and action.speech_en else action.speech
+        if action.target_point:
+            block = await self._ensure_navigation_ready(action.target_point)
+            if block:
+                return {"ok": False, "error": block, "action": action_id}
+
         if speech_text:
             speech_result = await robot_service.speak(speech_text)
             if speech_result.get("ok"):
@@ -77,6 +83,10 @@ class ReceptionService:
         welcome_en = f"Welcome! I will take you to {point_name}. Please follow me."
         arrival_fr = f"Nous sommes arrivés à {point_name}."
         arrival_en = f"We have arrived at {point_name}."
+
+        block = await self._ensure_navigation_ready(point_name)
+        if block:
+            return {"ok": False, "error": block, "point": point_name}
 
         speech = welcome_en if lang == "en" else welcome_fr
         speech_result = await robot_service.speak(speech)
@@ -182,6 +192,26 @@ class ReceptionService:
             "events": events,
             "text": text,
         }
+
+    async def _ensure_navigation_ready(self, point_name: str | None = None) -> str | None:
+        """Prérequis navigation (localisation, mode auto). Retourne une erreur ou None."""
+        if robot_service.is_mock:
+            return None
+        await robot_service.set_manual_mode(False)
+        if not await robot_service.ensure_automatic_navigation():
+            return "Impossible d'activer le mode navigation automatique"
+        localized = await robot_service.ensure_localization(
+            settings.localization_min_percent
+        )
+        if not localized:
+            status = robot_service.get_status()
+            if status.nav_status == 600:
+                return NAV_STATUS_HINTS[600]
+            return (
+                f"Localisation insuffisante (< {settings.localization_min_percent:.0f} %). "
+                "Placez le robot dans une zone connue et relancez la relocalisation."
+            )
+        return robot_service.navigation_block_reason(point_name=point_name)
 
     async def _navigate_to_point_or_coordinate(
         self, point_name: str, point: Point | None = None

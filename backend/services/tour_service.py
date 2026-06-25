@@ -282,6 +282,7 @@ class TourService:
                 status.nav_status,
                 status.localization_percent,
                 min_localization=settings.localization_min_percent,
+                require_known_localization=True,
             )
             if not ready:
                 return {"ok": False, "error": reason}

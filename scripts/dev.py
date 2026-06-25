@@ -4,12 +4,28 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
 KIOSK_DIR = ROOT / "frontend-kiosk"
+BACKEND_HEALTH_URL = "http://127.0.0.1:8000/api/health"
+
+
+def wait_for_backend(timeout: float = 90.0) -> bool:
+    """Attend que l'API réponde avant de lancer les proxies Vite."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(BACKEND_HEALTH_URL, timeout=1.5) as resp:
+                if resp.status == 200:
+                    return True
+        except (urllib.error.URLError, TimeoutError, OSError):
+            time.sleep(0.4)
+    return False
 
 
 def stream_output(process: subprocess.Popen, prefix: str) -> None:
@@ -37,6 +53,13 @@ def main() -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
+
+    print("[dev] Démarrage backend…")
+    if wait_for_backend():
+        print("[dev] Backend prêt sur http://127.0.0.1:8000\n")
+    else:
+        print("[dev] Attention : backend non joignable — les frontends peuvent afficher ECONNREFUSED.\n")
+
     frontend = subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=FRONTEND_DIR,

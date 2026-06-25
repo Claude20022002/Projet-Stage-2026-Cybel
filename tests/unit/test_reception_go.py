@@ -76,6 +76,11 @@ async def test_go_starts_navigation(service: ReceptionService, monkeypatch: pyte
         "services.reception_service.persistence_service.log_navigation",
         lambda **kwargs: {},
     )
+    monkeypatch.setattr(
+        service,
+        "_ensure_navigation_ready",
+        AsyncMock(return_value=None),
+    )
 
     result = await service.go_to_destination("Accueil", lang="fr")
     assert result["ok"] is True

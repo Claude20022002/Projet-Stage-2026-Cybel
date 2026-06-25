@@ -326,17 +326,59 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
 
 
 async def prepare_for_nav_goal() -> dict:
-    """Avant chaque objectif : annuler erreurs résiduelles."""
-    snap = await recover_navigation_state(timeout=5.0)
+    """Avant chaque objectif : récupération nav + relocalisation si besoin."""
+    snap = await recover_navigation_state(timeout=8.0)
     nav_status = int(snap.get("nav_status") or 0)
-    if nav_status in (604, 600, 602):
-        raise RuntimeError(
-            _tour_navigation.assess_tour_readiness(
-                nav_status,
-                snap.get("localization_percent"),
-                min_localization=LOCALIZATION_MIN_PERCENT,
-            )[1]
+    loc = snap.get("localization_percent")
+
+    if nav_status == 602:
+        _, reason = _tour_navigation.assess_tour_readiness(
+            nav_status,
+            loc,
+            min_localization=LOCALIZATION_MIN_PERCENT,
+            require_known_localization=True,
         )
+        raise RuntimeError(reason)
+
+    if nav_status == 604:
+        _, reason = _tour_navigation.assess_tour_readiness(
+            nav_status,
+            loc,
+            min_localization=LOCALIZATION_MIN_PERCENT,
+            require_known_localization=True,
+        )
+        raise RuntimeError(reason)
+
+    needs_reloc = (
+        nav_status == 600
+        or loc is None
+        or (loc is not None and loc < LOCALIZATION_MIN_PERCENT)
+    )
+    if needs_reloc:
+        loc_ok, snap = await ensure_global_localization()
+        nav_status = int(snap.get("nav_status") or 0)
+        loc = snap.get("localization_percent")
+        if not loc_ok:
+            if nav_status == 600:
+                raise RuntimeError(_tour_navigation.NAV_STATUS_HINTS[600])
+            if loc is not None:
+                raise RuntimeError(
+                    f"Localisation insuffisante ({loc:.0f} % "
+                    f"< {LOCALIZATION_MIN_PERCENT:.0f} %). Relocalisez le robot."
+                )
+            raise RuntimeError(
+                "Localisation inconnue après relocalisation — vérifiez rosbridge "
+                "et placez le robot sur une zone connue de la carte."
+            )
+
+    ready, reason = _tour_navigation.assess_tour_readiness(
+        nav_status,
+        snap.get("localization_percent"),
+        min_localization=LOCALIZATION_MIN_PERCENT,
+        require_known_localization=True,
+    )
+    if not ready:
+        raise RuntimeError(reason)
     return snap
 
 
@@ -1028,6 +1070,19 @@ async def go_destination(request: Request) -> JSONResponse:
             {"ok": False, "error": f"Destination « {point_name} » inconnue"},
             status_code=400,
         )
+
+    ready, reason, _ = await prepare_for_tour()
+    if not ready:
+        return JSONResponse({"ok": False, "error": reason}, status_code=400)
+    if not await ensure_auto_navigation():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Impossible d'activer le mode navigation automatique",
+            },
+            status_code=400,
+        )
+
     welcome = (
         f"Welcome! I will take you to {point_name}. Please follow me."
         if lang == "en"
