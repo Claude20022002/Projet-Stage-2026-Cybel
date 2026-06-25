@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-06-25T13:46:22.772107+00:00",
+  "updated_at": "2026-06-25T14:37:48.077435+00:00",
   "points": [
     {
       "id": "extraction_soufflage",
@@ -33,7 +33,7 @@
       "theta": -1.5899999851125353,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m2",
@@ -44,7 +44,7 @@
       "theta": 1.17,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m0",
@@ -55,7 +55,7 @@
       "theta": 1.17,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "remplissage_bouchonnage",

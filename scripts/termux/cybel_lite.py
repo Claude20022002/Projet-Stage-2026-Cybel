@@ -103,6 +103,11 @@ GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
 TELEOP_TOPIC = "/cmd_vel_mux/input/teleop"
 TWIST_TYPE = "geometry_msgs/Twist"
 POI_NAV_SERVICE_CHAIN = ("/tag_manager/navi", "/poi")
+MARKER_SERVICE_CHAIN = (
+    "/marker_manager/get_markers_details",
+    "/marker_operation/get_markers",
+)
+MARKER_UTILS_MODULE = CYBEL_HOME / "sdk" / "marker_utils.py"
 CANCEL_NAV_PUBLISH_TOPICS = ("/move_base/cancel", "/path_follower/cancel")
 CANCEL_NAV_SERVICE_CHAIN = ("/move_base/cancel", "/path_follower/cancel")
 
@@ -995,7 +1000,23 @@ def build_tour_engine(tracer=None) -> TourEngine:
         snap_before = await fetch_robot_snapshot()
         if tracer:
             tracer.robot_snapshot("nav_before", snap_before, stop=stop)
-        if stop.has_coordinates():
+        if stop.target_point:
+            if tracer:
+                tracer.nav_command(
+                    stop,
+                    index=index,
+                    robot=snap_before,
+                    nav_status=snap_before.get("nav_status"),
+                    nav_status_label=str(snap_before.get("nav_status_label", "")),
+                    detail=f"service /tag_manager/navi → {stop.target_point}",
+                )
+            await navigate_to_point(str(stop.target_point))
+            arrived, err = await wait_for_navigation_arrival(
+                tracer=tracer, stop=stop, stop_index=index
+            )
+            if not arrived:
+                raise RuntimeError(err)
+        elif stop.has_coordinates():
             if tracer:
                 tracer.nav_command(
                     stop,
@@ -1006,22 +1027,6 @@ def build_tour_engine(tracer=None) -> TourEngine:
                     detail=f"publish /navi_goal ({stop.x}, {stop.y}, {stop.theta or 0})",
                 )
             await navigate_to_coordinate(stop.x, stop.y, stop.theta or 0.0)
-            arrived, err = await wait_for_navigation_arrival(
-                tracer=tracer, stop=stop, stop_index=index
-            )
-            if not arrived:
-                raise RuntimeError(err)
-        elif stop.target_point:
-            if tracer:
-                tracer.nav_command(
-                    stop,
-                    index=index,
-                    robot=snap_before,
-                    nav_status=snap_before.get("nav_status"),
-                    nav_status_label=str(snap_before.get("nav_status_label", "")),
-                    detail=f"service /poi go → {stop.target_point}",
-                )
-            await navigate_to_point(str(stop.target_point))
             arrived, err = await wait_for_navigation_arrival(
                 tracer=tracer, stop=stop, stop_index=index
             )
@@ -1390,6 +1395,86 @@ async def robot_relocalize(_: Request) -> JSONResponse:
     return JSONResponse(payload)
 
 
+def save_points(points: list[dict]) -> None:
+    from datetime import datetime, timezone
+
+    POINTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "points": points,
+    }
+    with open(POINTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def _load_marker_utils():
+    if str(CYBEL_HOME) not in sys.path:
+        sys.path.insert(0, str(CYBEL_HOME))
+    return _load_module_from_file("cybel_marker_utils", MARKER_UTILS_MODULE)
+
+
+async def fetch_raw_markers_from_ros() -> list[dict]:
+    marker_utils = _load_marker_utils()
+    for service in MARKER_SERVICE_CHAIN:
+        response = await ros_call_service(service, {})
+        raw = marker_utils.extract_raw_markers(response)
+        if raw:
+            return raw
+    return []
+
+
+async def navigation_sync_points(_: Request) -> JSONResponse:
+    """Synchronise POI ROS (Sentrymove) → data/points.json sur la tablette."""
+    marker_utils = _load_marker_utils()
+    try:
+        raw_markers = await fetch_raw_markers_from_ros()
+        if not raw_markers:
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": "Aucun marqueur ROS — créez les POI dans Sentrymove.",
+                },
+                status_code=503,
+            )
+        saved = load_points()
+        tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+        mark_kiosk = {
+            stop.target_point or stop.equipment_fr
+            for stop in tour.stops
+            if getattr(stop, "target_point", None) or getattr(stop, "equipment_fr", None)
+        }
+        merged = marker_utils.merge_point_dicts(
+            saved,
+            raw_markers,
+            mark_kiosk=mark_kiosk,
+        )
+        save_points(merged)
+        return JSONResponse(
+            {
+                "ok": True,
+                "summary": {
+                    "ros_count": len(raw_markers),
+                    "total_count": len(merged),
+                    "kiosk_visible_count": sum(
+                        1 for p in merged if p.get("kiosk_visible")
+                    ),
+                },
+                "points": merged,
+            }
+        )
+    except Exception as exc:
+        return JSONResponse(
+            {"ok": False, "error": f"Sync POI échouée : {exc}"},
+            status_code=503,
+        )
+
+
+async def navigation_list_points(_: Request) -> JSONResponse:
+    return JSONResponse(load_points())
+
+
 async def list_destinations(_: Request) -> JSONResponse:
     return JSONResponse(kiosk_destinations())
 
@@ -1521,6 +1606,8 @@ def build_app() -> Starlette:
         Route("/api/kiosk/config", kiosk_config_get, methods=["GET"]),
         Route("/api/kiosk/config", kiosk_config_put, methods=["PUT"]),
         Route("/api/reception/destinations", list_destinations, methods=["GET"]),
+        Route("/api/navigation/points", navigation_list_points, methods=["GET"]),
+        Route("/api/navigation/sync", navigation_sync_points, methods=["POST"]),
         Route("/api/reception/go", go_destination, methods=["POST"]),
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),

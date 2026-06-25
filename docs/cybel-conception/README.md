@@ -34,6 +34,7 @@ Ce fichier est **autonome** : protocoles ROS/MQTT, tâches ordonnées, fichiers 
 | 3 | [03-diagrammes.md](03-diagrammes.md) | Diagrammes UML | ✅ |
 | 4 | [04-ecart-etat-actuel.md](04-ecart-etat-actuel.md) | Écart CYBEL actuel vs constructeur | ✅ |
 | 5 | **[05-backlog.md](05-backlog.md)** | **Backlog agent IA — guide d'implémentation** | ✅ |
+| 6 | **[06-plan-hybride-sentrymove-kiosk.md](06-plan-hybride-sentrymove-kiosk.md)** | **Plan hybride Sentrymove + kiosque POI** | ✅ |
 
 ---
 
@@ -67,4 +68,4 @@ Ce fichier est **autonome** : protocoles ROS/MQTT, tâches ordonnées, fichiers 
 - Interface web : [`../INTERFACE.md`](../INTERFACE.md)
 - TTS : [`../TTS_BRIDGE.md`](../TTS_BRIDGE.md)
 - SDK Python : `sdk/`
-- APK décompilés (gitignored) : `/welcomepatrol`, `/sentrymove`
+- Sync POI Sentrymove : [`../SENTRYMOVE_POI_SYNC.md`](../SENTRYMOVE_POI_SYNC.md)

@@ -33,6 +33,10 @@ class TourStop:
     def has_coordinates(self) -> bool:
         return self.x is not None and self.y is not None
 
+    def prefers_poi_navigation(self) -> bool:
+        """POI nommé (Sentrymove) prioritaire sur coordonnées brutes."""
+        return bool(self.target_point)
+
 
 @dataclass
 class LabTour:
