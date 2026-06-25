@@ -841,6 +841,39 @@ async def wait_for_navigation_arrival(
     return False, "Délai d'attente navigation dépassé"
 
 
+async def go_home() -> bool:
+    """Retour borne de recharge (SelfChassis.sendGoHome)."""
+    snap = await ensure_leave_charge_if_needed(timeout=3.0)
+    if int(snap.get("nav_status") or 0) == _tour_navigation.CHARGING_NAV_STATUS:
+        return True
+    await cancel_navigation_full(
+        point_name=str(snap.get("navigating_to") or "") or None
+    )
+    try:
+        await ros_call_service("/change_location_mode", {"mode": 1})
+    except Exception:
+        pass
+    try:
+        uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+        async with websockets.connect(uri, open_timeout=4) as ws:
+            await ws.send(
+                json.dumps(
+                    {
+                        "op": "publish",
+                        "topic": CHARGE_HOME_TOPIC,
+                        "msg": {"data": True},
+                    }
+                )
+            )
+    except Exception:
+        pass
+    try:
+        response = await ros_call_service(START_RECHARGE_SERVICE, {}, timeout=8.0)
+        return response.get("result", True) is not False
+    except Exception:
+        return False
+
+
 async def stop_robot() -> None:
     snap = await fetch_robot_snapshot(timeout=3.0)
     await cancel_navigation_full(
@@ -883,11 +916,23 @@ async def execute_action(action_id: str, lang: str) -> dict:
             await navigate_to_point(str(target))
             events.append(f"Navigation vers {target}")
         except Exception as exc:
-            return {"ok": False, "error": f"Navigation échouée : {exc}"}
+            point = find_point(str(target))
+            if point:
+                try:
+                    await navigate_to_coordinate(
+                        float(point["x"]),
+                        float(point["y"]),
+                        float(point.get("theta") or 0.0),
+                    )
+                    events.append(f"Navigation vers {target} (coordonnées)")
+                except Exception as exc2:
+                    return {"ok": False, "error": f"Navigation échouée : {exc2}"}
+            else:
+                return {"ok": False, "error": f"Navigation échouée : {exc}"}
 
     route = action.get("route_name")
     if route:
-        events.append(f"Visite guidée '{route}' — sync GUIDED à brancher")
+        events.append(f"Visite guidée — utilisez le bouton « Visite guidée »")
 
     if not events:
         events.append(f"Action '{action.get('label', action_id)}' exécutée")
@@ -1124,10 +1169,14 @@ async def list_actions(_: Request) -> JSONResponse:
 async def run_action(request: Request) -> JSONResponse:
     action_id = request.path_params["action_id"]
     lang = request.query_params.get("lang", "fr")
+    if action_id == "guided_tour":
+        return await tour_start(request)
     try:
         result = await execute_action(action_id, lang)
     except Exception as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
+    if result.get("error") == "use_tour_start":
+        return await tour_start(request)
     if not result.get("ok"):
         return JSONResponse(result, status_code=400)
     return JSONResponse(result)
@@ -1243,24 +1292,6 @@ def robot_status_payload(snap: dict) -> dict:
     }
 
 
-async def navigation_cancel(_: Request) -> JSONResponse:
-    snap = await recover_navigation_state(timeout=15.0)
-    nav_status = int(snap.get("nav_status") or 0)
-    ghost = nav_status == 602 and _ghost_nav(snap)
-    ok = nav_status in (601, 603) or ghost
-    payload = {
-        "ok": ok,
-        **robot_status_payload(snap),
-    }
-    if not ok:
-        payload["error"] = (
-            f"État navigation {nav_status} non récupéré — relocalisez ou redémarrez "
-            "la stack ROS du robot."
-        )
-        return JSONResponse(payload, status_code=409)
-    return JSONResponse(payload)
-
-
 async def robot_relocalize(_: Request) -> JSONResponse:
     ok, snap = await ensure_global_localization()
     payload = {"ok": ok, **robot_status_payload(snap)}
@@ -1321,22 +1352,15 @@ async def go_destination(request: Request) -> JSONResponse:
         events.append("TTS échoué")
     try:
         await navigate_to_point(point_name)
-    except Exception:
-        try:
-            await navigate_to_coordinate(
-                float(point["x"]),
-                float(point["y"]),
-                float(point.get("theta") or 0.0),
-            )
-        except Exception as exc:
-            return JSONResponse(
-                {
-                    "ok": False,
-                    "error": f"Impossible de naviguer vers « {point_name} » : {exc}",
-                    "events": events,
-                },
-                status_code=400,
-            )
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": f"Impossible de naviguer vers « {point_name} » : {exc}",
+                "events": events,
+            },
+            status_code=400,
+        )
     events.append(f"Navigation vers {point_name}")
     return JSONResponse({"ok": True, "point": point_name, "events": events})
 
