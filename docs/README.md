@@ -19,13 +19,13 @@ Index central de la documentation — projet **CYBEL**, plateforme de commande p
 
 1. [`scripts/preflight_labo.ps1`](../scripts/preflight_labo.ps1) — vérifications automatiques
 2. [labo/TERRAIN.md](labo/TERRAIN.md) — procédure pas à pas + commandes
-3. [guides/PHASE0_DEMARRAGE.md](guides/PHASE0_DEMARRAGE.md) — smoke test matin (PC + robot)
+3. [PHASE0_DEMARRAGE.md](PHASE0_DEMARRAGE.md) — smoke test matin (PC + robot)
 
 ### Je déploie le kiosque visiteur
 
 1. [kiosque/README.md](kiosque/README.md) — index kiosque
-2. [kiosque/VISITOR_KIOSK.md](kiosque/VISITOR_KIOSK.md) — interface visiteur
-3. [kiosque/TERMUX_DEPLOY.md](kiosque/TERMUX_DEPLOY.md) — backend sur tablette
+2. [VISITOR_KIOSK.md](VISITOR_KIOSK.md) — interface visiteur
+3. [TERMUX_DEPLOY.md](TERMUX_DEPLOY.md) — backend sur tablette
 
 ### Je conçois / étends le produit
 
