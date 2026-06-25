@@ -68,7 +68,28 @@ def test_assess_tour_readiness_ghost_recovered():
 def test_assess_tour_readiness_blocks_605():
     ok, msg = assess_tour_readiness(605, 80.0)
     assert not ok
-    assert "recharge" in msg.lower()
+    assert "605" in msg or "bloqué" in msg.lower()
+
+
+def test_assess_tour_readiness_605_recovered():
+    ok, msg = assess_tour_readiness(
+        605,
+        75.0,
+        min_localization=60.0,
+        ghost_nav_recovered=True,
+        charger=False,
+    )
+    assert ok
+    assert msg == ""
+
+
+def test_parse_charger_flag_string_zero():
+    from sdk.tour_navigation import parse_charger_flag
+
+    assert not parse_charger_flag(0)
+    assert not parse_charger_flag("0")
+    assert parse_charger_flag(1)
+    assert parse_charger_flag("1")
 
 
 def test_assess_tour_readiness_active_navigation():

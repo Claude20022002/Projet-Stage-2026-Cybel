@@ -303,8 +303,14 @@ async def ensure_auto_navigation() -> bool:
     nav_status = int(snap.get("nav_status") or 0)
     if nav_status in (601, 603):
         return True
-    # 602 fantôme persistant : le stack accepte souvent un nouvel objectif (CYB-061).
-    return nav_status == 602 and _ghost_nav(snap)
+    # 605 sans charge physique : objectif nav en attente, on peut relancer (CYB-061).
+    return (
+        (nav_status == 602 and _ghost_nav(snap))
+        or (
+            nav_status == _tour_navigation.CHARGING_NAV_STATUS
+            and not _tour_navigation.parse_charger_flag(snap.get("charger"))
+        )
+    )
 
 
 async def recover_navigation_state(timeout: float = 12.0) -> dict:
@@ -341,11 +347,13 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
 
 
 def _readiness_kwargs(snap: dict, *, ghost_nav_recovered: bool = False) -> dict:
+    charger = _tour_navigation.parse_charger_flag(snap.get("charger"))
+    nav_status = int(snap.get("nav_status") or 0)
     return {
         "velocity": snap.get("velocity"),
         "navigating_to": snap.get("navigating_to"),
         "ghost_nav_recovered": ghost_nav_recovered,
-        "charger": bool(snap.get("charger")),
+        "charger": charger,
     }
 
 
@@ -446,10 +454,7 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status in (604, 600) or (
-        nav_status == _tour_navigation.CHARGING_NAV_STATUS
-        and not _tour_navigation.parse_charger_flag(snap.get("charger"))
-    ):
+    if nav_status in (604, 600):
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
@@ -458,6 +463,11 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
             **_readiness_kwargs(snap),
         )
         return False, reason, snap
+    if (
+        nav_status == _tour_navigation.CHARGING_NAV_STATUS
+        and _tour_navigation.parse_charger_flag(snap.get("charger"))
+    ):
+        return False, _tour_navigation.charging_navigation_message(charger=True), snap
     if nav_status == 602 and not ghost_recovered:
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
@@ -490,12 +500,19 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
 
     nav_status = int(snap.get("nav_status") or 0)
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
+    stuck_605 = (
+        nav_status == _tour_navigation.CHARGING_NAV_STATUS
+        and not _tour_navigation.parse_charger_flag(snap.get("charger"))
+    )
     ready, reason = _tour_navigation.assess_tour_readiness(
         nav_status,
         snap.get("localization_percent"),
         min_localization=LOCALIZATION_MIN_PERCENT,
         require_known_localization=True,
-        **_readiness_kwargs(snap, ghost_nav_recovered=ghost_recovered),
+        **_readiness_kwargs(
+            snap,
+            ghost_nav_recovered=ghost_recovered or stuck_605,
+        ),
     )
     if ready:
         return True, "", snap
@@ -1287,10 +1304,11 @@ async def kiosk_config_put(request: Request) -> JSONResponse:
 
 def robot_status_payload(snap: dict) -> dict:
     loc = snap.get("localization_percent")
+    on_charger = _tour_navigation.parse_charger_flag(snap.get("charger"))
     return {
         "connected": bool(snap.get("connected")),
         "battery": int(snap.get("battery") or 0),
-        "charger": bool(snap.get("charger")),
+        "charger": on_charger,
         "soft_estop": False,
         "nav_status": int(snap.get("nav_status") or 600),
         "nav_status_label": str(snap.get("nav_status_label") or "Inconnu"),

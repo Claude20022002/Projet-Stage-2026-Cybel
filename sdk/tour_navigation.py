@@ -195,10 +195,8 @@ def is_charging_navigation_block(
     *,
     charger: bool = False,
 ) -> bool:
-    """Bloque la nav si sur la borne OU état 605 persistant après annulation."""
-    if charger:
-        return True
-    return is_stuck_nav_605(nav_status)
+    """Bloque la nav uniquement si le robot signale être sur la borne."""
+    return bool(charger)
 
 
 def charging_navigation_message(*, charger: bool = False) -> str:
@@ -241,7 +239,12 @@ def assess_tour_readiness(
     if nav_status == 600:
         return False, NAV_STATUS_HINTS[600]
     if is_charging_navigation_block(nav_status, charger=charger):
-        return False, charging_navigation_message(charger=charger)
+        return False, charging_navigation_message(charger=True)
+    if is_stuck_nav_605(nav_status):
+        if ghost_nav_recovered:
+            pass
+        else:
+            return False, charging_navigation_message(charger=False)
     if nav_status == 604:
         return False, (
             f"{NAV_STATUS_HINTS[604]} "
@@ -269,6 +272,10 @@ def assess_tour_readiness(
         and is_ghost_navigation(
             nav_status, velocity=velocity, navigating_to=navigating_to
         )
+    ) or (
+        nav_status == CHARGING_NAV_STATUS
+        and ghost_nav_recovered
+        and not charger
     )
     if not nav_ok:
         return False, (
