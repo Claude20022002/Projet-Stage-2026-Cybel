@@ -307,26 +307,41 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
     """Annule nav/erreurs et attend un état prêt (601/603)."""
     bad_states = {600, 602, 604}
 
-    async def _cancel_and_mode() -> None:
-        await cancel_navigation_full()
+    async def _cancel_and_mode(snap: dict) -> None:
+        await cancel_navigation_full(
+            point_name=str(snap.get("navigating_to") or "") or None
+        )
         try:
             await ros_call_service("/change_location_mode", {"mode": 1})
         except Exception:
             pass
         await asyncio.sleep(0.5)
 
-    await _cancel_and_mode()
+    snap = await fetch_robot_snapshot()
+    await _cancel_and_mode(snap)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
-    snap = await fetch_robot_snapshot()
     while loop.time() < deadline and int(snap.get("nav_status") or 0) in bad_states:
         await asyncio.sleep(0.5)
         snap = await fetch_robot_snapshot()
     if int(snap.get("nav_status") or 0) in bad_states:
-        await _cancel_and_mode()
-        await asyncio.sleep(1.0)
-        snap = await fetch_robot_snapshot()
+        for _ in range(2):
+            await _cancel_and_mode(snap)
+            await asyncio.sleep(1.0)
+            snap = await fetch_robot_snapshot()
+            if int(snap.get("nav_status") or 0) not in bad_states:
+                break
+            if int(snap.get("nav_status") or 0) == 602 and _ghost_nav(snap):
+                break
     return snap
+
+
+def _readiness_kwargs(snap: dict, *, ghost_nav_recovered: bool = False) -> dict:
+    return {
+        "velocity": snap.get("velocity"),
+        "navigating_to": snap.get("navigating_to"),
+        "ghost_nav_recovered": ghost_nav_recovered,
+    }
 
 
 async def ensure_global_localization(
@@ -361,13 +376,24 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     snap = await recover_navigation_state()
     nav_status = int(snap.get("nav_status") or 0)
     loc = snap.get("localization_percent")
+    ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status in (604, 600, 602):
+    if nav_status in (604, 600):
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
             min_localization=LOCALIZATION_MIN_PERCENT,
             require_known_localization=True,
+            **_readiness_kwargs(snap),
+        )
+        return False, reason, snap
+    if nav_status == 602 and not ghost_recovered:
+        _, reason = _tour_navigation.assess_tour_readiness(
+            nav_status,
+            loc,
+            min_localization=LOCALIZATION_MIN_PERCENT,
+            require_known_localization=True,
+            **_readiness_kwargs(snap),
         )
         return False, reason, snap
 
@@ -391,11 +417,14 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
                 )
             return False, reason, snap
 
+    nav_status = int(snap.get("nav_status") or 0)
+    ghost_recovered = nav_status == 602 and _ghost_nav(snap)
     ready, reason = _tour_navigation.assess_tour_readiness(
         nav_status,
         snap.get("localization_percent"),
         min_localization=LOCALIZATION_MIN_PERCENT,
         require_known_localization=True,
+        **_readiness_kwargs(snap, ghost_nav_recovered=ghost_recovered),
     )
     if ready:
         return True, "", snap
@@ -407,13 +436,15 @@ async def prepare_for_nav_goal() -> dict:
     snap = await recover_navigation_state(timeout=8.0)
     nav_status = int(snap.get("nav_status") or 0)
     loc = snap.get("localization_percent")
+    ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status == 602:
+    if nav_status == 602 and not ghost_recovered:
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
             min_localization=LOCALIZATION_MIN_PERCENT,
             require_known_localization=True,
+            **_readiness_kwargs(snap),
         )
         raise RuntimeError(reason)
 
@@ -453,6 +484,7 @@ async def prepare_for_nav_goal() -> dict:
         snap.get("localization_percent"),
         min_localization=LOCALIZATION_MIN_PERCENT,
         require_known_localization=True,
+        **_readiness_kwargs(snap, ghost_nav_recovered=ghost_recovered),
     )
     if not ready:
         raise RuntimeError(reason)
@@ -723,7 +755,10 @@ async def wait_for_navigation_arrival(
 
 
 async def stop_robot() -> None:
-    await cancel_navigation_full()
+    snap = await fetch_robot_snapshot(timeout=3.0)
+    await cancel_navigation_full(
+        point_name=str(snap.get("navigating_to") or "") or None
+    )
 
 
 async def execute_action(action_id: str, lang: str) -> dict:
@@ -1111,6 +1146,24 @@ def robot_status_payload(snap: dict) -> dict:
     }
 
 
+async def navigation_cancel(_: Request) -> JSONResponse:
+    snap = await recover_navigation_state(timeout=15.0)
+    nav_status = int(snap.get("nav_status") or 0)
+    ghost = nav_status == 602 and _ghost_nav(snap)
+    ok = nav_status in (601, 603) or ghost
+    payload = {
+        "ok": ok,
+        **robot_status_payload(snap),
+    }
+    if not ok:
+        payload["error"] = (
+            f"État navigation {nav_status} non récupéré — relocalisez ou redémarrez "
+            "la stack ROS du robot."
+        )
+        return JSONResponse(payload, status_code=409)
+    return JSONResponse(payload)
+
+
 async def robot_relocalize(_: Request) -> JSONResponse:
     ok, snap = await ensure_global_localization()
     payload = {"ok": ok, **robot_status_payload(snap)}
@@ -1270,6 +1323,7 @@ def build_app() -> Starlette:
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
         Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
+        Route("/api/navigation/cancel", navigation_cancel, methods=["POST"]),
         Route("/api/speech/status", speech_status, methods=["GET"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),

@@ -1,5 +1,6 @@
 from sdk.tour_navigation import (
     assess_tour_readiness,
+    is_ghost_navigation,
     navigation_wait_failure_message,
     normalize_localization_percent,
     parse_localization_percent,
@@ -43,6 +44,36 @@ def test_assess_tour_readiness_ok():
     ok, msg = assess_tour_readiness(601, 75.0, min_localization=60.0)
     assert ok
     assert msg == ""
+
+
+def test_is_ghost_navigation_stuck_602():
+    assert is_ghost_navigation(602, velocity=[0.0, 0.0], navigating_to=None)
+    assert not is_ghost_navigation(602, velocity=[0.2, 0.0], navigating_to=None)
+    assert not is_ghost_navigation(602, velocity=[0.0, 0.0], navigating_to="Accueil")
+
+
+def test_assess_tour_readiness_ghost_recovered():
+    ok, msg = assess_tour_readiness(
+        602,
+        75.0,
+        min_localization=60.0,
+        velocity=[0.0, 0.0],
+        navigating_to=None,
+        ghost_nav_recovered=True,
+    )
+    assert ok
+    assert msg == ""
+
+
+def test_assess_tour_readiness_active_navigation():
+    ok, msg = assess_tour_readiness(
+        602,
+        75.0,
+        velocity=[0.3, 0.0],
+        navigating_to="Accueil",
+    )
+    assert not ok
+    assert "déjà en cours" in msg.lower()
 
 
 def test_navigation_wait_failure_never_started():

@@ -211,7 +211,14 @@ def assess_tour_readiness(
                 "Navigation déjà en cours — attendez l'arrivée ou annulez "
                 "avant de lancer une visite."
             )
-    if nav_status not in (601, 603):
+    nav_ok = nav_status in (601, 603) or (
+        nav_status == 602
+        and ghost_nav_recovered
+        and is_ghost_navigation(
+            nav_status, velocity=velocity, navigating_to=navigating_to
+        )
+    )
+    if not nav_ok:
         return False, (
             f"État navigation inattendu ({nav_status}). "
             "Attendez que le robot soit prêt (601) avant de lancer la visite."
