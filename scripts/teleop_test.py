@@ -43,19 +43,34 @@ async def main():
         except asyncio.TimeoutError:
             pass
 
-        print("\n=== ETAPE 2 : Publier sur mobile_base directement ===")
-        # Topic de commande directe bas niveau
-        await publish(ws, "/mobile_base/commands/velocity", {
-            "linear": 0.1,
-            "angular": 0.0
-        })
+        print("\n=== ETAPE 2 : Publier sur cmd_vel_mux (Deployment Tool) ===")
+        await ws.send(
+            json.dumps(
+                {
+                    "op": "advertise",
+                    "topic": "/cmd_vel_mux/input/teleop",
+                    "type": "geometry_msgs/Twist",
+                }
+            )
+        )
+        await publish(
+            ws,
+            "/cmd_vel_mux/input/teleop",
+            {
+                "linear": {"x": 0.1, "y": 0.0, "z": 0.0},
+                "angular": {"x": 0.0, "y": 0.0, "z": 0.0},
+            },
+        )
         await asyncio.sleep(1.0)
 
-        # STOP
-        await publish(ws, "/mobile_base/commands/velocity", {
-            "linear": 0.0,
-            "angular": 0.0
-        })
+        await publish(
+            ws,
+            "/cmd_vel_mux/input/teleop",
+            {
+                "linear": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "angular": {"x": 0.0, "y": 0.0, "z": 0.0},
+            },
+        )
         print("[STOP]")
 
         print("\n=== ETAPE 3 : Lire le nouveau control_state ===")

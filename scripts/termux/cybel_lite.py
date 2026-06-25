@@ -96,6 +96,12 @@ NAV_STATUS_LABELS = {
 
 GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
 
+TELEOP_TOPIC = "/cmd_vel_mux/input/teleop"
+TWIST_TYPE = "geometry_msgs/Twist"
+POI_NAV_SERVICE_CHAIN = ("/tag_manager/navi", "/poi")
+CANCEL_NAV_PUBLISH_TOPICS = ("/move_base/cancel", "/path_follower/cancel")
+CANCEL_NAV_SERVICE_CHAIN = ("/move_base/cancel", "/path_follower/cancel")
+
 _speech_state: dict = {"speaking": False, "last_text": ""}
 _telemetry_sockets: set[WebSocket] = set()
 
@@ -182,10 +188,55 @@ async def ros_call_service_first(
     return None, last_response
 
 
+def _poi_nav_chain(point_name: str) -> list[tuple[str, dict]]:
+    tag_args = {"name": point_name, "tag_name": point_name}
+    poi_args = {
+        "name": point_name,
+        "point_name": point_name,
+        "command": "go",
+    }
+    return [
+        (POI_NAV_SERVICE_CHAIN[0], tag_args),
+        (POI_NAV_SERVICE_CHAIN[1], poi_args),
+    ]
+
+
+async def _ws_publish_teleop(
+    ws,
+    linear_x: float,
+    angular_z: float,
+    *,
+    advertised: list[bool],
+) -> None:
+    if not advertised[0]:
+        await ws.send(
+            json.dumps(
+                {
+                    "op": "advertise",
+                    "topic": TELEOP_TOPIC,
+                    "type": TWIST_TYPE,
+                }
+            )
+        )
+        advertised[0] = True
+    await ws.send(
+        json.dumps(
+            {
+                "op": "publish",
+                "topic": TELEOP_TOPIC,
+                "msg": {
+                    "linear": {"x": linear_x, "y": 0.0, "z": 0.0},
+                    "angular": {"x": 0.0, "y": 0.0, "z": angular_z},
+                },
+            }
+        )
+    )
+
+
 async def cancel_navigation_full() -> None:
     """Annule navigation, POI et marqueurs (réinitialise un état 604)."""
     for service, args in (
-        ("/path_follower/cancel", {}),
+        *[(service, {}) for service in CANCEL_NAV_SERVICE_CHAIN],
         ("/poi", {"command": "stop"}),
         ("/marker_manager/control", {"command": "stop"}),
     ):
@@ -195,35 +246,38 @@ async def cancel_navigation_full() -> None:
             pass
     try:
         uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+        advertised = [False]
         async with websockets.connect(uri, open_timeout=3) as ws:
-            await ws.send(
-                json.dumps({"op": "publish", "topic": "/path_follower/cancel", "msg": {}})
-            )
-            await ws.send(
-                json.dumps(
-                    {
-                        "op": "publish",
-                        "topic": "/mobile_base/commands/velocity",
-                        "msg": {
-                            "linear": {"x": 0, "y": 0, "z": 0},
-                            "angular": {"x": 0, "y": 0, "z": 0},
-                        },
-                    }
+            for topic in CANCEL_NAV_PUBLISH_TOPICS:
+                await ws.send(
+                    json.dumps({"op": "publish", "topic": topic, "msg": {}})
                 )
-            )
+            await _ws_publish_teleop(ws, 0.0, 0.0, advertised=advertised)
     except Exception:
         pass
 
 
 async def ensure_auto_navigation() -> bool:
-    """Annule la nav en cours et passe le châssis en mode automatique."""
+    """Annule la nav en cours, passe en mode auto et attend nav_status prêt (601/603)."""
     try:
         await cancel_navigation_full()
         await ros_call_service("/change_location_mode", {"mode": 1})
-        await asyncio.sleep(0.5)
-        return True
     except Exception:
         return False
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + 8.0
+    snap = await fetch_robot_snapshot(timeout=4.0)
+    while loop.time() < deadline:
+        nav_status = int(snap.get("nav_status") or 0)
+        if nav_status in (601, 603):
+            return True
+        if nav_status in (600, 604):
+            await asyncio.sleep(0.5)
+            snap = await fetch_robot_snapshot(timeout=4.0)
+            continue
+        await asyncio.sleep(0.4)
+        snap = await fetch_robot_snapshot(timeout=4.0)
+    return int(snap.get("nav_status") or 0) in (601, 603)
 
 
 async def recover_navigation_state(timeout: float = 12.0) -> dict:
@@ -386,10 +440,9 @@ async def navigate_to_point(point_name: str) -> None:
     await prepare_for_nav_goal()
     if not await ensure_auto_navigation():
         raise RuntimeError("Impossible d'activer le mode navigation automatique")
-    await ros_call_service(
-        "/poi",
-        {"name": point_name, "point_name": point_name, "command": "go"},
-    )
+    service, _ = await ros_call_service_first(_poi_nav_chain(point_name))
+    if not service:
+        raise RuntimeError(f"Navigation POI échouée pour « {point_name} »")
 
 
 async def navigate_to_coordinate(x: float, y: float, theta: float = 0.0) -> None:

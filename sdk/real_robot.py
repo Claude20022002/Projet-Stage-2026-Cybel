@@ -688,20 +688,17 @@ class RealRobot:
     async def move(self, linear_x: float, angular_z: float) -> None:
         if not self._client.connected:
             return
-        if self.status.control_state == 30 and self.status.nav_mode != "manual":
-            if self._manual_mode:
-                if not await self._ensure_manual_control():
-                    await self._emit(
-                        "event",
-                        {"message": "Téléopération refusée — mode manuel non confirmé"},
-                    )
-                    return
-            else:
+        if self.status.soft_estop:
+            return
+        moving = abs(linear_x) > 1e-6 or abs(angular_z) > 1e-6
+        if moving and self.status.control_state == 30 and self.status.nav_mode != "manual":
+            if not self._manual_mode:
+                await self.set_manual_mode(True)
+            elif not await self._ensure_manual_control():
                 await self._emit(
                     "event",
-                    {"message": "Téléopération refusée — activez le mode manuel"},
+                    {"message": "Mode manuel en attente — envoi téléop (parité Deployment Tool)"},
                 )
-                return
         await self._publish_velocity(linear_x, angular_z)
 
     async def stop(self) -> None:

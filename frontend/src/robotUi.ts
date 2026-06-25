@@ -19,7 +19,7 @@ export function teleopHint(status: RobotStatus | null): string {
     return "Navigation en cours — utilisez <strong>Annuler la navigation</strong> ou le bouton <strong>Arrêt</strong>.";
   }
   if (!isTeleopEnabled(status)) {
-    return "Activez le <strong>mode manuel</strong> pour piloter le robot à la télécommande.";
+    return "Les flèches activent le <strong>mode manuel</strong> automatiquement si besoin.";
   }
   return "Maintenez les flèches pour déplacer le robot.";
 }
