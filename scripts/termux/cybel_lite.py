@@ -105,6 +105,7 @@ _tour_trace = _load_tour_trace_module()
 _tour_navigation = _load_tour_navigation_module()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
+filter_tour_by_poi = _lab_tour.filter_tour_by_poi
 load_tour_data = _lab_tour.load_tour_data
 save_tour_data = _lab_tour.save_tour_data
 validate_stop_dict = _lab_tour.validate_stop_dict
@@ -1139,8 +1140,10 @@ def _tour_log_dir() -> Path:
     return path
 
 
-def build_tour_engine(tracer=None) -> TourEngine:
+def build_tour_engine(tracer=None, available_poi: set[str] | None = None) -> TourEngine:
     tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    if available_poi is not None:
+        tour = filter_tour_by_poi(tour, available_poi)
 
     async def speak(text: str) -> None:
         await speak_local_and_wait(text)
@@ -1236,7 +1239,8 @@ async def tour_start(request: Request) -> JSONResponse:
         log_dir=_tour_log_dir(),
     )
     _active_tracer.robot_snapshot("tour_start_pose", prereq_snap)
-    _tour_engine = build_tour_engine(tracer=_active_tracer)
+    available_poi = {str(p.get("name")) for p in load_points() if p.get("name")}
+    _tour_engine = build_tour_engine(tracer=_active_tracer, available_poi=available_poi)
     try:
         result = await _tour_engine.start(lang)
     except Exception as exc:
@@ -1406,7 +1410,17 @@ def find_point(point_name: str) -> dict | None:
 
 
 def kiosk_destinations() -> list[dict]:
-    return [p for p in load_points() if p.get("kiosk_visible", True)]
+    tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    tour_names = {
+        stop.target_point
+        for stop in tour.stops
+        if getattr(stop, "target_point", None)
+    }
+    return [
+        p
+        for p in load_points()
+        if p.get("kiosk_visible", True) and p.get("name") in tour_names
+    ]
 
 
 def load_kiosk_config() -> dict:

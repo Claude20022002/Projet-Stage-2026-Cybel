@@ -27,7 +27,6 @@ from sdk.poi_sync import sync_from_robot  # noqa: E402
 DEFAULT_KIOSK_POIS = (
     "PORTE-LABO",
     "CNC ROUTEUR",
-    "LG-10",
     "IMPRIMANTE 3D",
     "POINT-MACHINE",
     "THERMOFORMAGE",
