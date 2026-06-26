@@ -662,11 +662,12 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 **Interface visiteur et déploiement embarqué**
 
 - Interface kiosque **visite guidée labo** déployée (`frontend-kiosk/dist/` sur Termux).
-- Backend lite Termux opérationnel : health 200, API `/api/tour` avec 8 arrêts.
-- APK `CybelVisitorKiosk` : affichage validé (build IIFE + URL Wi-Fi + correctifs responsive).
-- **Test A/B prévu** : `CybelVisitorKioskTest` + backend `~/cybel-test:8001` (navigation POI Sentrymove).
-- **Problèmes terrain documentés (S1 coords)** : robot parle sans bouger, destination incorrecte, lenteur avant départ, blocages localisation — motivation de la stratégie S3 POI.
-- **En cours** : validation comparative des huit arrêts en conditions réelles (coords vs POI).
+- Backend lite Termux opérationnel : health 200, API `/api/tour` avec **10 arrêts** laboV2 (sync POI Deployment Tool).
+- APK **CYBEL Accueil** (`CybelVisitorKioskTest`) : application principale POI labo (port 8001).
+- **Sync POI** : remplacement `points.json` depuis ROS ; élagage POI obsolètes ; exclusion `POINT-RECHARGE` de la visite.
+- **Visite guidée** : validée terrain (navigation POI + détection proximité).
+- **Détection de présence** : phase 1 implémentée (`feature/face-presence`, topic `/detected_people_array`).
+- **Problèmes terrain documentés (S1 coords)** : robot parle sans bouger, destination incorrecte — motivation stratégie S3 POI (résolue sur laboV2).
 
 ### 11.2 Performances
 
@@ -686,11 +687,12 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 |---|---|
 | Topics/services ROS documentés | ~15 topics lecture, 3+ commande, services `rosapi`/`move_base` |
 | Endpoints REST développés | Robot, navigation, carte, paramètres, speech, reception, knowledge, **tour** |
-| Arrêts de visite configurés | **8** (routeur CNC, LG-10, LG-09, extraction, remplissage, thermoformage, DTF, sérigraphie) |
-| Interface visiteur validée sur tablette | **1/1** (affichage kiosque OK ; comparaison navigation coords vs POI en cours) |
-| Apps kiosque installables en parallèle | **2** (`CybelVisitorKiosk` + `CybelVisitorKioskTest`) |
-| Tests unitaires sync POI / lab_tour | **83+** (branche hybrid) |
-| Documentation technique | 6+ fichiers (`INTERFACE`, `TTS_BRIDGE`, `VISITOR_KIOSK`, `TERMUX_DEPLOY`, `ROBOT_CONNECTION`, `PROMPT_CLAUDE_KIOSK_TABLETTE`) |
+| Arrêts de visite configurés | **10** laboV2 (`data/lab_tour.json`) — 9 à 10 effectifs selon POI Deployment Tool |
+| POI Deployment Tool (juin 2026) | **10** dont `POINT-RECHARGE` (charge, hors visite) |
+| Interface visiteur validée sur tablette | **1/1** (navigation POI + visite guidée validées terrain) |
+| Apps kiosque | **CYBEL Accueil** (POI, :8001) ; ancienne app coords (:8000) décommissionnée |
+| Tests unitaires POI / tour / présence | **28+** (`test_poi_sync`, `test_poi_charge`, `test_lab_tour_filter`, `test_people_utils`) |
+| Documentation technique | `POI_LABOV2.md`, `SENTRYMOVE_POI_SYNC.md`, `FACE_PRESENCE.md`, `GUIDE_CONTROLEUR_POI.md`, etc. |
 
 ---
 
@@ -698,8 +700,7 @@ Cette architecture a évolué de manière **incrémentale** depuis le découpage
 
 ### 12.1 Limites
 
-- **Validation navigation multi-arrêts (S1 coords)** : les coordonnées proviennent de `knowledgeV2-lab.json` ; symptômes terrain (parle sans bouger, mauvaise cible) suggèrent un décalage repère SLAM ou une commande `/navi_goal` ignorée partiellement — d'où la stratégie S3 POI alignée sur Sentrymove.
-- **Comparaison A/B en cours** : deux backends Termux (8000/8001) et deux APK distincts ; procédure dans `docs/labo/TERRAIN.md` et `scripts/preflight_labo.ps1`.
+- **Validation navigation multi-arrêts** : stratégie S3 POI (Deployment Tool + `/tag_manager/navi`) validée sur laboV2 ; parcours 10 arrêts, sync ROS stricte (`docs/labo/POI_LABOV2.md`).
 - **Backend complet non déployable sur Termux** : FastAPI + pydantic nécessite `pydantic-core` (compilation Rust), impossible sur Python 3.13 Termux. Le backend lite (Starlette) couvre le kiosque et l'API tour, mais pas toutes les fonctionnalités opérateur.
 - **Contrôle opérateur / visite** : l'arrêt total depuis le PC repose sur `CYBEL_KIOSK_BACKEND_URL` pour interrompre la visite sur la tablette ; si l'IP Wi-Fi change, cette URL doit être mise à jour.
 - **Routage réseau asymétrique** : la tête Android ne peut pas initier de connexion vers le PC développeur (`10.42.0.0/24`). Contourné par l'hébergement Termux.

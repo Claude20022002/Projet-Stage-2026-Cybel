@@ -95,7 +95,7 @@ Carte active : **laboV2**. Créer les **11 POI** — noms **exactement** comme d
 
 Depuis juin 2026, la sync se fait **sans action manuelle** à l'ouverture du kiosque ou au démarrage de la visite. Les POI d'une ancienne carte sont **retirés** du cache local.
 
-Voir [SENTRYMOVE_POI_SYNC.md](../SENTRYMOVE_POI_SYNC.md) § « Synchronisation automatique ».
+Voir [SENTRYMOVE_POI_SYNC.md](../SENTRYMOVE_POI_SYNC.md) § « Synchronisation automatique » et **[POI_LABOV2.md](POI_LABOV2.md)** (référence à jour).
 
 ### Manuelle depuis le PC (préparation déploiement)
 
