@@ -1,13 +1,13 @@
 {
   "organization_name_fr": "HESTIM — Laboratoire",
   "organization_name_en": "HESTIM — Laboratory",
-  "welcome_message_fr": "Bienvenue ! Version test laboV2 — navigation par POI Sentrymove.",
-  "welcome_message_en": "Welcome! laboV2 test — Sentrymove waypoint navigation.",
+  "welcome_message_fr": "Bienvenue au laboratoire HESTIM. Je suis CYBEL, votre robot d'accueil.",
+  "welcome_message_en": "Welcome to the HESTIM laboratory. I am CYBEL, your reception robot.",
   "logo_url": "/kiosk/logo.svg",
   "standby_timeout_seconds": 90,
   "featured_destinations": ["CNC ROUTEUR", "IMPRIMANTE 3D", "EXTRUSION-SOUFFLAGE"],
   "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode", "return_charge"],
   "kiosk_variant": "poi",
-  "kiosk_variant_label_fr": "TEST POI — Sentrymove",
-  "kiosk_variant_label_en": "TEST POI — Sentrymove"
+  "kiosk_variant_label_fr": "HESTIM Laboratoire",
+  "kiosk_variant_label_en": "HESTIM Laboratory"
 }

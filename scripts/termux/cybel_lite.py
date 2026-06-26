@@ -899,9 +899,12 @@ async def wait_for_navigation_arrival(
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
             except asyncio.TimeoutError:
+                robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
+                nav_status = int(robot.get("nav_status") or 0)
+                vx, vy = _robot_velocity(robot)
+                if abs(vx) > 0.05 or abs(vy) > 0.05:
+                    saw_active = True
                 if not saw_active and loop.time() > activation_deadline:
-                    robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
-                    nav_status = int(robot.get("nav_status") or 0)
                     if _arrived(robot, nav_status):
                         if tracer and stop is not None:
                             tracer.nav_result(
@@ -953,6 +956,9 @@ async def wait_for_navigation_arrival(
 
             nav_status = int(robot.get("nav_status") or 0)
             if nav_status == 602:
+                saw_active = True
+            vx, vy = _robot_velocity(robot)
+            if abs(vx) > 0.05 or abs(vy) > 0.05:
                 saw_active = True
             if _arrived(robot, nav_status):
                 if tracer and stop is not None:
