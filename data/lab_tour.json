@@ -37,29 +37,16 @@
       "dwell_seconds": 12
     },
     {
-      "id": "lg_09",
-      "name_fr": "Zone laboratoire",
-      "name_en": "Lab area",
-      "equipment_fr": "Station LG-09",
-      "equipment_en": "LG-09 station",
-      "target_point": "Station LG-09",
-      "approach_speech_fr": "Nous allons maintenant voir la station LG-09.",
-      "approach_speech_en": "We will now visit the LG-09 station.",
-      "speech_fr": "La station LG-09 se trouve dans cette zone du laboratoire. Les étudiants y réalisent des manipulations et des essais sur des équipements industriels.",
-      "speech_en": "The LG-09 station is in this area of the laboratory. Students perform hands-on work and tests on industrial equipment here.",
-      "dwell_seconds": 12
-    },
-    {
       "id": "extraction_soufflage",
       "name_fr": "Section industrielle",
       "name_en": "Industrial section",
-      "equipment_fr": "Extraction et soufflage",
-      "equipment_en": "Extraction and blowing",
+      "equipment_fr": "Extrusion et soufflage",
+      "equipment_en": "Extrusion and blowing",
       "target_point": "EXTRUSION-SOUFFLAGE",
-      "approach_speech_fr": "Continuons vers la zone d'extraction et de soufflage.",
-      "approach_speech_en": "Let's continue to the extraction and blowing area.",
-      "speech_fr": "La zone d'extraction et de soufflage est située dans la section industrielle du laboratoire. Elle montre les systèmes de ventilation, d'aspiration et de traitement de l'air.",
-      "speech_en": "The extraction and blowing area is in the industrial section of the laboratory. It demonstrates ventilation, extraction, and air treatment systems.",
+      "approach_speech_fr": "Continuons vers la zone d'extrusion et de soufflage.",
+      "approach_speech_en": "Let's continue to the extrusion and blowing area.",
+      "speech_fr": "La zone d'extrusion et de soufflage montre les procédés de mise en forme des matières plastiques et les systèmes de traitement de l'air associés.",
+      "speech_en": "The extrusion and blowing area demonstrates plastic forming processes and related air treatment systems.",
       "dwell_seconds": 12
     },
     {
@@ -86,19 +73,6 @@
       "approach_speech_en": "We are heading to the thermoforming machine.",
       "speech_fr": "La machine de thermoformage se trouve dans la section de mise en forme des plastiques. Elle chauffe une feuille plastique et la façonne sur un moule pour créer des emballages ou des pièces.",
       "speech_en": "The thermoforming machine is in the plastic forming section. It heats a plastic sheet and shapes it on a mold to create packaging or parts.",
-      "dwell_seconds": 12
-    },
-    {
-      "id": "dtf_c31_xp600",
-      "name_fr": "Impression numérique textile",
-      "name_en": "Digital textile printing",
-      "equipment_fr": "Imprimante DTF C31 XP600",
-      "equipment_en": "DTF printer C31 XP600",
-      "target_point": "Imprimante DTF C31 XP600",
-      "approach_speech_fr": "Direction la zone d'impression numérique textile.",
-      "approach_speech_en": "Heading to the digital textile printing area.",
-      "speech_fr": "L'imprimante textile DTF, modèle C31 XP600, se trouve dans la zone d'impression numérique. Elle permet d'imprimer des motifs directement sur des textiles pour la personnalisation.",
-      "speech_en": "The DTF textile printer, model C31 XP600, is in the digital printing area. It prints designs directly onto textiles for customization.",
       "dwell_seconds": 12
     },
     {

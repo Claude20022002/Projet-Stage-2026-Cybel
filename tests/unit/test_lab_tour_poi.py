@@ -7,7 +7,7 @@ from sdk.lab_tour import TourStop, load_lab_tour
 
 def test_lab_tour_stops_use_target_point_not_coordinates() -> None:
     tour = load_lab_tour(Path(__file__).resolve().parents[2] / "data" / "lab_tour.json")
-    assert len(tour.stops) == 8
+    assert len(tour.stops) == 6
     for stop in tour.stops:
         assert stop.target_point, f"Arrêt {stop.id} sans target_point"
         assert not stop.has_coordinates(), f"Arrêt {stop.id} a encore des coordonnées"
@@ -23,7 +23,7 @@ def test_tour_stop_poi_priority() -> None:
         equipment_en="Equipment",
         speech_fr="",
         speech_en="",
-        target_point="Routeur CNC",
+        target_point="CNC ROUTEUR",
         x=1.0,
         y=2.0,
     )

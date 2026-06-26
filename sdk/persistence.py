@@ -9,6 +9,7 @@ from typing import Any
 
 from sdk.json_store import append_log_entry, load_json, save_json, utc_now_iso
 from sdk.models import Point, RobotSettings
+from sdk.poi_names import is_valid_deployment_poi_name
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,18 @@ class JsonPersistence:
             else:
                 merged[rp.name] = rp.model_copy(update={"source": "ros"})
 
-        result = sorted(merged.values(), key=lambda p: p.name.lower())
+        valid = [
+            p
+            for p in merged.values()
+            if is_valid_deployment_poi_name(p.name)
+        ]
+        dropped = len(merged) - len(valid)
+        if dropped:
+            logger.info(
+                "POI obsolètes ignorés : %d (format minuscules / brouillon)",
+                dropped,
+            )
+        result = sorted(valid, key=lambda p: p.name.lower())
         self.save_points(result)
         logger.info("POI synchronisés : %d (ROS=%d)", len(result), len(ros_points))
         return result

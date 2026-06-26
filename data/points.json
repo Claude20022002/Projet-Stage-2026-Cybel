@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-06-26T09:42:27.544662+00:00",
+  "updated_at": "2026-06-26T12:00:00+00:00",
   "points": [
     {
       "id": "m2",
@@ -12,17 +12,6 @@
       "floor": "0",
       "kiosk_visible": true,
       "source": "ros"
-    },
-    {
-      "id": "extraction_soufflage",
-      "name": "Extraction et soufflage",
-      "type": "common",
-      "x": -3.0,
-      "y": -1.8,
-      "theta": -1.69,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
     },
     {
       "id": "m1",
@@ -58,17 +47,6 @@
       "source": "ros"
     },
     {
-      "id": "dtf_c31_xp600",
-      "name": "Imprimante DTF C31 XP600",
-      "type": "common",
-      "x": -13.6,
-      "y": 0.53,
-      "theta": -2.08,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
-    },
-    {
       "id": "m0",
       "name": "LG-10",
       "type": "common",
@@ -78,50 +56,6 @@
       "floor": "0",
       "kiosk_visible": true,
       "source": "ros"
-    },
-    {
-      "id": "m1",
-      "name": "move",
-      "type": "common",
-      "x": -6.01,
-      "y": 3.69,
-      "theta": -1.5899999851125353,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "merged"
-    },
-    {
-      "id": "m2",
-      "name": "nous",
-      "type": "common",
-      "x": -3.01,
-      "y": -0.21,
-      "theta": 1.17,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "merged"
-    },
-    {
-      "id": "m0",
-      "name": "point2",
-      "type": "common",
-      "x": -9.01,
-      "y": -1.21,
-      "theta": 1.17,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "merged"
-    },
-    {
-      "id": "remplissage_bouchonnage",
-      "name": "Poste remplissage et bouchonnage",
-      "type": "common",
-      "x": -0.83,
-      "y": -1.6,
-      "theta": -0.21,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
     },
     {
       "id": "m9",
@@ -157,50 +91,6 @@
       "source": "ros"
     },
     {
-      "id": "cnc_router",
-      "name": "Routeur CNC",
-      "type": "common",
-      "x": -8.38,
-      "y": 1.45,
-      "theta": 0.88,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
-    },
-    {
-      "id": "lg_09",
-      "name": "Station LG-09",
-      "type": "common",
-      "x": -3.01,
-      "y": -0.89,
-      "theta": 2.87,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
-    },
-    {
-      "id": "lg_10",
-      "name": "Station LG-10",
-      "type": "common",
-      "x": -2.45,
-      "y": 0.79,
-      "theta": -2.63,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
-    },
-    {
-      "id": "serigraphie",
-      "name": "Sérigraphie",
-      "type": "common",
-      "x": -11.58,
-      "y": 2.86,
-      "theta": -2.66,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
-    },
-    {
       "id": "m8",
       "name": "SÉRIGRAPHIE",
       "type": "common",
@@ -210,17 +100,6 @@
       "floor": "0",
       "kiosk_visible": true,
       "source": "ros"
-    },
-    {
-      "id": "thermoformage",
-      "name": "Thermoformage",
-      "type": "common",
-      "x": -10.83,
-      "y": -11.64,
-      "theta": -0.18,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "local"
     },
     {
       "id": "m5",

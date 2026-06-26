@@ -15,6 +15,7 @@ from sdk.marker_utils import (
 from sdk.models import Point
 from sdk.persistence import JsonPersistence
 from sdk.ros_ops import extract_markers_from_ros_response
+from sdk.poi_names import is_valid_deployment_poi_name
 from sdk.rosbridge import RosbridgeClient
 
 logger = logging.getLogger(__name__)
@@ -87,8 +88,11 @@ def apply_kiosk_flags(points: list[Point], mark_kiosk: set[str] | None) -> list[
 
 
 def _merge_points_in_memory(saved: list[Point], ros_points: list[Point]) -> list[Point]:
-    merged: dict[str, Point] = {p.name: p for p in saved}
+    saved_valid = {p.name: p for p in saved if is_valid_deployment_poi_name(p.name)}
+    merged: dict[str, Point] = dict(saved_valid)
     for rp in ros_points:
+        if not is_valid_deployment_poi_name(rp.name):
+            continue
         existing = merged.get(rp.name)
         if existing:
             merged[rp.name] = rp.model_copy(

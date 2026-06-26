@@ -5,7 +5,7 @@
   "welcome_message_en": "Welcome! CYBEL POI test — Sentrymove waypoints.",
   "logo_url": "/kiosk/logo.svg",
   "standby_timeout_seconds": 90,
-  "featured_destinations": ["Extraction et soufflage", "Routeur CNC", "Sérigraphie"],
+  "featured_destinations": ["EXTRUSION-SOUFFLAGE", "CNC ROUTEUR", "SÉRIGRAPHIE"],
   "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode", "return_charge"],
   "kiosk_variant": "poi",
   "kiosk_variant_label_fr": "TEST POI — Sentrymove",

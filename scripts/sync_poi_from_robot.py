@@ -6,7 +6,7 @@ Usage (depuis la racine du dépôt, Wi-Fi robot) :
     python scripts/sync_poi_from_robot.py --host 192.168.20.22
     python scripts/sync_poi_from_robot.py --host 10.42.0.1 --dry-run
     python scripts/sync_poi_from_robot.py --host 192.168.20.22 \\
-        --mark-kiosk "Routeur CNC,Station LG-10,Extraction et soufflage"
+        --mark-kiosk "CNC ROUTEUR,LG-10,EXTRUSION-SOUFFLAGE"
 
 Voir docs/SENTRYMOVE_POI_SYNC.md pour la procédure complète.
 """
@@ -25,14 +25,12 @@ if str(ROOT) not in sys.path:
 from sdk.poi_sync import sync_from_robot  # noqa: E402
 
 DEFAULT_KIOSK_POIS = (
-    "Routeur CNC",
-    "Station LG-10",
-    "Station LG-09",
-    "Extraction et soufflage",
-    "Poste remplissage et bouchonnage",
-    "Thermoformage",
-    "Imprimante DTF C31 XP600",
-    "Sérigraphie",
+    "CNC ROUTEUR",
+    "LG-10",
+    "EXTRUSION-SOUFFLAGE",
+    "POSTE-REMPLISSAGE-BOUCHONNAGE",
+    "THERMOFORMAGE",
+    "SÉRIGRAPHIE",
 )
 
 
