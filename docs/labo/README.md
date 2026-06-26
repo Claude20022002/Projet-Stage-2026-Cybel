@@ -8,6 +8,7 @@ Documentation **terrain** : procédures, commandes et tests A/B kiosque (coords 
 |-------|------------------|
 | **1. Vérifications auto** | [`scripts/preflight_labo.ps1`](../../scripts/preflight_labo.ps1) |
 | **2. Procédure complète** | **[TERRAIN.md](TERRAIN.md)** ← guide pas à pas |
+| **2b. Formation POI / kiosque TEST** | **[GUIDE_CONTROLEUR_POI.md](GUIDE_CONTROLEUR_POI.md)** |
 | **3. Comparaison A/B** | [KIOSK_AB_COMPARISON.md](KIOSK_AB_COMPARISON.md) |
 | **4. Sync POI ROS** | [SENTRYMOVE_POI_SYNC.md](../SENTRYMOVE_POI_SYNC.md) |
 | **5. Plan hybride** | [06-plan-hybride-sentrymove-kiosk.md](../cybel-conception/06-plan-hybride-sentrymove-kiosk.md) |
@@ -27,7 +28,7 @@ Variables d'environnement optionnelles : `CYBEL_TERMUX_HOST`, `CYBEL_TERMUX_PORT
 
 | Fichier | Rôle |
 |---------|------|
-| `data/lab_tour.json` | 8 arrêts visite (`target_point` en branche POI) |
+| `data/lab_tour.json` | 6 arrêts visite (`target_point` format Deployment Tool) |
 | `data/points.json` | POI synchronisés depuis le robot |
 | `android/CybelVisitorKioskTest/out/*.apk` | APK test POI (port 8001) |
 | `scripts/deploy_termux.py --target test` | Déploiement backend `~/cybel-test` |

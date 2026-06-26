@@ -1,16 +1,31 @@
 # Procédure — POI Sentrymove → Kiosque CYBEL
 
-Guide opérateur pour l'option hybride : **Sentrymove** (superviseur + cartographie) + **kiosque CYBEL** (visiteur).
+Guide opérateur pour l'option hybride : **Sentrymove / Deployment Tool** + **kiosque CYBEL** (visiteur).
 
+> **Formation complète** : **[labo/GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md)** (format noms, sync, déploiement CybelVisitorKioskTest)  
 > **Terrain** : [labo/TERRAIN.md](labo/TERRAIN.md) · Preflight : [`scripts/preflight_labo.ps1`](../scripts/preflight_labo.ps1)
 
 ---
 
 ## Principe
 
-1. Créer / modifier les POI dans **Sentrymove** (`com.ciot.sentrymove`).
+1. Créer / modifier les POI dans **Deployment Tool** (Sentrymove) — noms **MAJUSCULES**, mots séparés par **tirets**.
 2. **Synchroniser** vers `data/points.json` (script ou API).
 3. Le **kiosque** navigue par **nom de POI** (`/tag_manager/navi`), comme Sentrymove.
+
+---
+
+## Format des noms (obligatoire)
+
+| Valide | Obsolète |
+|--------|----------|
+| `CNC ROUTEUR` | `Routeur CNC` |
+| `EXTRUSION-SOUFFLAGE` | `Extraction et soufflage` |
+| `POSTE-REMPLISSAGE-BOUCHONNAGE` | `Poste remplissage et bouchonnage` |
+| `LG-10` | `Station LG-10` |
+| `SÉRIGRAPHIE` | `Sérigraphie` |
+
+Voir le guide contrôleur pour la règle complète et le parcours à 6 arrêts.
 
 ---
 
@@ -21,21 +36,19 @@ adb shell am start -n com.ciot.sentrymove/mc.csst.com.selfchassis.ui.activity.ma
 ```
 
 1. Connexion rosbridge : `ws://192.168.20.22:9090`
-2. Relocaliser si nécessaire (localisation visible sur la carte).
+2. Relocaliser si nécessaire.
 3. Placer le robot devant chaque équipement.
-4. **Ajouter un marqueur** avec le nom **exact** (voir tableau ci-dessous).
+4. **Ajouter un marqueur** avec le nom **exact** (format Deployment Tool).
 5. Tester « Naviguer vers ce marqueur ».
 
-| Équipement visite | Nom POI à créer dans Sentrymove |
-|-------------------|----------------------------------|
-| Routeur CNC | `Routeur CNC` |
-| Station LG-10 | `Station LG-10` |
-| Station LG-09 | `Station LG-09` |
-| Extraction et soufflage | `Extraction et soufflage` |
-| Poste remplissage | `Poste remplissage et bouchonnage` |
-| Thermoformage | `Thermoformage` |
-| Imprimante DTF | `Imprimante DTF C31 XP600` |
-| Sérigraphie | `Sérigraphie` |
+| Équipement visite | Nom POI Deployment Tool |
+|-------------------|-------------------------|
+| Routeur CNC | `CNC ROUTEUR` |
+| Station LG-10 | `LG-10` |
+| Extrusion et soufflage | `EXTRUSION-SOUFFLAGE` |
+| Poste remplissage | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
+| Thermoformage | `THERMOFORMAGE` |
+| Sérigraphie | `SÉRIGRAPHIE` |
 
 ⚠️ Les noms doivent correspondre **exactement** à `target_point` dans `data/lab_tour.json`.
 
@@ -47,44 +60,27 @@ adb shell am start -n com.ciot.sentrymove/mc.csst.com.selfchassis.ui.activity.ma
 
 ```powershell
 cd C:\Users\clusa\Desktop\cybel
-git checkout feature/hybrid-sentrymove-kiosk
 python scripts/sync_poi_from_robot.py --host 192.168.20.22
 ```
 
-Options :
-
-```powershell
-# Simulation sans écriture
-python scripts/sync_poi_from_robot.py --host 192.168.20.22 --dry-run
-
-# PC connecté au hotspot robot
-python scripts/sync_poi_from_robot.py --host 10.42.0.1
-
-# API backend (robot connecté)
-curl -X POST http://127.0.0.1:8000/api/navigation/sync
-```
+Les POI en minuscules / brouillons sont **automatiquement ignorés**.
 
 ### Depuis la tablette (Termux)
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/navigation/sync
-curl http://127.0.0.1:8000/api/navigation/points
-curl http://127.0.0.1:8000/api/reception/destinations
+curl -X POST http://127.0.0.1:8001/api/navigation/sync
+curl http://127.0.0.1:8001/api/reception/destinations
 ```
 
 ---
 
-## Étape 3 — Déployer sur la tablette
+## Étape 3 — Déployer sur la tablette (CybelVisitorKioskTest)
 
 ```powershell
-python scripts/deploy_termux.py --host <IP_TABLETTE> --lite-only
+python scripts/deploy_termux.py --host <IP_TABLETTE> --target test --lite-only
 ```
 
-Sur la tablette :
-
-```bash
-bash ~/cybel/scripts/termux/start_cybel.sh
-```
+Détail ADB et redémarrage : [GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md) §4.
 
 ---
 
@@ -92,15 +88,13 @@ bash ~/cybel/scripts/termux/start_cybel.sh
 
 | Test | Action | Succès |
 |------|--------|--------|
-| Destinations | Ouvrir kiosque → grille destinations | POI Sentrymove visibles |
-| Nav simple | Toucher « Routeur CNC » | Robot bouge + TTS |
-| Visite | Démarrer visite guidée | 8 arrêts via POI |
+| Destinations | Ouvrir kiosque TEST → grille | POI MAJUSCULES visibles |
+| Nav simple | Toucher `CNC ROUTEUR` | Robot bouge + TTS |
+| Visite | Démarrer visite guidée | 6 arrêts via POI |
 | Trace | `GET /api/tour/trace` | nav_status 602 puis 603 |
 
-Smoke test :
-
 ```powershell
-python scripts/phase0_robot_check.py --host 192.168.20.22 --nav-poi "Routeur CNC"
+python scripts/phase0_robot_check.py --host 192.168.20.22 --nav-poi "CNC ROUTEUR"
 ```
 
 ---
@@ -109,15 +103,16 @@ python scripts/phase0_robot_check.py --host 192.168.20.22 --nav-poi "Routeur CNC
 
 | Symptôme | Action |
 |----------|--------|
-| Sync vide | Créer POI dans Sentrymove d'abord |
-| POI inconnu kiosque | Relancer sync, vérifier nom exact |
-| Parle sans bouger | Relocaliser via Sentrymove, `nav_status` = 601 |
-| Mauvais endroit | Supprimer coords dans lab_tour, garder `target_point` |
+| Sync vide | Créer POI dans Deployment Tool d'abord |
+| POI inconnu kiosque | Vérifier format MAJUSCULES, relancer sync |
+| Anciens noms en minuscules | Resync — filtre automatique |
+| Parle sans bouger | Relocaliser via Sentrymove |
 
 ---
 
 ## Références
 
-- Plan complet : [06-plan-hybride-sentrymove-kiosk.md](cybel-conception/06-plan-hybride-sentrymove-kiosk.md)
+- **Guide contrôleur** : [labo/GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md)
+- Plan hybride : [06-plan-hybride-sentrymove-kiosk.md](cybel-conception/06-plan-hybride-sentrymove-kiosk.md)
 - Navigation : [TOUR_NAVIGATION.md](TOUR_NAVIGATION.md)
 - Déploiement : [TERMUX_DEPLOY.md](TERMUX_DEPLOY.md)

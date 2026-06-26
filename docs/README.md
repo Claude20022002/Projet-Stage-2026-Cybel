@@ -22,6 +22,7 @@ Procédures sur le robot physique, sync POI, tests kiosque A/B.
 |----------|-------------|
 | [labo/README.md](labo/README.md) | Index section labo |
 | [labo/TERRAIN.md](labo/TERRAIN.md) | **Procédure pas à pas + commandes** |
+| [labo/GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md) | **Formation POI → CybelVisitorKioskTest** |
 | [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md) | Comparaison kiosque coords vs POI |
 | [SENTRYMOVE_POI_SYNC.md](SENTRYMOVE_POI_SYNC.md) | Sync POI ROS → `points.json` |
 
