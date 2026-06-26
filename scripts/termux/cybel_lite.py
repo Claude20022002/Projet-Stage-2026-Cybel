@@ -45,6 +45,44 @@ def _load_module_from_file(module_name: str, path: Path):
     return module
 
 
+def _ensure_sdk_package_stub() -> None:
+    """Enregistre le package sdk sans exécuter sdk/__init__.py (pydantic absent sur Termux)."""
+    import types
+
+    existing = sys.modules.get("sdk")
+    if existing is not None and getattr(existing, "__file__", None):
+        return
+    if existing is not None and hasattr(existing, "__path__"):
+        return
+    pkg = types.ModuleType("sdk")
+    pkg.__path__ = [str(CYBEL_HOME / "sdk")]
+    pkg.__package__ = "sdk"
+    sys.modules["sdk"] = pkg
+
+
+def _load_sdk_module_from_file(module_suffix: str):
+    """Charge sdk/<suffix>.py en préservant les imports relatifs sdk.*."""
+    import importlib.util
+
+    full_name = f"sdk.{module_suffix}"
+    if full_name in sys.modules:
+        return sys.modules[full_name]
+
+    _ensure_sdk_package_stub()
+    path = CYBEL_HOME / "sdk" / f"{module_suffix}.py"
+    spec = importlib.util.spec_from_file_location(
+        full_name,
+        path,
+        submodule_search_locations=[str(CYBEL_HOME / "sdk")],
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Module sdk introuvable: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[full_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def _load_lab_tour_module():
     return _load_module_from_file("cybel_lab_tour", LAB_TOUR_MODULE)
 
@@ -1447,10 +1485,17 @@ def save_points(points: list[dict]) -> None:
         f.write("\n")
 
 
+_MARKER_UTILS_MODULE = None
+
+
 def _load_marker_utils():
-    if str(CYBEL_HOME) not in sys.path:
-        sys.path.insert(0, str(CYBEL_HOME))
-    return _load_module_from_file("cybel_marker_utils", MARKER_UTILS_MODULE)
+    global _MARKER_UTILS_MODULE
+    if _MARKER_UTILS_MODULE is not None:
+        return _MARKER_UTILS_MODULE
+    for dep in ("constants", "poi_names", "ros_ops"):
+        _load_sdk_module_from_file(dep)
+    _MARKER_UTILS_MODULE = _load_sdk_module_from_file("marker_utils")
+    return _MARKER_UTILS_MODULE
 
 
 async def fetch_raw_markers_from_ros() -> list[dict]:
@@ -1465,8 +1510,8 @@ async def fetch_raw_markers_from_ros() -> list[dict]:
 
 async def sync_poi_from_ros_map() -> tuple[bool, dict | None, str | None]:
     """Lit les POI ROS (carte courante) et remplace points.json (supprime les absents)."""
-    marker_utils = _load_marker_utils()
     try:
+        marker_utils = _load_marker_utils()
         raw_markers = await fetch_raw_markers_from_ros()
         if not raw_markers:
             return False, None, "Aucun marqueur ROS — créez les POI dans Deployment Tool."
@@ -1513,6 +1558,9 @@ async def navigation_list_points(_: Request) -> JSONResponse:
 async def list_destinations(_: Request) -> JSONResponse:
     sync_ok, _, sync_err = await sync_poi_from_ros_map()
     if not sync_ok:
+        cached = kiosk_destinations()
+        if cached:
+            return JSONResponse(cached)
         return JSONResponse(
             {"ok": False, "error": sync_err or "Synchronisation POI impossible"},
             status_code=503,

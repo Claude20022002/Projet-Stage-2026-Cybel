@@ -67,18 +67,22 @@ Notez **`<IP_TABLETTE>`** (souvent `172.16.0.x`, port SSH **8022**).
 
 Sur la tablette : ouvrir **Deployment Tool** (`com.ciot.sentrymove`).
 
-Créer **8 POI** — noms **exactement** comme ci-dessous :
+Carte active : **laboV2**. Créer les **12 POI** — noms **exactement** comme dans `data/lab_tour.json` :
 
-| # | Nom POI (= `target_point` dans `lab_tour.json`) |
-|---|------------------------------------------------|
-| 1 | Routeur CNC |
-| 2 | Station LG-10 |
-| 3 | Station LG-09 |
-| 4 | Extraction et soufflage |
-| 5 | Poste remplissage et bouchonnage |
-| 6 | Thermoformage |
-| 7 | Imprimante DTF C31 XP600 |
-| 8 | Sérigraphie |
+| # | `target_point` |
+|---|----------------|
+| 1 | `PORTE-LABO` |
+| 2 | `CNC ROUTEUR` |
+| 3 | `LG-10` |
+| 4 | `IMPRIMANTE 3D` |
+| 5 | `POINT-MACHINE` |
+| 6 | `THERMOFORMAGE` |
+| 7 | `EXTRUSION-SOUFFLAGE` |
+| 8 | `POSTE-MACHINE` |
+| 9 | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
+| 10 | `POSTE-ETIQUETAGE` |
+| 11 | `GAMME-CONTROLE-QUALITE` |
+| 12 | `SÉRIGRAPHIE` |
 
 **Validation** : dans Sentrymove, envoyer le robot vers **un** POI → il doit bouger correctement.
 
@@ -86,13 +90,21 @@ Créer **8 POI** — noms **exactement** comme ci-dessous :
 
 ## 4. Sync POI vers CYBEL
 
+### Automatique (kiosque / visite)
+
+Depuis juin 2026, la sync se fait **sans action manuelle** à l'ouverture du kiosque ou au démarrage de la visite. Les POI d'une ancienne carte sont **retirés** du cache local.
+
+Voir [SENTRYMOVE_POI_SYNC.md](../SENTRYMOVE_POI_SYNC.md) § « Synchronisation automatique ».
+
+### Manuelle depuis le PC (préparation déploiement)
+
 ```powershell
 cd C:\Users\clusa\Desktop\cybel
 
 # Vérification (sans écrire)
 python scripts/sync_poi_from_robot.py --host 192.168.20.22 --dry-run
 
-# Écriture data/points.json
+# Écriture data/points.json (remplace le fichier, pas de fusion)
 python scripts/sync_poi_from_robot.py --host 192.168.20.22
 ```
 
@@ -102,7 +114,7 @@ Si `192.168.20.22` ne répond pas depuis le PC :
 python scripts/sync_poi_from_robot.py --host 10.42.0.1 --dry-run
 ```
 
-Contrôle : les 8 noms doivent apparaître dans la sortie du script.
+Contrôle : les 12 noms laboV2 doivent apparaître dans la sortie du script.
 
 ---
 
