@@ -47,22 +47,13 @@ L'interface est servie par le backend (`/kiosk/`) et affichée dans l'app Androi
 
 ## 2. Parcours de visite (`lab_tour.json`)
 
-Fichier : [data/lab_tour.json](../data/lab_tour.json)
+Fichier : [data/lab_tour.json](../data/lab_tour.json) — carte **laboV2**, **10 arrêts** avec `target_point` (POI Deployment Tool).
 
-| # | Équipement | Source `knowledgeV2-lab.json` |
-|---|------------|-------------------------------|
-| 1 | Routeur CNC | `cnc router` |
-| 2 | Station LG-10 | `lg-10` |
-| 3 | Station LG-09 | `lg-09` |
-| 4 | Extraction et soufflage | `extraction soufflage` |
-| 5 | Poste remplissage / bouchonnage | `poste remplissage bouchonnage` |
-| 6 | Thermoformage | `thermoformage` |
-| 7 | Imprimante DTF C31 XP600 | `dtf c31 xp600` |
-| 8 | Sérigraphie | `serigraphie` |
+> **Référence à jour** : [labo/POI_LABOV2.md](labo/POI_LABOV2.md) (liste POI, sync ROS, exclusion charge).
 
-Chaque arrêt contient : `equipment_fr`, textes vocaux (`speech_fr`, `approach_speech_fr`), coordonnées `x`, `y`, `theta` (orientation = `z` dans knowledge), `dwell_seconds`.
+Base de connaissances : [data/knowledgeV2-labV2.json](../data/knowledgeV2-labV2.json).
 
-Référence brute des équipements : [data/knowledgeV2-lab.json](../data/knowledgeV2-lab.json).
+Chaque arrêt contient : `equipment_fr`, textes vocaux (`speech_fr`, `approach_speech_fr`), `target_point`, `dwell_seconds`.
 
 ## 3. API visite guidée
 

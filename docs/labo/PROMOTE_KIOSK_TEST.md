@@ -65,3 +65,7 @@ Comportement actuel (minimal) :
 ## Détection de présence / visage
 
 Voir **[FACE_PRESENCE.md](../FACE_PRESENCE.md)** — travail en cours sur `feature/face-presence`.
+
+## POI et visite guidée
+
+Voir **[POI_LABOV2.md](POI_LABOV2.md)** — liste Deployment Tool, sync, exclusions.
