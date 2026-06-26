@@ -333,6 +333,15 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
         await asyncio.sleep(0.5)
 
     snap = await fetch_robot_snapshot()
+    nav_status = int(snap.get("nav_status") or 0)
+    if (
+        nav_status == _tour_navigation.CHARGING_NAV_STATUS
+        and not _tour_navigation.parse_charger_flag(snap.get("charger"))
+    ):
+        try:
+            await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+        except Exception:
+            pass
     await _cancel_and_mode(snap)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout

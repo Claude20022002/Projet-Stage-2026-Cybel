@@ -976,6 +976,9 @@ class RealRobot:
             )
             return False
 
+        if self.status.nav_status == 605 and not self.status.charger:
+            return True
+
         return self.status.nav_status in (601, 603)
 
     async def navigate_to_coordinate(
