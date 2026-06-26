@@ -93,7 +93,9 @@ def _merge_points_in_memory(saved: list[Point], ros_points: list[Point]) -> list
         existing = saved_by_name.get(rp.name)
         merged[rp.name] = rp.model_copy(
             update={
-                "kiosk_visible": existing.kiosk_visible if existing else True,
+                "kiosk_visible": (
+                    existing.kiosk_visible if existing else is_visitor_poi(rp.name, str(rp.type))
+                ),
                 "source": "merged" if existing else "ros",
             }
         )

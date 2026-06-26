@@ -129,19 +129,6 @@
       "dwell_seconds": 12
     },
     {
-      "id": "controle_qualite",
-      "name_fr": "Contrôle qualité",
-      "name_en": "Quality control",
-      "equipment_fr": "Gamme contrôle qualité",
-      "equipment_en": "Quality control line",
-      "target_point": "GAMME-CONTROLE-QUALITE",
-      "approach_speech_fr": "Nous rejoignons la gamme de contrôle qualité.",
-      "approach_speech_en": "We are heading to the quality control line.",
-      "speech_fr": "La gamme contrôle qualité regroupe les instruments de mesure et les protocoles de vérification. Les étudiants y pratiquent le contrôle dimensionnel, visuel et fonctionnel des pièces avant libération.",
-      "speech_en": "The quality control line groups measuring instruments and verification protocols. Students practice dimensional, visual, and functional inspection before release.",
-      "dwell_seconds": 12
-    },
-    {
       "id": "serigraphie",
       "name_fr": "Atelier textile",
       "name_en": "Textile workshop",
