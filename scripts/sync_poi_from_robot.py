@@ -25,11 +25,17 @@ if str(ROOT) not in sys.path:
 from sdk.poi_sync import sync_from_robot  # noqa: E402
 
 DEFAULT_KIOSK_POIS = (
+    "PORTE-LABO",
     "CNC ROUTEUR",
     "LG-10",
-    "EXTRUSION-SOUFFLAGE",
-    "POSTE-REMPLISSAGE-BOUCHONNAGE",
+    "IMPRIMANTE 3D",
+    "POINT-MACHINE",
     "THERMOFORMAGE",
+    "EXTRUSION-SOUFFLAGE",
+    "POSTE-MACHINE",
+    "POSTE-REMPLISSAGE-BOUCHONNAGE",
+    "POSTE-ETIQUETAGE",
+    "GAMME-CONTROLE-QUALITE",
     "SÉRIGRAPHIE",
 )
 

@@ -15,13 +15,25 @@ if str(BACKEND) not in sys.path:
 
 from config import settings
 from sdk.knowledge_engine import KnowledgeEngine
+from sdk.lab_tour import default_tour_path, load_tour_data
 
 
 class KnowledgeService:
     def __init__(self) -> None:
         self._engine = KnowledgeEngine(settings.data_dir)
+        self._sync_lab_source()
+
+    def _sync_lab_source(self) -> None:
+        try:
+            raw = load_tour_data(settings.data_dir / "lab_tour.json")
+            source = str(raw.get("knowledge_source") or "").strip()
+            if source:
+                self._engine.reload(lab_knowledge_file=source)
+        except Exception:
+            pass
 
     def reload(self) -> None:
+        self._sync_lab_source()
         self._engine.reload()
 
     def list_lab_entries(self) -> list[dict]:

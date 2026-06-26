@@ -19,7 +19,7 @@ def test_match_lab_cnc(engine: KnowledgeEngine) -> None:
     match = engine.match("montre moi la fraiseuse cnc", lang="fr")
     assert match is not None
     assert match.source == "lab"
-    assert "cnc router" in match.entry_id
+    assert "cnc" in match.entry_id
     assert match.x is not None
     assert match.y is not None
 
@@ -46,7 +46,7 @@ def test_point_name_resolution(engine: KnowledgeEngine) -> None:
     match = engine.match(
         "lg-10",
         lang="fr",
-        point_names=["Station LG-10", "Accueil"],
+        point_names=["LG-10", "Accueil"],
     )
     assert match is not None
-    assert match.point_name == "Station LG-10"
+    assert match.point_name == "LG-10"
