@@ -11,6 +11,7 @@ import {
 import { connectKioskTelemetry } from "./telemetry";
 import type {
   ActiveFlow,
+  DetectedPerson,
   KioskConfig,
   KioskDestination,
   Lang,
@@ -42,6 +43,8 @@ let standbyTimer: number | null = null;
 let toastTimer: number | null = null;
 let sawNavigating = false;
 let lastInteractionAt = Date.now();
+let detectedPeople: DetectedPerson[] = [];
+let lastPresenceWelcomeAt = 0;
 
 function tr() {
   return t[lang];
@@ -128,6 +131,31 @@ function syncScreenFromRobotStatus(): void {
   }
 }
 
+function handlePresenceWelcome(): void {
+  if (!config?.presence_welcome_enabled) return;
+  if (busy || activeFlow) return;
+  if (screen !== "standby" && screen !== "welcome") return;
+  const maxDist = config.presence_max_distance_m ?? 3.0;
+  const nearby = detectedPeople.filter((p) => p.distance <= maxDist);
+  if (!nearby.length) return;
+  const cooldownMs = (config.presence_cooldown_seconds ?? 90) * 1000;
+  const now = Date.now();
+  if (now - lastPresenceWelcomeAt < cooldownMs) return;
+  lastPresenceWelcomeAt = now;
+  if (screen === "standby") {
+    screen = "welcome";
+    render();
+  }
+  const welcome =
+    lang === "fr"
+      ? config.welcome_message_fr || tr().presenceWelcome
+      : config.welcome_message_en || tr().presenceWelcome;
+  if (config.presence_speak_welcome !== false) {
+    void api.say(welcome).catch(() => undefined);
+  }
+  showToast(tr().presenceDetected);
+}
+
 function startTelemetry(): void {
   connectKioskTelemetry({
     onRobotStatus: (robot) => {
@@ -152,6 +180,10 @@ function startTelemetry(): void {
         syncScreenFromTourStatus();
         if (screen === "running" || screen === "completed") render();
       }
+    },
+    onPeople: (people) => {
+      detectedPeople = people;
+      handlePresenceWelcome();
     },
   });
 }

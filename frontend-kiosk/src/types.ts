@@ -33,6 +33,13 @@ export interface KioskDestination {
   theta?: number;
 }
 
+export interface DetectedPerson {
+  id: string;
+  x: number;
+  y: number;
+  distance: number;
+}
+
 export interface KioskConfig {
   organization_name_fr: string;
   organization_name_en: string;
@@ -45,6 +52,11 @@ export interface KioskConfig {
   kiosk_variant?: string;
   kiosk_variant_label_fr?: string;
   kiosk_variant_label_en?: string;
+  presence_welcome_enabled?: boolean;
+  presence_max_distance_m?: number;
+  presence_cooldown_seconds?: number;
+  presence_speak_welcome?: boolean;
+  face_recognition_enabled?: boolean;
 }
 
 export interface ReceptionAction {

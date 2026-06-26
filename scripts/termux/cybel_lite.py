@@ -151,6 +151,20 @@ CANCEL_NAV_SERVICE_CHAIN = ("/move_base/cancel", "/path_follower/cancel")
 
 _speech_state: dict = {"speaking": False, "last_text": ""}
 _telemetry_sockets: set[WebSocket] = set()
+PEOPLE_TOPIC = "/detected_people_array"
+_detected_people: list[dict] = []
+_people_utils_module = None
+
+
+def _get_people_utils():
+    global _people_utils_module
+    if _people_utils_module is None:
+        _people_utils_module = _load_sdk_module_from_file("people_utils")
+    return _people_utils_module
+
+
+def get_detected_people() -> list[dict]:
+    return list(_detected_people)
 
 
 def load_actions() -> list[dict]:
@@ -1405,6 +1419,11 @@ def load_kiosk_config() -> dict:
         "standby_timeout_seconds": 90,
         "featured_destinations": [],
         "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode"],
+        "presence_welcome_enabled": True,
+        "presence_max_distance_m": 3.0,
+        "presence_cooldown_seconds": 90,
+        "presence_speak_welcome": True,
+        "face_recognition_enabled": False,
     }
     if not KIOSK_CONFIG_PATH.is_file():
         return default
@@ -1692,6 +1711,10 @@ async def robot_status(_: Request) -> JSONResponse:
     return JSONResponse(robot_status_payload(snap))
 
 
+async def robot_people(_: Request) -> JSONResponse:
+    return JSONResponse({"people": get_detected_people()})
+
+
 async def speech_status(_: Request) -> JSONResponse:
     return JSONResponse(
         {
@@ -1700,6 +1723,27 @@ async def speech_status(_: Request) -> JSONResponse:
             "mock": False,
         }
     )
+
+
+async def _people_listener_loop() -> None:
+    """Écoute /detected_people_array (caméra robot) pour présence visiteur."""
+    global _detected_people
+    uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+    people_utils = _get_people_utils()
+    while True:
+        try:
+            async with websockets.connect(uri, open_timeout=5) as ws:
+                await _subscribe_topics(ws, [PEOPLE_TOPIC])
+                while True:
+                    raw = await ws.recv()
+                    data = json.loads(raw)
+                    if data.get("topic") != PEOPLE_TOPIC:
+                        continue
+                    _detected_people = people_utils.parse_people_from_ros_message(
+                        data.get("msg") or {}
+                    )
+        except Exception:
+            await asyncio.sleep(2.0)
 
 
 async def telemetry_ws(websocket: WebSocket) -> None:
@@ -1717,6 +1761,9 @@ async def telemetry_ws(websocket: WebSocket) -> None:
             json.dumps(
                 {"type": "tour", **get_tour_engine().get_status().to_dict()}
             )
+        )
+        await websocket.send_text(
+            json.dumps({"type": "people", "people": get_detected_people()})
         )
         while True:
             await websocket.receive_text()
@@ -1740,12 +1787,16 @@ async def _telemetry_broadcast_loop() -> None:
                 tour_msg = json.dumps(
                     {"type": "tour", **get_tour_engine().get_status().to_dict()}
                 )
+                people_msg = json.dumps(
+                    {"type": "people", "people": get_detected_people()}
+                )
                 dead: list[WebSocket] = []
                 for ws in list(_telemetry_sockets):
                     try:
                         await ws.send_text(status_msg)
                         await ws.send_text(speech_msg)
                         await ws.send_text(tour_msg)
+                        await ws.send_text(people_msg)
                     except Exception:
                         dead.append(ws)
                 for ws in dead:
@@ -1767,6 +1818,7 @@ def build_app() -> Starlette:
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
+        Route("/api/robot/people", robot_people, methods=["GET"]),
         Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
         Route("/api/navigation/cancel", navigation_cancel, methods=["POST"]),
         Route("/api/charge/go-home", charge_go_home, methods=["POST"]),
@@ -1798,6 +1850,7 @@ def build_app() -> Starlette:
     @app.on_event("startup")
     async def _start_telemetry() -> None:
         asyncio.create_task(_telemetry_broadcast_loop())
+        asyncio.create_task(_people_listener_loop())
 
     return app
 

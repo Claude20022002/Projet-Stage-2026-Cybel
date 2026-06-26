@@ -61,4 +61,9 @@ export const api = {
     ),
   getRobotStatus: () => request<RobotStatus>("/api/robot/status"),
   getSpeechStatus: () => request<SpeechStatus>("/api/speech/status"),
+  say: (text: string) =>
+    request<{ ok: boolean }>("/api/speech/say", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
 };

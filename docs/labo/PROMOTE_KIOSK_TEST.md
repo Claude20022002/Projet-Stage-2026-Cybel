@@ -1,6 +1,6 @@
 # Promotion CybelVisitorKioskTest → application principale
 
-> Branche : `feature/promote-kiosk-poi-main`  
+> Branche : `feature/promote-kiosk-poi-main` (fusionnée dans `feature/face-presence`)  
 > Backend actif : `~/cybel-test` port **8001** (POI laboV2)
 
 ## Pourquoi
@@ -60,4 +60,8 @@ Comportement actuel (minimal) :
 2. TTS : *« Votre interlocuteur arrive dans quelques instants… »*
 3. Toast : *« Prévenir qu'un accompagnateur arrive »*
 
-**Pas** de notification staff, MQTT, ni déplacement robot. Amélioration prévue sur cette branche (option : alerte opérateur / MQTT).
+**Pas** de notification staff, MQTT, ni déplacement robot. Voir branche **`feature/face-presence`** pour la détection de présence et la reconnaissance faciale.
+
+## Détection de présence / visage
+
+Voir **[FACE_PRESENCE.md](../FACE_PRESENCE.md)** — travail en cours sur `feature/face-presence`.

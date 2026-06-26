@@ -21,6 +21,7 @@
 - [x] Scénarios prédéfinis complets (accueil, salle, attente visiteur)
 - [x] Retour à la base (kiosque)
 - [ ] Reconnaissance faciale
+- [x] Détection de présence ROS → accueil kiosque (branche `feature/face-presence`, phase 1)
 - [ ] Météo / média
 
 ## Opérateur & robot
