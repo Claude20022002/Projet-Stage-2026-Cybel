@@ -44,11 +44,6 @@
     "keywords": ["etiquetage", "etiquette", "conditionnement", "marquage"],
     "coordinates": {"x": -5.03, "y": -8.97, "z": -2.50}
   },
-  "gamme controle qualite": {
-    "answer": "La gamme contrôle qualité regroupe les moyens de mesure et de vérification conformité des pièces produites.",
-    "keywords": ["qualite", "controle", "mesure", "gamme", "qc"],
-    "coordinates": {"x": 1.94, "y": -8.99, "z": -0.17}
-  },
   "serigraphie": {
     "answer": "L'atelier de sérigraphie utilise le pochoir pour l'impression textile en petites séries et projets créatifs.",
     "keywords": ["serigraphie", "textile", "impression", "pochoir", "encre"],

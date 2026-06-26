@@ -1616,9 +1616,9 @@ async def sync_poi_from_ros_map() -> tuple[bool, dict | None, str | None]:
             return False, None, "Aucun marqueur ROS — créez les POI dans Deployment Tool."
         tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
         mark_kiosk = {
-            stop.target_point or stop.equipment_fr
+            stop.target_point
             for stop in tour.stops
-            if getattr(stop, "target_point", None) or getattr(stop, "equipment_fr", None)
+            if getattr(stop, "target_point", None)
         }
         merged = marker_utils.merge_point_dicts(
             load_points(),

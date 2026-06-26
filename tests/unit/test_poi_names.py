@@ -30,6 +30,7 @@ def test_valid_deployment_poi_names(name: str) -> None:
         "Station LG-09",
         "LG-10",
         "LG-09",
+        "GAMME-CONTROLE-QUALITE",
         "Imprimante DTF C31 XP600",
         "move",
         "nous",

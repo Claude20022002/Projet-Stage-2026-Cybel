@@ -15,7 +15,7 @@ from sdk.marker_utils import (
 from sdk.models import Point
 from sdk.persistence import JsonPersistence
 from sdk.ros_ops import extract_markers_from_ros_response
-from sdk.poi_names import is_visitor_poi
+from sdk.poi_names import is_valid_deployment_poi_name, is_visitor_poi
 from sdk.rosbridge import RosbridgeClient
 
 logger = logging.getLogger(__name__)
@@ -93,9 +93,7 @@ def _merge_points_in_memory(saved: list[Point], ros_points: list[Point]) -> list
         existing = saved_by_name.get(rp.name)
         merged[rp.name] = rp.model_copy(
             update={
-                "kiosk_visible": (
-                    existing.kiosk_visible if existing else is_visitor_poi(rp.name, str(rp.type))
-                ),
+                "kiosk_visible": is_visitor_poi(rp.name, str(rp.type)),
                 "source": "merged" if existing else "ros",
             }
         )
@@ -106,22 +104,11 @@ def _merge_ros_points(
     store: JsonPersistence,
     ros_points: list[Point],
     *,
-    mark_kiosk: set[str] | None = None,
     dry_run: bool = False,
 ) -> list[Point]:
     if dry_run:
-        merged = _merge_points_in_memory(store.load_points(), ros_points)
-    else:
-        merged = store.merge_robot_points(ros_points)
-    if not mark_kiosk:
-        return merged
-    updated: list[Point] = []
-    for point in merged:
-        if point.name in mark_kiosk:
-            updated.append(point.model_copy(update={"kiosk_visible": True}))
-        else:
-            updated.append(point)
-    return updated
+        return _merge_points_in_memory(store.load_points(), ros_points)
+    return store.merge_robot_points(ros_points)
 
 
 def sync_points_file(
@@ -131,22 +118,20 @@ def sync_points_file(
     mark_kiosk: set[str] | None = None,
     dry_run: bool = False,
 ) -> tuple[list[Point], dict[str, Any]]:
-    """Fusionne marqueurs ROS dans ``data/points.json``."""
+    """Fusionne marqueurs ROS (Deployment Tool) dans ``data/points.json``."""
     store = JsonPersistence(data_dir)
-    adjusted = apply_kiosk_flags(ros_points, mark_kiosk)
-    merged = _merge_ros_points(
-        store, adjusted, mark_kiosk=mark_kiosk, dry_run=dry_run
-    )
+    merged = _merge_ros_points(store, ros_points, dry_run=dry_run)
+    final = apply_kiosk_flags(merged, mark_kiosk)
     if not dry_run:
-        store.save_points(merged)
+        store.save_points(final)
     summary = {
         "ros_count": len(ros_points),
-        "total_count": len(merged),
-        "kiosk_visible_count": sum(1 for p in merged if p.kiosk_visible),
-        "names": [p.name for p in merged],
+        "total_count": len(final),
+        "kiosk_visible_count": sum(1 for p in final if p.kiosk_visible),
+        "names": [p.name for p in final],
         "dry_run": dry_run,
     }
-    return merged, summary
+    return final, summary
 
 
 async def sync_from_robot(

@@ -25,17 +25,6 @@
       "source": "merged"
     },
     {
-      "id": "m7",
-      "name": "GAMME-CONTROLE-QUALITE",
-      "type": "common",
-      "x": 1.94,
-      "y": -8.99,
-      "theta": -0.17453319627505862,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "ros"
-    },
-    {
       "id": "m5",
       "name": "IMPRIMANTE 3D",
       "type": "common",
