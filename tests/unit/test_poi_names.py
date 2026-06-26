@@ -11,7 +11,6 @@ from sdk.poi_names import is_valid_deployment_poi_name
         "CNC ROUTEUR",
         "EXTRUSION-SOUFFLAGE",
         "POSTE-REMPLISSAGE-BOUCHONNAGE",
-        "GAMME-CONTROLE-QUALITE",
         "IMPRIMANTE 3D",
         "SÉRIGRAPHIE",
         "THERMOFORMAGE",
