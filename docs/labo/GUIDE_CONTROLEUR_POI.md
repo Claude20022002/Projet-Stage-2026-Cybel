@@ -25,24 +25,28 @@ Les anciens libellés en minuscules / français (`Routeur CNC`, `Station LG-09`,
 
 ---
 
-## 2. Parcours visite actuel — carte **laboV2** (12 arrêts)
+## 2. Parcours visite actuel — carte **laboV2** (10 arrêts)
 
 Fichier : `data/lab_tour.json` (`id: labo_v2`, `map_name: laboV2`).
+
+> **Référence complète** : [POI_LABOV2.md](POI_LABOV2.md)
 
 | Ordre | Équipement (affichage visiteur) | `target_point` (nom robot) |
 |-------|----------------------------------|----------------------------|
 | 1 | Porte laboratoire | `PORTE-LABO` |
 | 2 | Routeur CNC | `CNC ROUTEUR` |
-| 3 | Station LG-10 | `LG-10` |
-| 4 | Imprimante 3D | `IMPRIMANTE 3D` |
-| 5 | Point machine | `POINT-MACHINE` |
-| 6 | Thermoformage | `THERMOFORMAGE` |
-| 7 | Extrusion et soufflage | `EXTRUSION-SOUFFLAGE` |
-| 8 | Poste machine | `POSTE-MACHINE` |
-| 9 | Poste remplissage et bouchonnage | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
-| 10 | Poste étiquetage | `POSTE-ETIQUETAGE` |
-| 11 | Gamme contrôle qualité | `GAMME-CONTROLE-QUALITE` |
-| 12 | Sérigraphie | `SÉRIGRAPHIE` |
+| 3 | Imprimante 3D | `IMPRIMANTE 3D` |
+| 4 | Point machine | `POINT-MACHINE` |
+| 5 | Thermoformage | `THERMOFORMAGE` |
+| 6 | Extrusion et soufflage | `EXTRUSION-SOUFFLAGE` |
+| 7 | Poste machine | `POSTE-MACHINE` *(ignoré si absent ROS)* |
+| 8 | Poste remplissage et bouchonnage | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
+| 9 | Poste étiquetage | `POSTE-ETIQUETAGE` |
+| 10 | Sérigraphie | `SÉRIGRAPHIE` |
+
+**Point de charge** (`POINT-RECHARGE`) : créé dans Deployment Tool pour le retour pile — **pas** dans la visite guidée ni la grille destinations visiteur.
+
+**Noms retirés** (ancienne carte, rejetés automatiquement) : `LG-10`, `LG-09`, `GAMME-CONTROLE-QUALITE`.
 
 La carte active dans Deployment Tool doit être **laboV2**.
 

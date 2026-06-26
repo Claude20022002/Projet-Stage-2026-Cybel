@@ -54,38 +54,43 @@ Modules concernés : `sdk/marker_utils.py`, `sdk/persistence.py`, `sdk/poi_sync.
 
 ## Format des noms (obligatoire)
 
-| Valide | Obsolète |
-|--------|----------|
+| Valide | Obsolète / rejeté |
+|--------|-------------------|
 | `CNC ROUTEUR` | `Routeur CNC` |
 | `EXTRUSION-SOUFFLAGE` | `Extraction et soufflage` |
 | `POSTE-REMPLISSAGE-BOUCHONNAGE` | `Poste remplissage et bouchonnage` |
-| `LG-10` | `Station LG-10` |
+| `POINT-RECHARGE` | *(charge — hors visite)* |
 | `SÉRIGRAPHIE` | `Sérigraphie` |
+| — | `LG-10`, `LG-09`, `GAMME-CONTROLE-QUALITE` (ancienne carte) |
 
-Voir le guide contrôleur pour la règle complète.
+Voir le guide contrôleur et [labo/POI_LABOV2.md](labo/POI_LABOV2.md).
 
 ---
 
-## Carte laboV2 — 12 POI
+## Carte laboV2 — POI actuels (juin 2026)
 
-Parcours actuel (`data/lab_tour.json`, `map_name: laboV2`) :
+Parcours visite (`data/lab_tour.json`, **10 arrêts**) et marqueurs Deployment Tool :
 
-| Ordre | `target_point` |
-|-------|----------------|
-| 1 | `PORTE-LABO` |
-| 2 | `CNC ROUTEUR` |
-| 3 | `LG-10` |
-| 4 | `IMPRIMANTE 3D` |
-| 5 | `POINT-MACHINE` |
-| 6 | `THERMOFORMAGE` |
-| 7 | `EXTRUSION-SOUFFLAGE` |
-| 8 | `POSTE-MACHINE` |
-| 9 | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
-| 10 | `POSTE-ETIQUETAGE` |
-| 11 | `GAMME-CONTROLE-QUALITE` |
-| 12 | `SÉRIGRAPHIE` |
+| Ordre | `target_point` | Remarque |
+|-------|----------------|----------|
+| 1 | `PORTE-LABO` | Accueil |
+| 2 | `CNC ROUTEUR` | |
+| 3 | `IMPRIMANTE 3D` | |
+| 4 | `POINT-MACHINE` | |
+| 5 | `THERMOFORMAGE` | |
+| 6 | `EXTRUSION-SOUFFLAGE` | |
+| 7 | `POSTE-MACHINE` | Ignoré si absent de ROS |
+| 8 | `POSTE-REMPLISSAGE-BOUCHONNAGE` | |
+| 9 | `POSTE-ETIQUETAGE` | |
+| 10 | `SÉRIGRAPHIE` | |
 
-⚠️ Chaque `target_point` doit exister **exactement** sur le robot (carte **laboV2** active dans Deployment Tool).
+**Hors visite** (présent sur carte, pas dans le parcours) :
+
+| POI | Rôle |
+|-----|------|
+| `POINT-RECHARGE` | Borne de charge — sync ROS OK, `kiosk_visible: false` |
+
+⚠️ Chaque `target_point` de visite doit exister sur la carte **laboV2** dans Deployment Tool.
 
 ---
 
@@ -171,7 +176,7 @@ Puis redémarrer le backend TEST (port **8001**) via RUN_COMMAND (voir guide con
 | Destinations | Ouvrir kiosque TEST → grille | Uniquement POI de la carte laboV2 |
 | Pas de fantômes | Après changement de carte | Anciens POI absents de la liste |
 | Nav simple | Toucher `CNC ROUTEUR` | Robot bouge + TTS |
-| Visite | Démarrer visite guidée | 12 arrêts via POI |
+| Visite | Démarrer visite guidée | 10 arrêts via POI (selon carte ROS) |
 | Trace | `GET /api/tour/trace` | nav_status 602 puis 603 |
 
 ```powershell
@@ -206,7 +211,7 @@ python scripts/phase0_robot_check.py --host 192.168.20.22 --nav-poi "CNC ROUTEUR
 | Sync async (PC) | `sdk/poi_sync.py` → `sync_from_robot` |
 | Bootstrap backend | `backend/services/poi_bootstrap.py` |
 | Lite tablette | `scripts/termux/cybel_lite.py` → `sync_poi_from_ros_map` |
-| Tests | `tests/unit/test_poi_sync.py` |
+| Tests | `tests/unit/test_poi_sync.py`, `test_poi_charge.py`, `test_lab_tour_filter.py` |
 
 ---
 
@@ -217,4 +222,4 @@ python scripts/phase0_robot_check.py --host 192.168.20.22 --nav-poi "CNC ROUTEUR
 - Navigation : [TOUR_NAVIGATION.md](TOUR_NAVIGATION.md)
 - Déploiement : [TERMUX_DEPLOY.md](TERMUX_DEPLOY.md)
 
-_Dernière mise à jour : juin 2026 — sync automatique au démarrage kiosque / visite, élagage POI absents de la carte ROS_
+_Dernière mise à jour : 27 juin 2026 — élagage POI obsolètes, exclusion point de charge, référence POI_LABOV2.md_

@@ -105,5 +105,6 @@ pytest tests/unit/test_people_utils.py -q
 
 ## Liens
 
-- [PROMOTE_KIOSK_TEST.md](labo/PROMOTE_KIOSK_TEST.md) — app principale POI (branche précédente)
+- [FACE_PRESENCE.md](FACE_PRESENCE.md) — détection de présence (branche en cours)
+- [labo/POI_LABOV2.md](labo/POI_LABOV2.md) — référence POI carte laboV2
 - [AUDIT_APK_CONSTRUCTEUR.md](cybel-conception/AUDIT_APK_CONSTRUCTEUR.md) — `onFindFace`

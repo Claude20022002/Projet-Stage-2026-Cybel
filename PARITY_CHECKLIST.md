@@ -29,7 +29,8 @@
 - [x] Dashboard opérateur
 - [x] Navigation POI / coordonnées
 - [x] Destinations kiosque (`kiosk_visible`)
-- [x] Sync POI auto au démarrage kiosque / visite (ROS → `points.json`, élagage carte)
+- [x] Sync POI auto au démarrage kiosque / visite (ROS → `points.json`, élagage carte + liste noire obsolètes)
+- [x] Exclusion point de charge (`POINT-RECHARGE`) de la visite et destinations visiteur
 - [x] Synthèse vocale
 - [ ] Gestion visiteurs (enregistrement)
 - [ ] Historique missions (UI)
@@ -43,4 +44,4 @@
 - [x] UI_AUDIT.md
 - [x] FEATURES_STATUS.md
 - [x] MIGRATION_PLAN.md
-- [x] CHANGELOG.md
+- [x] Documentation POI laboV2 (`docs/labo/POI_LABOV2.md`)
