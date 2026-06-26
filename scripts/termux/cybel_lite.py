@@ -817,6 +817,20 @@ async def fetch_robot_snapshot(timeout: float = 6.0) -> dict:
     return _merge_robot_state(pose_msg, status_msg, loc_msg or None)
 
 
+def _stop_goal_xy(stop) -> tuple[float | None, float | None]:
+    """Coordonnées cible d'un arrêt (coords directes ou POI dans points.json)."""
+    if stop is None:
+        return None, None
+    if getattr(stop, "x", None) is not None and getattr(stop, "y", None) is not None:
+        return float(stop.x), float(stop.y)
+    target = getattr(stop, "target_point", None)
+    if target:
+        point = find_point(str(target))
+        if point is not None:
+            return float(point.get("x", 0.0)), float(point.get("y", 0.0))
+    return None, None
+
+
 async def wait_for_navigation_arrival(
     timeout: float = 300.0,
     *,
@@ -834,6 +848,24 @@ async def wait_for_navigation_arrival(
     pose_msg: dict = {}
     status_msg: dict = {}
     loc_msg: dict = {}
+    goal_x, goal_y = _stop_goal_xy(stop)
+
+    def _robot_velocity(robot: dict) -> tuple[float, float]:
+        velocity = robot.get("velocity") or [0.0, 0.0]
+        if isinstance(velocity, (list, tuple)) and len(velocity) >= 2:
+            return float(velocity[0]), float(velocity[1])
+        return 0.0, 0.0
+
+    def _arrived(robot: dict, nav_status: int) -> bool:
+        return _tour_navigation.evaluate_navigation_arrival(
+            nav_status=nav_status,
+            saw_active=saw_active,
+            pose_x=float(robot.get("x") or 0.0),
+            pose_y=float(robot.get("y") or 0.0),
+            goal_x=goal_x,
+            goal_y=goal_y,
+            velocity=_robot_velocity(robot),
+        )
 
     def _failure_message(robot: dict, *, never_started: bool) -> str:
         dest = ""
@@ -846,6 +878,13 @@ async def wait_for_navigation_arrival(
                     float(robot["y"]),
                     float(stop.x),
                     float(stop.y),
+                )
+            elif goal_x is not None and goal_y is not None and robot.get("x") is not None:
+                distance = _tour_trace.distance_xy(
+                    float(robot["x"]),
+                    float(robot["y"]),
+                    goal_x,
+                    goal_y,
                 )
         return _tour_navigation.navigation_wait_failure_message(
             int(robot.get("nav_status") or 0),
@@ -862,6 +901,18 @@ async def wait_for_navigation_arrival(
             except asyncio.TimeoutError:
                 if not saw_active and loop.time() > activation_deadline:
                     robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
+                    nav_status = int(robot.get("nav_status") or 0)
+                    if _arrived(robot, nav_status):
+                        if tracer and stop is not None:
+                            tracer.nav_result(
+                                stop,
+                                index=stop_index,
+                                robot=robot,
+                                success=True,
+                                nav_status=nav_status,
+                                nav_status_label=str(robot.get("nav_status_label", "")),
+                            )
+                        return True, ""
                     err = _failure_message(robot, never_started=True)
                     if tracer and stop is not None:
                         tracer.nav_result(
@@ -903,6 +954,17 @@ async def wait_for_navigation_arrival(
             nav_status = int(robot.get("nav_status") or 0)
             if nav_status == 602:
                 saw_active = True
+            if _arrived(robot, nav_status):
+                if tracer and stop is not None:
+                    tracer.nav_result(
+                        stop,
+                        index=stop_index,
+                        robot=robot,
+                        success=True,
+                        nav_status=nav_status,
+                        nav_status_label=str(robot.get("nav_status_label", "")),
+                    )
+                return True, ""
             if nav_status == 604:
                 err = _failure_message(robot, never_started=False)
                 if tracer and stop is not None:
@@ -916,9 +978,8 @@ async def wait_for_navigation_arrival(
                         error=err,
                     )
                 return False, err
-            if saw_active and nav_status == 603:
-                velocity = robot.get("velocity") or [0.0, 0.0]
-                if abs(velocity[0]) < 0.05 and abs(velocity[1]) < 0.05:
+            if not saw_active and loop.time() > activation_deadline:
+                if _arrived(robot, nav_status):
                     if tracer and stop is not None:
                         tracer.nav_result(
                             stop,
@@ -929,7 +990,6 @@ async def wait_for_navigation_arrival(
                             nav_status_label=str(robot.get("nav_status_label", "")),
                         )
                     return True, ""
-            if not saw_active and loop.time() > activation_deadline:
                 err = _failure_message(robot, never_started=True)
                 if tracer and stop is not None:
                     tracer.nav_result(
