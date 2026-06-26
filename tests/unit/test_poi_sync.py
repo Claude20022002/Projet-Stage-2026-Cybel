@@ -23,7 +23,7 @@ def test_merge_point_dicts_preserves_kiosk_flag() -> None:
     saved = [
         {
             "id": "1",
-            "name": "LG-10",
+            "name": "CNC ROUTEUR",
             "type": "common",
             "x": 1.0,
             "y": 2.0,
@@ -33,7 +33,7 @@ def test_merge_point_dicts_preserves_kiosk_flag() -> None:
             "source": "local",
         }
     ]
-    ros = [{"name": "LG-10", "x": 3.0, "y": 4.0, "theta": 0.5, "type": "common"}]
+    ros = [{"name": "CNC ROUTEUR", "x": 3.0, "y": 4.0, "theta": 0.5, "type": "common"}]
     merged = merge_point_dicts(saved, ros)
     assert len(merged) == 1
     assert merged[0]["x"] == 3.0
@@ -73,10 +73,10 @@ def test_merge_point_dicts_prunes_absent_from_ros() -> None:
             "source": "local",
         },
     ]
-    ros = [{"name": "LG-10", "x": -1.7, "y": -2.2, "type": "common"}]
+    ros = [{"name": "CNC ROUTEUR", "x": -1.7, "y": -2.2, "type": "common"}]
     merged = merge_point_dicts(saved, ros)
     names = {p["name"] for p in merged}
-    assert names == {"LG-10"}
+    assert names == {"CNC ROUTEUR"}
     assert "ANCIEN-POI-SUPPRIME" not in names
     assert "CNC ROUTEUR" not in names
 
@@ -90,7 +90,7 @@ def test_merge_point_dicts_marks_kiosk_tour_stops() -> None:
     merged = merge_point_dicts(
         saved,
         ros,
-        mark_kiosk={"CNC ROUTEUR", "LG-10"},
+        mark_kiosk={"CNC ROUTEUR", "IMPRIMANTE 3D"},
     )
     by_name = {p["name"]: p for p in merged}
     assert by_name["CNC ROUTEUR"]["kiosk_visible"] is True

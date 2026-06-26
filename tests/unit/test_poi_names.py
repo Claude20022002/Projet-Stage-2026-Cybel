@@ -9,7 +9,6 @@ from sdk.poi_names import is_valid_deployment_poi_name
     "name",
     [
         "CNC ROUTEUR",
-        "LG-10",
         "EXTRUSION-SOUFFLAGE",
         "POSTE-REMPLISSAGE-BOUCHONNAGE",
         "GAMME-CONTROLE-QUALITE",
@@ -29,6 +28,8 @@ def test_valid_deployment_poi_names(name: str) -> None:
         "Routeur CNC",
         "Extraction et soufflage",
         "Station LG-09",
+        "LG-10",
+        "LG-09",
         "Imprimante DTF C31 XP600",
         "move",
         "nous",
