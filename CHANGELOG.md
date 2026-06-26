@@ -1,5 +1,24 @@
 # Changelog CYBEL
 
+## [0.3.3] — 2026-06-27
+
+### POI laboV2 — alignement Deployment Tool
+
+- **Élagage POI obsolètes** : `LG-10`, `LG-09`, `GAMME-CONTROLE-QUALITE` (liste noire `OBSOLETE_POI_NAMES`)
+- **Point de charge** : `POINT-RECHARGE` synchronisé depuis ROS mais exclu visite et kiosque (`is_charge_poi_name`, `kiosk_visible: false`)
+- **Sync stricte** : seuls les marqueurs Deployment Tool remplacent `points.json` ; destinations kiosque limitées aux arrêts `lab_tour.json`
+- **Visite guidée** : `filter_tour_by_poi()` au démarrage — ignore POI absents, obsolètes ou charge
+- **Parcours** : 10 arrêts laboV2 (retrait LG-10, GAMME-CONTROLE-QUALITE)
+- **Actions accueil** : noms POI laboV2 (`PORTE-LABO`, `POSTE-REMPLISSAGE-BOUCHONNAGE`)
+- Doc : [docs/labo/POI_LABOV2.md](docs/labo/POI_LABOV2.md)
+- Tests : `test_poi_charge.py`, `test_lab_tour_filter.py` (+28 tests POI/tour)
+
+### Détection de présence (branche `feature/face-presence`)
+
+- Écoute ROS `/detected_people_array` → WebSocket kiosque
+- Réveil veille + TTS accueil (`presence_*` dans `kiosk_config.json`)
+- Doc : [FACE_PRESENCE.md](docs/FACE_PRESENCE.md)
+
 ## [0.3.2] — 2026-06-25
 
 ### Sync POI automatique + élagage carte

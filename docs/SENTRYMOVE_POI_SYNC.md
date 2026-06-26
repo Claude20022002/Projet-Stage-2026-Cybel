@@ -35,10 +35,13 @@ Si le robot est **hors ligne** ou sans marqueurs ROS, ces appels renvoient **503
 
 - `data/points.json` est **remplacé** par les marqueurs ROS de la carte active ;
 - les POI présents dans l'ancien fichier mais **absents sur la carte** sont **supprimés** ;
-- les noms invalides (minuscules, brouillons) sont **ignorés** ;
-- les POI listés dans `lab_tour.json` (`target_point`) sont marqués `kiosk_visible: true`.
+- les noms invalides (minuscules, brouillons) et **obsolètes** (`LG-10`, `LG-09`, `GAMME-CONTROLE-QUALITE`) sont **ignorés** ;
+- les points de **charge** (`POINT-RECHARGE`, type `charging`) sont synchronisés mais `kiosk_visible: false` ;
+- seuls les POI listés dans `lab_tour.json` (`target_point`) sont marqués `kiosk_visible: true` pour le kiosque visiteur.
 
-Modules concernés : `sdk/marker_utils.py`, `sdk/persistence.py`, `sdk/poi_sync.py`.
+> **Référence à jour** : [labo/POI_LABOV2.md](labo/POI_LABOV2.md)
+
+Modules concernés : `sdk/marker_utils.py`, `sdk/persistence.py`, `sdk/poi_sync.py`, `sdk/poi_names.py`.
 
 ### Implémentation
 
