@@ -11,14 +11,24 @@ from fastapi import APIRouter, HTTPException
 
 from sdk.models import GoDestinationRequest, Point, ReceptionAction, VoiceCommand
 from services.persistence_service import persistence_service
+from services.poi_bootstrap import ensure_poi_synced_from_robot
 from services.reception_service import reception_service
+from services.robot_service import robot_service
 
 router = APIRouter(prefix="/api/reception", tags=["reception"])
 
 
 @router.get("/destinations", response_model=list[Point])
 async def list_destinations() -> list[Point]:
-    """POI visibles sur le kiosque (``kiosk_visible=true`` dans data/points.json)."""
+    """POI visibles sur le kiosque (sync ROS au chargement)."""
+    if not robot_service.is_mock:
+        try:
+            await ensure_poi_synced_from_robot()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Synchronisation POI impossible : {exc}",
+            ) from exc
     return persistence_service.kiosk_destinations()
 
 

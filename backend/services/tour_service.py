@@ -273,26 +273,10 @@ class TourService:
             return {"ok": False, "error": "Une patrouille est en cours"}
 
         if not robot_service.is_mock:
-            from pathlib import Path
+            from services.poi_bootstrap import ensure_poi_synced_from_robot
 
-            from config import settings
-            from sdk.lab_tour import load_lab_tour
-            from sdk.poi_sync import sync_from_robot
-
-            tour = load_lab_tour(self._tour_path)
-            mark_kiosk = {
-                stop.target_point
-                for stop in tour.stops
-                if stop.target_point
-            }
             try:
-                merged, _ = await sync_from_robot(
-                    Path(settings.data_dir),
-                    settings.robot_host,
-                    ws_port=settings.robot_ws_port,
-                    mark_kiosk=mark_kiosk or None,
-                )
-                robot_service.apply_synced_points(merged)
+                await ensure_poi_synced_from_robot()
             except Exception as exc:
                 return {"ok": False, "error": f"Synchronisation POI impossible : {exc}"}
 
