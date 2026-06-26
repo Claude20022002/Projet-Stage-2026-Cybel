@@ -1,7 +1,18 @@
 {
   "version": 1,
-  "updated_at": "2026-06-25T14:37:48.077435+00:00",
+  "updated_at": "2026-06-26T09:42:27.544662+00:00",
   "points": [
+    {
+      "id": "m2",
+      "name": "CNC ROUTEUR",
+      "type": "common",
+      "x": 2.54,
+      "y": 0.51,
+      "theta": 0.38397231404588145,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
     {
       "id": "extraction_soufflage",
       "name": "Extraction et soufflage",
@@ -14,6 +25,39 @@
       "source": "local"
     },
     {
+      "id": "m1",
+      "name": "EXTRUSION-SOUFFLAGE",
+      "type": "common",
+      "x": 0.41,
+      "y": -8.13,
+      "theta": 2.67035363073373,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m7",
+      "name": "GAMME-CONTROLE-QUALITE",
+      "type": "common",
+      "x": 1.94,
+      "y": -8.99,
+      "theta": -0.17453319627505862,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m6",
+      "name": "IMPRIMANTE 3D",
+      "type": "common",
+      "x": -2.29,
+      "y": 2.92,
+      "theta": -2.8274334344032073,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
       "id": "dtf_c31_xp600",
       "name": "Imprimante DTF C31 XP600",
       "type": "common",
@@ -23,6 +67,17 @@
       "floor": "0",
       "kiosk_visible": true,
       "source": "local"
+    },
+    {
+      "id": "m0",
+      "name": "LG-10",
+      "type": "common",
+      "x": -1.73,
+      "y": -2.26,
+      "theta": -2.844886639242951,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
     },
     {
       "id": "m1",
@@ -69,6 +124,39 @@
       "source": "local"
     },
     {
+      "id": "m9",
+      "name": "POSTE-ETIQUETAGE",
+      "type": "common",
+      "x": -1.17,
+      "y": -9.4,
+      "theta": -2.775073586102378,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m3",
+      "name": "POSTE-MACHINE",
+      "type": "common",
+      "x": 0.37,
+      "y": -5.13,
+      "theta": 0.4014257380739195,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m4",
+      "name": "POSTE-REMPLISSAGE-BOUCHONNAGE",
+      "type": "common",
+      "x": 0.86,
+      "y": -10.25,
+      "theta": -0.5235989497956556,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
       "id": "cnc_router",
       "name": "Routeur CNC",
       "type": "common",
@@ -113,6 +201,17 @@
       "source": "local"
     },
     {
+      "id": "m8",
+      "name": "SÉRIGRAPHIE",
+      "type": "common",
+      "x": 1.1,
+      "y": 3.84,
+      "theta": 2.7750735126665713,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
       "id": "thermoformage",
       "name": "Thermoformage",
       "type": "common",
@@ -122,6 +221,17 @@
       "floor": "0",
       "kiosk_visible": true,
       "source": "local"
+    },
+    {
+      "id": "m5",
+      "name": "THERMOFORMAGE",
+      "type": "common",
+      "x": -1.58,
+      "y": -0.35,
+      "theta": -1.413716677749737,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
     }
   ]
 }

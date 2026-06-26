@@ -56,7 +56,7 @@ async def fetch_robot_markers(
     timeout: float = 8.0,
 ) -> list[Point]:
     """Récupère les marqueurs depuis rosbridge (même services que Sentrymove)."""
-    client = RosbridgeClient(host=host, port=ws_port)
+    client = RosbridgeClient(f"ws://{host}:{ws_port}")
     await client.connect()
     try:
         markers: list[dict[str, Any]] = []
