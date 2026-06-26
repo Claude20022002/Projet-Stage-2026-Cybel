@@ -1,5 +1,17 @@
 # Changelog CYBEL
 
+## [0.3.2] — 2026-06-25
+
+### Sync POI automatique + élagage carte
+
+- **Sync au démarrage kiosque** : `GET /api/reception/destinations` lit ROS avant d'afficher la grille
+- **Sync au démarrage visite** : `POST /api/tour/start` synchronise les POI avant les prérequis navigation
+- **Élagage POI fantômes** : `merge_point_dicts` / `merge_robot_points` remplacent le cache (suppression des POI absents de la carte ROS courante)
+- **Tablette** : `sync_poi_from_ros_map()` dans `cybel_lite.py`
+- **Backend PC** : `backend/services/poi_bootstrap.py` → `ensure_poi_synced_from_robot()`
+- **Carte laboV2** : parcours 12 arrêts documenté
+- Doc : [SENTRYMOVE_POI_SYNC.md](docs/SENTRYMOVE_POI_SYNC.md), [GUIDE_CONTROLEUR_POI.md](docs/labo/GUIDE_CONTROLEUR_POI.md)
+
 ## [0.3.1] — 2026-06-24
 
 ### Démarrage automatique tablette

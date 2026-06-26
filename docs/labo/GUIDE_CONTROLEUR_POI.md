@@ -10,7 +10,7 @@ Formation opérateur : créer les points sur le robot, les synchroniser vers le 
 
 ## 1. Règle de nommage (obligatoire)
 
-Les seuls POI reconnus par le robot et le kiosque sont ceux créés dans l’application **Deployment Tool** (Sentrymove) avec le format officiel :
+Les seuls POI reconnus par le robot et le kiosque sont ceux créés dans l'application **Deployment Tool** (Sentrymove) avec le format officiel :
 
 | Règle | Exemple valide | Exemple obsolète (à ne plus utiliser) |
 |-------|----------------|----------------------------------------|
@@ -25,18 +25,26 @@ Les anciens libellés en minuscules / français (`Routeur CNC`, `Station LG-09`,
 
 ---
 
-## 2. Parcours visite actuel (6 arrêts valides)
+## 2. Parcours visite actuel — carte **laboV2** (12 arrêts)
+
+Fichier : `data/lab_tour.json` (`id: labo_v2`, `map_name: laboV2`).
 
 | Ordre | Équipement (affichage visiteur) | `target_point` (nom robot) |
 |-------|----------------------------------|----------------------------|
-| 1 | Routeur CNC | `CNC ROUTEUR` |
-| 2 | Station LG-10 | `LG-10` |
-| 3 | Extrusion et soufflage | `EXTRUSION-SOUFFLAGE` |
-| 4 | Poste remplissage et bouchonnage | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
-| 5 | Thermoformage | `THERMOFORMAGE` |
-| 6 | Sérigraphie | `SÉRIGRAPHIE` |
+| 1 | Porte laboratoire | `PORTE-LABO` |
+| 2 | Routeur CNC | `CNC ROUTEUR` |
+| 3 | Station LG-10 | `LG-10` |
+| 4 | Imprimante 3D | `IMPRIMANTE 3D` |
+| 5 | Point machine | `POINT-MACHINE` |
+| 6 | Thermoformage | `THERMOFORMAGE` |
+| 7 | Extrusion et soufflage | `EXTRUSION-SOUFFLAGE` |
+| 8 | Poste machine | `POSTE-MACHINE` |
+| 9 | Poste remplissage et bouchonnage | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
+| 10 | Poste étiquetage | `POSTE-ETIQUETAGE` |
+| 11 | Gamme contrôle qualité | `GAMME-CONTROLE-QUALITE` |
+| 12 | Sérigraphie | `SÉRIGRAPHIE` |
 
-Les arrêts **LG-09** et **Imprimante DTF** ont été retirés : aucun POI Deployment Tool correspondant n’existait sur le robot.
+La carte active dans Deployment Tool doit être **laboV2**.
 
 ---
 
@@ -46,7 +54,7 @@ Les arrêts **LG-09** et **Imprimante DTF** ont été retirés : aucun POI Deplo
 
 - Robot allumé, tablette sur le même réseau (`192.168.20.22` ou hotspot `10.42.0.1`)
 - Application **Sentrymove** / **Deployment Tool** installée
-- Robot **relocalisé** sur la carte (localisation OK)
+- Carte **laboV2** sélectionnée, robot **relocalisé**
 
 ### 3.2 Procédure
 
@@ -55,13 +63,27 @@ Les arrêts **LG-09** et **Imprimante DTF** ont été retirés : aucun POI Deplo
    adb shell am start -n com.ciot.sentrymove/mc.csst.com.selfchassis.ui.activity.main.MainActivity
    ```
 2. Connexion rosbridge : `ws://192.168.20.22:9090`
-3. Placer le robot devant l’équipement (orientation finale = orientation du POI).
+3. Placer le robot devant l'équipement (orientation finale = orientation du POI).
 4. **Ajouter un marqueur** avec le nom au format **MAJUSCULES-TIRETS** (voir tableau §1).
 5. Tester **« Naviguer vers ce marqueur »** depuis Sentrymove avant de passer à CYBEL.
 
 ---
 
-## 3. Créer ou modifier un POI sur le robot
+## 4. Synchronisation POI vers CybelVisitorKioskTest
+
+Chaîne : **Robot (ROS, carte courante)** → **`data/points.json`** → **tablette `~/cybel-test`** → **app TEST**.
+
+### 4.0 Automatique (comportement par défaut)
+
+| Moment | Action système |
+|--------|----------------|
+| Ouverture du kiosque | Sync ROS avant affichage de la grille destinations |
+| Démarrage visite guidée | Sync ROS avant le premier déplacement |
+| Changement de carte | POI absents de la nouvelle carte **supprimés** du cache local |
+
+Si le robot est hors ligne : message d'erreur, pas d'affichage de POI fantômes (ancienne carte).
+
+### 4.A — Sync manuelle depuis le PC (recommandé pour préparer le déploiement)
 
 ```powershell
 cd C:\Users\clusa\Desktop\cybel
@@ -69,7 +91,8 @@ python scripts/sync_poi_from_robot.py --host 192.168.20.22
 ```
 
 - Lit les marqueurs ROS (même source que Deployment Tool).
-- Écrit `data/points.json` en **ignorant** les noms obsolètes (minuscules, brouillons `move`, `nous`, etc.).
+- **Remplace** `data/points.json` (ne fusionne plus avec l'ancien cache).
+- Ignore les noms obsolètes (minuscules, brouillons).
 - Marque les POI du parcours comme visibles sur le kiosque.
 
 Simulation sans écriture :
@@ -78,7 +101,7 @@ Simulation sans écriture :
 python scripts/sync_poi_from_robot.py --host 192.168.20.22 --dry-run
 ```
 
-### Étape B — Déployer sur la tablette
+### 4.B — Déployer sur la tablette
 
 **Option 1 — SSH Termux** (si mot de passe configuré) :
 
@@ -89,16 +112,22 @@ python scripts/deploy_termux.py --host <IP_TABLETTE> --target test --lite-only
 **Option 2 — ADB USB** (sans SSH) :
 
 ```powershell
-# Bundle + extraction (si script deploy non disponible)
 python scripts/deploy_termux.py --bundle-only
 adb push out/cybel-deploy.tar.gz /data/local/tmp/
 adb shell "su -c 'cd /data/data/com.termux/files/home/cybel-test && tar xzf /data/local/tmp/cybel-deploy.tar.gz'"
 
-# Fichiers données essentiels
 adb push data/points.json /data/local/tmp/points.json
 adb push data/lab_tour.json /data/local/tmp/lab_tour.json
 adb push data/kiosk_config.poi.json /data/local/tmp/kiosk_config.poi.json
 adb shell "su -c 'cp /data/local/tmp/points.json /data/data/com.termux/files/home/cybel-test/data/ && cp /data/local/tmp/lab_tour.json /data/data/com.termux/files/home/cybel-test/data/ && cp /data/local/tmp/kiosk_config.poi.json /data/data/com.termux/files/home/cybel-test/data/kiosk_config.json'"
+```
+
+Après mise à jour du code sync, pousser au minimum :
+
+```powershell
+adb push scripts/termux/cybel_lite.py /data/local/tmp/
+adb push sdk/marker_utils.py /data/local/tmp/
+adb shell "su -c 'cp /data/local/tmp/cybel_lite.py /data/data/com.termux/files/home/cybel-test/scripts/termux/ && cp /data/local/tmp/marker_utils.py /data/data/com.termux/files/home/cybel-test/sdk/'"
 ```
 
 ### 4.C — Redémarrer le backend TEST (port 8001)
@@ -111,13 +140,13 @@ adb shell am startservice -n com.termux/com.termux.app.RunCommandService -a com.
 
 ### 4.D — Sync API depuis la tablette (sans PC)
 
-Si le backend tourne déjà sur la tablette :
-
 ```bash
 curl -X POST http://127.0.0.1:8001/api/navigation/sync
 curl http://127.0.0.1:8001/api/navigation/points
 curl http://127.0.0.1:8001/api/reception/destinations
 ```
+
+`GET /api/reception/destinations` déclenche aussi la sync automatique et renvoie un **tableau** JSON.
 
 ### 4.E — Lancer l'application TEST
 
@@ -135,11 +164,12 @@ URL kiosque : `http://127.0.0.1:8001/kiosk/` (fichier `/sdcard/Download/cybel_ki
 | Contrôle | Commande / action | Résultat attendu |
 |----------|-------------------|------------------|
 | Santé backend | `curl http://127.0.0.1:8001/api/health` (via `adb forward`) | `"status":"ok"` |
-| Liste POI | `GET /api/reception/destinations` | Uniquement noms MAJUSCULES |
+| Liste POI | `GET /api/reception/destinations` | 12 POI laboV2, noms MAJUSCULES uniquement |
 | Config kiosque | `GET /api/kiosk/config` | `"kiosk_variant":"poi"` |
-| Parcours | `GET /api/tour` | 6 arrêts, `target_point` en MAJUSCULES |
+| Parcours | `GET /api/tour` | 12 arrêts, `map_name: laboV2` |
 | Navigation | Toucher `CNC ROUTEUR` sur la tablette | Robot se déplace |
-| Visite guidée | Démarrer la visite | 6 arrêts, pas d’erreur « point inconnu » |
+| Visite guidée | Démarrer la visite | 12 arrêts, pas d'erreur « point inconnu » |
+| Pas de fantômes | Après changement de carte | Anciens POI absents de la grille |
 
 Smoke test robot depuis le PC :
 
@@ -169,27 +199,29 @@ Pour ajouter un arrêt :
 | Symptôme | Cause probable | Action |
 |----------|----------------|--------|
 | « Point inconnu » | Nom différent robot / CYBEL | Vérifier nom exact dans Sentrymove, resync |
-| POI en minuscules dans la liste | Ancien `points.json` | Resync + redéploiement |
-| Robot ne bouge pas | Pas relocalisé | Relocaliser via Sentrymove |
-| Backend TEST down | Redémarrage via `su` | Utiliser RUN_COMMAND (§4 étape C) |
-| Arrêt visite sauté | POI absent du robot | Créer le POI ou retirer l’arrêt du parcours |
+| POI fantômes (ancienne carte) | Backend pas à jour | Déployer `cybel_lite.py` + redémarrer :8001 |
+| « Synchronisation POI impossible » | Robot hors ligne | Vérifier rosbridge, même réseau |
+| POI en minuscules dans la liste | Marqueurs brouillon Sentrymove | Resync — filtre automatique |
+| Robot ne bouge pas | Pas relocalisé / E-stop | Relocaliser via Sentrymove |
+| Backend TEST down | Redémarrage via `su` | Utiliser RUN_COMMAND (§4.C) |
+| Arrêt visite sauté | POI absent du robot | Créer le POI ou retirer l'arrêt du parcours |
 
 ---
 
 ## 8. Récapitulatif une page
 
 ```
-Deployment Tool  →  nom MAJUSCULES-TIRETS
+Deployment Tool (carte laboV2)  →  nom MAJUSCULES-TIRETS
        ↓
-sync_poi_from_robot.py  →  data/points.json
+ROS marker_manager  →  sync auto (kiosque / visite) ou sync_poi_from_robot.py
        ↓
-deploy tablette ~/cybel-test  →  restart port 8001
+data/points.json (remplacement, pas fusion)
        ↓
-CybelVisitorKioskTest  →  visite + destinations
+tablette ~/cybel-test :8001  →  CybelVisitorKioskTest
 ```
 
-**Règle d’or** : le texte tapé dans Deployment Tool = le texte dans `target_point` = le texte affiché dans la liste des destinations du kiosque.
+**Règle d'or** : le texte tapé dans Deployment Tool = le texte dans `target_point` = le texte affiché dans la liste des destinations du kiosque.
 
 ---
 
-_Dernière mise à jour : juin 2026 — format POI Deployment Tool (MAJUSCULES / tirets)_
+_Dernière mise à jour : juin 2026 — carte laboV2 (12 POI), sync automatique au démarrage kiosque / visite, élagage POI absents de la carte ROS_

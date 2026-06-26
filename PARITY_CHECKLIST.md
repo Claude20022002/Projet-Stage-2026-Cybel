@@ -28,6 +28,7 @@
 - [x] Dashboard opérateur
 - [x] Navigation POI / coordonnées
 - [x] Destinations kiosque (`kiosk_visible`)
+- [x] Sync POI auto au démarrage kiosque / visite (ROS → `points.json`, élagage carte)
 - [x] Synthèse vocale
 - [ ] Gestion visiteurs (enregistrement)
 - [ ] Historique missions (UI)
