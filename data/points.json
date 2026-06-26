@@ -1,28 +1,28 @@
 {
   "version": 1,
-  "updated_at": "2026-06-26T12:00:00+00:00",
+  "updated_at": "2026-06-26T12:09:42.200737+00:00",
   "points": [
     {
-      "id": "m2",
+      "id": "m1",
       "name": "CNC ROUTEUR",
       "type": "common",
-      "x": 2.54,
-      "y": 0.51,
-      "theta": 0.38397231404588145,
+      "x": 0.99,
+      "y": 0.02,
+      "theta": -0.0698130774081258,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
-      "id": "m1",
+      "id": "m3",
       "name": "EXTRUSION-SOUFFLAGE",
       "type": "common",
-      "x": 0.41,
-      "y": -8.13,
-      "theta": 2.67035363073373,
+      "x": -3.32,
+      "y": -8.02,
+      "theta": 2.583087227293057,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m7",
@@ -36,15 +36,15 @@
       "source": "ros"
     },
     {
-      "id": "m6",
+      "id": "m5",
       "name": "IMPRIMANTE 3D",
       "type": "common",
-      "x": -2.29,
-      "y": 2.92,
-      "theta": -2.8274334344032073,
+      "x": -3.17,
+      "y": 3.72,
+      "theta": -2.40855443299144,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m0",
@@ -58,15 +58,37 @@
       "source": "ros"
     },
     {
-      "id": "m9",
-      "name": "POSTE-ETIQUETAGE",
+      "id": "m6",
+      "name": "POINT-MACHINE",
       "type": "common",
-      "x": -1.17,
-      "y": -9.4,
-      "theta": -2.775073586102378,
+      "x": -3.42,
+      "y": -2.69,
+      "theta": -0.4886921021621723,
       "floor": "0",
       "kiosk_visible": true,
       "source": "ros"
+    },
+    {
+      "id": "m0",
+      "name": "PORTE-LABO",
+      "type": "common",
+      "x": 3.95,
+      "y": -5.5,
+      "theta": 0.6632250694881756,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m8",
+      "name": "POSTE-ETIQUETAGE",
+      "type": "common",
+      "x": -5.03,
+      "y": -8.97,
+      "theta": -2.4958208360336616,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "merged"
     },
     {
       "id": "m3",
@@ -80,37 +102,37 @@
       "source": "ros"
     },
     {
-      "id": "m4",
+      "id": "m7",
       "name": "POSTE-REMPLISSAGE-BOUCHONNAGE",
       "type": "common",
-      "x": 0.86,
-      "y": -10.25,
-      "theta": -0.5235989497956556,
+      "x": -2.12,
+      "y": -10.08,
+      "theta": -2.3038344178816708,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
-      "id": "m8",
+      "id": "m2",
       "name": "SÉRIGRAPHIE",
       "type": "common",
-      "x": 1.1,
-      "y": 3.84,
-      "theta": 2.7750735126665713,
+      "x": 0.28,
+      "y": 3.65,
+      "theta": 2.8274333592554166,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
-      "id": "m5",
+      "id": "m4",
       "name": "THERMOFORMAGE",
       "type": "common",
-      "x": -1.58,
-      "y": -0.35,
-      "theta": -1.413716677749737,
+      "x": -3.59,
+      "y": 0.39,
+      "theta": 0.4712390106391636,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     }
   ]
 }
