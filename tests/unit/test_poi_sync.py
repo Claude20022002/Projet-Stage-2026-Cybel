@@ -41,6 +41,13 @@ def test_merge_point_dicts_preserves_kiosk_flag() -> None:
     assert merged[0]["source"] == "merged"
 
 
+def test_merge_point_dicts_prunes_obsolete_names() -> None:
+    saved = [{"name": "LG-10", "x": 0, "y": 0, "kiosk_visible": True}]
+    ros = [{"name": "LG-10", "x": 3.0, "y": 4.0, "type": "common"}]
+    merged = merge_point_dicts(saved, ros)
+    assert merged == []
+
+
 def test_merge_point_dicts_prunes_absent_from_ros() -> None:
     saved = [
         {

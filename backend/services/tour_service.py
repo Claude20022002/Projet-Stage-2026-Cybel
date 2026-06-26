@@ -13,6 +13,7 @@ from sdk.lab_tour import (
     TourEngine,
     TourStop,
     default_tour_path,
+    filter_tour_by_poi,
     load_lab_tour,
     load_tour_data,
     save_tour_data,
@@ -92,9 +93,12 @@ class TourService:
         self,
         tour_path: Path | None = None,
         tracer=None,
+        available_poi: set[str] | None = None,
     ) -> TourEngine:
         path = tour_path or self._tour_path
         tour = load_lab_tour(path)
+        if available_poi is not None:
+            tour = filter_tour_by_poi(tour, available_poi)
 
         async def speak(text: str) -> None:
             result = await robot_service.speak(text)
@@ -284,7 +288,13 @@ class TourService:
         tour = load_lab_tour(self._tour_path)
         tracer = start_tour_logger(tour_id=tour.id)
         tracer.robot_snapshot("tour_start_pose", _robot_snapshot())
-        self._engine = self._build_engine(tracer=tracer)
+        from services.persistence_service import persistence_service
+
+        available_poi = {p.name for p in persistence_service.load_points()}
+        self._engine = self._build_engine(
+            tracer=tracer,
+            available_poi=available_poi,
+        )
         if not robot_service.is_mock:
             status = robot_service.get_status()
             ready, reason = assess_tour_readiness(

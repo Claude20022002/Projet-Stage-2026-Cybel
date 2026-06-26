@@ -67,22 +67,23 @@ Notez **`<IP_TABLETTE>`** (souvent `172.16.0.x`, port SSH **8022**).
 
 Sur la tablette : ouvrir **Deployment Tool** (`com.ciot.sentrymove`).
 
-Carte active : **laboV2**. Créer les **12 POI** — noms **exactement** comme dans `data/lab_tour.json` :
+Carte active : **laboV2**. Créer les **11 POI** — noms **exactement** comme dans `data/lab_tour.json` :
 
 | # | `target_point` |
 |---|----------------|
 | 1 | `PORTE-LABO` |
 | 2 | `CNC ROUTEUR` |
-| 3 | `LG-10` |
-| 4 | `IMPRIMANTE 3D` |
-| 5 | `POINT-MACHINE` |
-| 6 | `THERMOFORMAGE` |
-| 7 | `EXTRUSION-SOUFFLAGE` |
-| 8 | `POSTE-MACHINE` |
-| 9 | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
-| 10 | `POSTE-ETIQUETAGE` |
-| 11 | `GAMME-CONTROLE-QUALITE` |
-| 12 | `SÉRIGRAPHIE` |
+| 3 | `IMPRIMANTE 3D` |
+| 4 | `POINT-MACHINE` |
+| 5 | `THERMOFORMAGE` |
+| 6 | `EXTRUSION-SOUFFLAGE` |
+| 7 | `POSTE-MACHINE` |
+| 8 | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
+| 9 | `POSTE-ETIQUETAGE` |
+| 10 | `GAMME-CONTROLE-QUALITE` |
+| 11 | `SÉRIGRAPHIE` |
+
+> **Note :** `LG-10` et `LG-09` appartiennent à l'ancienne carte — exclus du parcours laboV2.
 
 **Validation** : dans Sentrymove, envoyer le robot vers **un** POI → il doit bouger correctement.
 
