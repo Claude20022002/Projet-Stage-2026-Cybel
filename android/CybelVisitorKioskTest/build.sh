@@ -75,4 +75,4 @@ fi
 
 echo ""
 echo "Built: $OUT/CybelVisitorKioskTest.apk"
-echo "Package: com.cybel.visitorkiosk.test — label « CYBEL Accueil POI »"
+echo "Package: com.cybel.visitorkiosk.test — label « CYBEL Accueil »"
