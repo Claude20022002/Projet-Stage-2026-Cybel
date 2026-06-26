@@ -359,6 +359,8 @@ def _readiness_kwargs(snap: dict, *, ghost_nav_recovered: bool = False) -> dict:
         "navigating_to": snap.get("navigating_to"),
         "ghost_nav_recovered": ghost_nav_recovered,
         "charger": charger,
+        "hard_estop": bool(snap.get("hard_estop")),
+        "soft_estop": bool(snap.get("soft_estop")),
     }
 
 
@@ -459,7 +461,7 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status in (604, 600):
+    if nav_status in (604,):
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
@@ -468,6 +470,23 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
             **_readiness_kwargs(snap),
         )
         return False, reason, snap
+    if nav_status == 600:
+        loc_ok, snap = await ensure_global_localization()
+        nav_status = int(snap.get("nav_status") or 0)
+        loc = snap.get("localization_percent")
+        if nav_status == 600 and loc is not None and loc >= LOCALIZATION_MIN_PERCENT:
+            snap = await recover_navigation_state(timeout=15.0)
+            nav_status = int(snap.get("nav_status") or 0)
+            loc = snap.get("localization_percent")
+        if nav_status == 600:
+            _, reason = _tour_navigation.assess_tour_readiness(
+                nav_status,
+                loc,
+                min_localization=LOCALIZATION_MIN_PERCENT,
+                require_known_localization=True,
+                **_readiness_kwargs(snap),
+            )
+            return False, reason, snap
     if (
         nav_status == _tour_navigation.CHARGING_NAV_STATUS
         and _tour_navigation.parse_charger_flag(snap.get("charger"))
@@ -702,6 +721,9 @@ def _merge_robot_state(
         "connected": bool(pose_msg or status_msg),
         "nav_mode_label": "Automatique",
         "navigating_to": status_msg.get("navigating_to"),
+        "soft_estop": bool(status_msg.get("soft_estop")),
+        "hard_estop": bool(status_msg.get("hard_estop")),
+        "nav_mode": str(status_msg.get("nav_mode") or "auto_navi"),
     }
     state["nav_status_label"] = NAV_STATUS_LABELS.get(state["nav_status"], "?")
     if state["x"] is not None:
@@ -1314,7 +1336,8 @@ def robot_status_payload(snap: dict) -> dict:
         "connected": bool(snap.get("connected")),
         "battery": int(snap.get("battery") or 0),
         "charger": on_charger,
-        "soft_estop": False,
+        "soft_estop": bool(snap.get("soft_estop")),
+        "hard_estop": bool(snap.get("hard_estop")),
         "nav_status": int(snap.get("nav_status") or 600),
         "nav_status_label": str(snap.get("nav_status_label") or "Inconnu"),
         "nav_mode_label": str(snap.get("nav_mode_label") or "Automatique"),

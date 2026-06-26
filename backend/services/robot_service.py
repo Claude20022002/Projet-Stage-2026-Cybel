@@ -141,6 +141,7 @@ class RobotService:
         return navigation_precondition_detail(
             connected=status.connected,
             soft_estop=status.soft_estop,
+            hard_estop=status.hard_estop,
             nav_status=status.nav_status,
             nav_mode=status.nav_mode,
             localization_percent=status.localization_percent,
