@@ -61,11 +61,7 @@ Les arrêts **LG-09** et **Imprimante DTF** ont été retirés : aucun POI Deplo
 
 ---
 
-## 4. Envoyer les POI vers CybelVisitorKioskTest
-
-Chaîne complète : **Robot (ROS)** → **`data/points.json`** → **tablette `~/cybel-test`** → **app TEST**.
-
-### Étape A — Synchroniser depuis le PC (recommandé, près du robot)
+## 3. Créer ou modifier un POI sur le robot
 
 ```powershell
 cd C:\Users\clusa\Desktop\cybel
@@ -105,7 +101,7 @@ adb push data/kiosk_config.poi.json /data/local/tmp/kiosk_config.poi.json
 adb shell "su -c 'cp /data/local/tmp/points.json /data/data/com.termux/files/home/cybel-test/data/ && cp /data/local/tmp/lab_tour.json /data/data/com.termux/files/home/cybel-test/data/ && cp /data/local/tmp/kiosk_config.poi.json /data/data/com.termux/files/home/cybel-test/data/kiosk_config.json'"
 ```
 
-### Étape C — Redémarrer le backend TEST (port 8001)
+### 4.C — Redémarrer le backend TEST (port 8001)
 
 Via **Termux RUN_COMMAND** (ne pas utiliser `su` seul — Python introuvable) :
 
@@ -113,7 +109,7 @@ Via **Termux RUN_COMMAND** (ne pas utiliser `su` seul — Python introuvable) :
 adb shell am startservice -n com.termux/com.termux.app.RunCommandService -a com.termux.RUN_COMMAND --es com.termux.RUN_COMMAND_PATH /data/data/com.termux/files/usr/bin/bash --esa com.termux.RUN_COMMAND_ARGUMENTS "-lc","bash ~/cybel-test/scripts/termux/stop_cybel_test.sh; CYBEL_HOME=~/cybel-test bash ~/cybel-test/scripts/termux/start_cybel_test.sh" --es com.termux.RUN_COMMAND_WORKDIR /data/data/com.termux/files/home --ez com.termux.RUN_COMMAND_BACKGROUND true
 ```
 
-### Étape D — Sync directement depuis la tablette (sans PC)
+### 4.D — Sync API depuis la tablette (sans PC)
 
 Si le backend tourne déjà sur la tablette :
 
@@ -123,7 +119,7 @@ curl http://127.0.0.1:8001/api/navigation/points
 curl http://127.0.0.1:8001/api/reception/destinations
 ```
 
-### Étape E — Lancer l’application TEST
+### 4.E — Lancer l'application TEST
 
 ```powershell
 adb install -r android/CybelVisitorKioskTest/out/CybelVisitorKioskTest.apk
@@ -160,9 +156,9 @@ Fichier : `data/lab_tour.json`
 Pour ajouter un arrêt :
 
 1. Créer le POI sur le robot (§3) avec le nom définitif.
-2. Lancer la sync (§4 étape A).
+2. Lancer la sync (§4.A) ou ouvrir le kiosque (sync auto §4.0).
 3. Ajouter un bloc dans `stops` avec `"target_point": "NOM-EXACT-POI"`.
-4. Redéployer `lab_tour.json` sur la tablette (§4 étape B).
+4. Redéployer `lab_tour.json` sur la tablette (§4.B).
 
 **Ne jamais** mettre de libellé français en minuscules dans `target_point`.
 
