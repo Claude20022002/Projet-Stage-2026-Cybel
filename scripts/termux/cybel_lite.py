@@ -1097,6 +1097,12 @@ async def tour_start(request: Request) -> JSONResponse:
             {"ok": False, "error": "Une visite est déjà en cours"},
             status_code=409,
         )
+    sync_ok, _, sync_err = await sync_poi_from_ros_map()
+    if not sync_ok:
+        return JSONResponse(
+            {"ok": False, "error": sync_err or "Synchronisation POI impossible"},
+            status_code=503,
+        )
     reset_tour_engine()
     ready, reason, prereq_snap = await prepare_for_tour()
     if not ready:
@@ -1457,20 +1463,13 @@ async def fetch_raw_markers_from_ros() -> list[dict]:
     return []
 
 
-async def navigation_sync_points(_: Request) -> JSONResponse:
-    """Synchronise POI ROS (Sentrymove) → data/points.json sur la tablette."""
+async def sync_poi_from_ros_map() -> tuple[bool, dict | None, str | None]:
+    """Lit les POI ROS (carte courante) et remplace points.json (supprime les absents)."""
     marker_utils = _load_marker_utils()
     try:
         raw_markers = await fetch_raw_markers_from_ros()
         if not raw_markers:
-            return JSONResponse(
-                {
-                    "ok": False,
-                    "error": "Aucun marqueur ROS — créez les POI dans Sentrymove.",
-                },
-                status_code=503,
-            )
-        saved = load_points()
+            return False, None, "Aucun marqueur ROS — créez les POI dans Deployment Tool."
         tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
         mark_kiosk = {
             stop.target_point or stop.equipment_fr
@@ -1478,29 +1477,33 @@ async def navigation_sync_points(_: Request) -> JSONResponse:
             if getattr(stop, "target_point", None) or getattr(stop, "equipment_fr", None)
         }
         merged = marker_utils.merge_point_dicts(
-            saved,
+            load_points(),
             raw_markers,
             mark_kiosk=mark_kiosk,
         )
         save_points(merged)
-        return JSONResponse(
-            {
-                "ok": True,
-                "summary": {
-                    "ros_count": len(raw_markers),
-                    "total_count": len(merged),
-                    "kiosk_visible_count": sum(
-                        1 for p in merged if p.get("kiosk_visible")
-                    ),
-                },
-                "points": merged,
-            }
-        )
+        summary = {
+            "ros_count": len(raw_markers),
+            "total_count": len(merged),
+            "kiosk_visible_count": sum(1 for p in merged if p.get("kiosk_visible")),
+        }
+        return True, summary, None
     except Exception as exc:
-        return JSONResponse(
-            {"ok": False, "error": f"Sync POI échouée : {exc}"},
-            status_code=503,
-        )
+        return False, None, f"Sync POI échouée : {exc}"
+
+
+async def navigation_sync_points(_: Request) -> JSONResponse:
+    """Synchronise POI ROS (Sentrymove) → data/points.json sur la tablette."""
+    ok, summary, err = await sync_poi_from_ros_map()
+    if not ok:
+        return JSONResponse({"ok": False, "error": err}, status_code=503)
+    return JSONResponse(
+        {
+            "ok": True,
+            "summary": summary,
+            "points": load_points(),
+        }
+    )
 
 
 async def navigation_list_points(_: Request) -> JSONResponse:
@@ -1508,6 +1511,12 @@ async def navigation_list_points(_: Request) -> JSONResponse:
 
 
 async def list_destinations(_: Request) -> JSONResponse:
+    sync_ok, _, sync_err = await sync_poi_from_ros_map()
+    if not sync_ok:
+        return JSONResponse(
+            {"ok": False, "error": sync_err or "Synchronisation POI impossible"},
+            status_code=503,
+        )
     return JSONResponse(kiosk_destinations())
 
 

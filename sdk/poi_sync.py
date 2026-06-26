@@ -88,18 +88,18 @@ def apply_kiosk_flags(points: list[Point], mark_kiosk: set[str] | None) -> list[
 
 
 def _merge_points_in_memory(saved: list[Point], ros_points: list[Point]) -> list[Point]:
-    saved_valid = {p.name: p for p in saved if is_valid_deployment_poi_name(p.name)}
-    merged: dict[str, Point] = dict(saved_valid)
+    saved_by_name = {p.name: p for p in saved if is_valid_deployment_poi_name(p.name)}
+    merged: dict[str, Point] = {}
     for rp in ros_points:
         if not is_valid_deployment_poi_name(rp.name):
             continue
-        existing = merged.get(rp.name)
-        if existing:
-            merged[rp.name] = rp.model_copy(
-                update={"kiosk_visible": existing.kiosk_visible, "source": "merged"}
-            )
-        else:
-            merged[rp.name] = rp.model_copy(update={"source": "ros"})
+        existing = saved_by_name.get(rp.name)
+        merged[rp.name] = rp.model_copy(
+            update={
+                "kiosk_visible": existing.kiosk_visible if existing else True,
+                "source": "merged" if existing else "ros",
+            }
+        )
     return sorted(merged.values(), key=lambda p: p.name.lower())
 
 

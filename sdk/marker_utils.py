@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sdk.constants import MARKER_TYPE_MAP, ROS_SERVICES
+from sdk.poi_names import is_valid_deployment_poi_name
 from sdk.ros_ops import extract_markers_from_ros_response, yaw_from_quaternion
 
 MARKER_SERVICES = (
@@ -77,19 +78,22 @@ def merge_point_dicts(
     *,
     mark_kiosk: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Fusionne POI JSON existants avec marqueurs ROS."""
-    merged: dict[str, dict[str, Any]] = {
+    """Remplace le cache par les marqueurs ROS de la carte courante (supprime les POI absents)."""
+    saved_by_name: dict[str, dict[str, Any]] = {
         str(item.get("name")): dict(item)
         for item in saved
         if isinstance(item, dict) and item.get("name")
     }
+    merged: dict[str, dict[str, Any]] = {}
 
     for index, raw in enumerate(ros_markers):
         payload = parse_marker_to_dict(raw, index)
         if not payload:
             continue
         name = str(payload["name"])
-        existing = merged.get(name)
+        if not is_valid_deployment_poi_name(name):
+            continue
+        existing = saved_by_name.get(name)
         if existing:
             payload["kiosk_visible"] = existing.get("kiosk_visible", True)
             payload["source"] = "merged"

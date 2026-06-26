@@ -53,34 +53,30 @@ class JsonPersistence:
         )
 
     def merge_robot_points(self, ros_points: list[Point]) -> list[Point]:
-        """Fusionne marqueurs ROS avec le cache JSON (ROS prioritaire sur les coords)."""
+        """Remplace le cache par les POI ROS de la carte courante (supprime les absents)."""
         saved = {p.name: p for p in self.load_points()}
-        merged: dict[str, Point] = dict(saved)
+        merged: dict[str, Point] = {}
 
         for rp in ros_points:
-            existing = merged.get(rp.name)
-            if existing:
-                merged[rp.name] = rp.model_copy(
-                    update={
-                        "kiosk_visible": existing.kiosk_visible,
-                        "source": "merged",
-                    }
-                )
-            else:
-                merged[rp.name] = rp.model_copy(update={"source": "ros"})
-
-        valid = [
-            p
-            for p in merged.values()
-            if is_valid_deployment_poi_name(p.name)
-        ]
-        dropped = len(merged) - len(valid)
-        if dropped:
-            logger.info(
-                "POI obsolètes ignorés : %d (format minuscules / brouillon)",
-                dropped,
+            if not is_valid_deployment_poi_name(rp.name):
+                continue
+            existing = saved.get(rp.name)
+            merged[rp.name] = rp.model_copy(
+                update={
+                    "kiosk_visible": existing.kiosk_visible if existing else True,
+                    "source": "merged" if existing else "ros",
+                }
             )
-        result = sorted(valid, key=lambda p: p.name.lower())
+
+        removed = [name for name in saved if name not in merged]
+        if removed:
+            logger.info(
+                "POI absents de la carte ROS supprimés (%d) : %s",
+                len(removed),
+                ", ".join(removed[:8]),
+            )
+
+        result = sorted(merged.values(), key=lambda p: p.name.lower())
         self.save_points(result)
         logger.info("POI synchronisés : %d (ROS=%d)", len(result), len(ros_points))
         return result
