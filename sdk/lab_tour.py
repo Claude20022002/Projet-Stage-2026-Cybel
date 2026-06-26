@@ -5,7 +5,7 @@ import asyncio
 import json
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Awaitable, Callable, Literal, Any
 
@@ -186,6 +186,21 @@ def load_lab_tour(path: Path | None = None) -> LabTour:
         outro_speech_en=str(raw.get("outro_speech_en", "")),
         stops=stops,
     )
+
+
+def filter_tour_by_poi(tour: LabTour, available_names: set[str]) -> LabTour:
+    """Ne conserve que les arrêts dont le POI existe sur la carte courante (hors obsolètes)."""
+    from sdk.poi_names import OBSOLETE_POI_NAMES
+
+    kept: list[TourStop] = []
+    for stop in tour.stops:
+        if stop.target_point:
+            if stop.target_point in OBSOLETE_POI_NAMES:
+                continue
+            if available_names and stop.target_point not in available_names:
+                continue
+        kept.append(stop)
+    return replace(tour, stops=kept)
 
 
 def tour_public_payload(tour: LabTour) -> dict:

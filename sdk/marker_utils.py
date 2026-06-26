@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sdk.constants import MARKER_TYPE_MAP, ROS_SERVICES
-from sdk.poi_names import is_valid_deployment_poi_name
+from sdk.poi_names import OBSOLETE_POI_NAMES, is_valid_deployment_poi_name
 from sdk.ros_ops import extract_markers_from_ros_response, yaw_from_quaternion
 
 MARKER_SERVICES = (
@@ -91,7 +91,7 @@ def merge_point_dicts(
         if not payload:
             continue
         name = str(payload["name"])
-        if not is_valid_deployment_poi_name(name):
+        if name in OBSOLETE_POI_NAMES or not is_valid_deployment_poi_name(name):
             continue
         existing = saved_by_name.get(name)
         if existing:

@@ -47,17 +47,6 @@
       "source": "merged"
     },
     {
-      "id": "m0",
-      "name": "LG-10",
-      "type": "common",
-      "x": -1.73,
-      "y": -2.26,
-      "theta": -2.844886639242951,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "ros"
-    },
-    {
       "id": "m6",
       "name": "POINT-MACHINE",
       "type": "common",

@@ -38,19 +38,6 @@
       "dwell_seconds": 14
     },
     {
-      "id": "lg_10",
-      "name_fr": "Plateau machines",
-      "name_en": "Machine area",
-      "equipment_fr": "Station LG-10",
-      "equipment_en": "LG-10 station",
-      "target_point": "LG-10",
-      "approach_speech_fr": "Nous rejoignons maintenant la station LG-10.",
-      "approach_speech_en": "We are now heading to the LG-10 station.",
-      "speech_fr": "La station LG-10 présente un plateau machines dédié à la formation. On y étudie les procédés de fabrication, les réglages et les contrôles qualité sur des équipements représentatifs de l'industrie.",
-      "speech_en": "The LG-10 station features a machine area dedicated to training. Students study manufacturing processes, settings, and quality checks on equipment representative of industry.",
-      "dwell_seconds": 12
-    },
-    {
       "id": "imprimante_3d",
       "name_fr": "Fabrication additive",
       "name_en": "Additive manufacturing",

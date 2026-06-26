@@ -9,11 +9,6 @@
     "keywords": ["cnc", "routeur", "fraiseuse", "decoupe", "prototypage", "usinage"],
     "coordinates": {"x": 0.99, "y": 0.02, "z": -0.07}
   },
-  "lg-10": {
-    "answer": "La station LG-10 illustre les procédés de fabrication et de contrôle utilisés en formation industrielle.",
-    "keywords": ["lg10", "lg-10", "station", "plateau", "machine"],
-    "coordinates": {"x": -1.73, "y": -2.26, "z": -2.84}
-  },
   "imprimante 3d": {
     "answer": "L'imprimante 3D réalise des pièces par dépôt de fil ou résine, pour maquettes, gabarits et petites séries.",
     "keywords": ["3d", "imprimante", "fabrication", "additive", "prototypage"],

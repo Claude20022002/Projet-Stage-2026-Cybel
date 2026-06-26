@@ -7,6 +7,14 @@ import re
 # Noms de test ou brouillon à ignorer même s'ils passent le filtre.
 _JUNK_NAMES = frozenset({"move", "nous", "point2", "point1", "test"})
 
+# POI de l'ancienne carte labo — exclus même s'ils restent dans ROS / le cache.
+OBSOLETE_POI_NAMES = frozenset(
+    {
+        "LG-10",
+        "LG-09",
+    }
+)
+
 # MAJUSCULES, chiffres, tirets, espaces, accents (pas de minuscules latines).
 _DEPLOYMENT_POI_RE = re.compile(
     r"^[A-Z0-9ÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ"
@@ -17,7 +25,7 @@ _DEPLOYMENT_POI_RE = re.compile(
 def is_valid_deployment_poi_name(name: str) -> bool:
     """Vrai si le nom respecte le format Deployment Tool (MAJUSCULES, mots séparés par - ou espace)."""
     cleaned = (name or "").strip()
-    if not cleaned or cleaned.lower() in _JUNK_NAMES:
+    if not cleaned or cleaned.lower() in _JUNK_NAMES or cleaned in OBSOLETE_POI_NAMES:
         return False
     if any("a" <= ch <= "z" for ch in cleaned):
         return False
