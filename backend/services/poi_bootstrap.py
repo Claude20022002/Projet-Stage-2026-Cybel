@@ -15,7 +15,7 @@ async def ensure_poi_synced_from_robot() -> None:
     if robot_service.is_mock:
         return
 
-    tour = load_lab_tour(default_tour_path(settings.data_dir))
+    tour = load_lab_tour(default_tour_path())
     mark_kiosk = {stop.target_point for stop in tour.stops if stop.target_point}
     merged, _ = await sync_from_robot(
         Path(settings.data_dir),
