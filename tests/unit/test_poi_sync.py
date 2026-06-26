@@ -78,7 +78,6 @@ def test_merge_point_dicts_prunes_absent_from_ros() -> None:
     names = {p["name"] for p in merged}
     assert names == {"CNC ROUTEUR"}
     assert "ANCIEN-POI-SUPPRIME" not in names
-    assert "CNC ROUTEUR" not in names
 
 
 def test_merge_point_dicts_marks_kiosk_tour_stops() -> None:
