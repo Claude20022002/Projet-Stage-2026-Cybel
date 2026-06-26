@@ -9,7 +9,7 @@ from typing import Any
 
 from sdk.json_store import append_log_entry, load_json, save_json, utc_now_iso
 from sdk.models import Point, RobotSettings
-from sdk.poi_names import is_valid_deployment_poi_name
+from sdk.poi_names import is_valid_deployment_poi_name, is_visitor_poi
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,13 @@ class JsonPersistence:
             if not is_valid_deployment_poi_name(rp.name):
                 continue
             existing = saved.get(rp.name)
+            visitor = is_visitor_poi(rp.name, str(rp.type))
             merged[rp.name] = rp.model_copy(
                 update={
-                    "kiosk_visible": existing.kiosk_visible if existing else True,
+                    "kiosk_visible": (
+                        existing.kiosk_visible if existing else visitor
+                    )
+                    and visitor,
                     "source": "merged" if existing else "ros",
                 }
             )

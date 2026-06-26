@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sdk.constants import MARKER_TYPE_MAP, ROS_SERVICES
-from sdk.poi_names import OBSOLETE_POI_NAMES, is_valid_deployment_poi_name
+from sdk.poi_names import OBSOLETE_POI_NAMES, is_valid_deployment_poi_name, is_visitor_poi
 from sdk.ros_ops import extract_markers_from_ros_response, yaw_from_quaternion
 
 MARKER_SERVICES = (
@@ -93,15 +93,18 @@ def merge_point_dicts(
         name = str(payload["name"])
         if name in OBSOLETE_POI_NAMES or not is_valid_deployment_poi_name(name):
             continue
+        visitor_eligible = is_visitor_poi(name, payload.get("type"))
         existing = saved_by_name.get(name)
         if existing:
-            payload["kiosk_visible"] = existing.get("kiosk_visible", True)
+            payload["kiosk_visible"] = existing.get("kiosk_visible", visitor_eligible)
             payload["source"] = "merged"
         else:
-            payload["kiosk_visible"] = name in mark_kiosk if mark_kiosk else True
+            payload["kiosk_visible"] = False
             payload["source"] = "ros"
-        if mark_kiosk and name in mark_kiosk:
+        if mark_kiosk and name in mark_kiosk and visitor_eligible:
             payload["kiosk_visible"] = True
+        elif not visitor_eligible:
+            payload["kiosk_visible"] = False
         merged[name] = payload
 
     return sorted(merged.values(), key=lambda p: str(p.get("name", "")).lower())

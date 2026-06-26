@@ -15,7 +15,7 @@ from sdk.marker_utils import (
 from sdk.models import Point
 from sdk.persistence import JsonPersistence
 from sdk.ros_ops import extract_markers_from_ros_response
-from sdk.poi_names import is_valid_deployment_poi_name
+from sdk.poi_names import is_visitor_poi
 from sdk.rosbridge import RosbridgeClient
 
 logger = logging.getLogger(__name__)
@@ -76,14 +76,11 @@ async def fetch_robot_markers(
 
 
 def apply_kiosk_flags(points: list[Point], mark_kiosk: set[str] | None) -> list[Point]:
-    if not mark_kiosk:
-        return points
     result: list[Point] = []
     for point in points:
-        if point.name in mark_kiosk:
-            result.append(point.model_copy(update={"kiosk_visible": True}))
-        else:
-            result.append(point)
+        visitor = is_visitor_poi(point.name, str(point.type))
+        visible = visitor and (point.name in mark_kiosk if mark_kiosk is not None else True)
+        result.append(point.model_copy(update={"kiosk_visible": visible}))
     return result
 
 

@@ -189,13 +189,15 @@ def load_lab_tour(path: Path | None = None) -> LabTour:
 
 
 def filter_tour_by_poi(tour: LabTour, available_names: set[str]) -> LabTour:
-    """Ne conserve que les arrêts dont le POI existe sur la carte courante (hors obsolètes)."""
-    from sdk.poi_names import OBSOLETE_POI_NAMES
+    """Ne conserve que les arrêts dont le POI existe sur la carte courante (hors obsolètes / charge)."""
+    from sdk.poi_names import OBSOLETE_POI_NAMES, is_charge_poi_name
 
     kept: list[TourStop] = []
     for stop in tour.stops:
         if stop.target_point:
             if stop.target_point in OBSOLETE_POI_NAMES:
+                continue
+            if is_charge_poi_name(stop.target_point):
                 continue
             if available_names and stop.target_point not in available_names:
                 continue
