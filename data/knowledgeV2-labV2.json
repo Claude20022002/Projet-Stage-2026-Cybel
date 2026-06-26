@@ -1,0 +1,62 @@
+{
+  "porte labo": {
+    "answer": "Vous êtes à l'entrée du laboratoire HESTIM. C'est le point d'accueil de la visite sur la carte laboV2.",
+    "keywords": ["porte", "entree", "accueil", "labo", "labov2"],
+    "coordinates": {"x": 3.95, "y": -5.5, "z": 0.66}
+  },
+  "cnc routeur": {
+    "answer": "Le routeur CNC permet d'usiner bois, plastique et aluminium avec une précision millimétrique. Idéal pour le prototypage rapide.",
+    "keywords": ["cnc", "routeur", "fraiseuse", "decoupe", "prototypage", "usinage"],
+    "coordinates": {"x": 0.99, "y": 0.02, "z": -0.07}
+  },
+  "lg-10": {
+    "answer": "La station LG-10 illustre les procédés de fabrication et de contrôle utilisés en formation industrielle.",
+    "keywords": ["lg10", "lg-10", "station", "plateau", "machine"],
+    "coordinates": {"x": -1.73, "y": -2.26, "z": -2.84}
+  },
+  "imprimante 3d": {
+    "answer": "L'imprimante 3D réalise des pièces par dépôt de fil ou résine, pour maquettes, gabarits et petites séries.",
+    "keywords": ["3d", "imprimante", "fabrication", "additive", "prototypage"],
+    "coordinates": {"x": -3.17, "y": 3.72, "z": -2.41}
+  },
+  "point-machine": {
+    "answer": "Le point machine regroupe plusieurs équipements pédagogiques pour la découverte des chaînes de production.",
+    "keywords": ["point", "machine", "plateau", "equipement"],
+    "coordinates": {"x": -3.42, "y": -2.69, "z": -0.49}
+  },
+  "thermoformage": {
+    "answer": "La machine de thermoformage chauffe une feuille plastique et la façonne sur un moule pour créer emballages et pièces.",
+    "keywords": ["thermoformage", "plastique", "moule", "emballage"],
+    "coordinates": {"x": -3.59, "y": 0.39, "z": 0.47}
+  },
+  "extrusion soufflage": {
+    "answer": "La ligne d'extrusion-soufflage met en forme les matières plastiques et intègre les systèmes de traitement d'air.",
+    "keywords": ["extrusion", "soufflage", "plastique", "industriel"],
+    "coordinates": {"x": -3.32, "y": -8.02, "z": 2.58}
+  },
+  "poste-machine": {
+    "answer": "Le poste machine permet aux étudiants de manipuler des automates et de comprendre les cycles de production.",
+    "keywords": ["poste", "machine", "automate", "production"],
+    "coordinates": {"x": 0.37, "y": -5.13, "z": 0.40}
+  },
+  "poste remplissage bouchonnage": {
+    "answer": "Ce poste reproduit une ligne de conditionnement : remplissage, bouchonnage et contrôle du produit fini.",
+    "keywords": ["remplissage", "bouchonnage", "conditionnement", "flacon", "embouteillage"],
+    "coordinates": {"x": -2.12, "y": -10.08, "z": -2.30}
+  },
+  "poste etiquetage": {
+    "answer": "Le poste d'étiquetage applique les étiquettes réglementaires et commerciales sur les produits conditionnés.",
+    "keywords": ["etiquetage", "etiquette", "conditionnement", "marquage"],
+    "coordinates": {"x": -5.03, "y": -8.97, "z": -2.50}
+  },
+  "gamme controle qualite": {
+    "answer": "La gamme contrôle qualité regroupe les moyens de mesure et de vérification conformité des pièces produites.",
+    "keywords": ["qualite", "controle", "mesure", "gamme", "qc"],
+    "coordinates": {"x": 1.94, "y": -8.99, "z": -0.17}
+  },
+  "serigraphie": {
+    "answer": "L'atelier de sérigraphie utilise le pochoir pour l'impression textile en petites séries et projets créatifs.",
+    "keywords": ["serigraphie", "textile", "impression", "pochoir", "encre"],
+    "coordinates": {"x": 0.28, "y": 3.65, "z": 2.83}
+  }
+}
