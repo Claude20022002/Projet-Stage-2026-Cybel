@@ -8,6 +8,20 @@ Formation opérateur : créer les points sur le robot, les synchroniser vers le 
 
 ---
 
+## ⚡ Démarrage / panne — lire d'abord
+
+**L'application ne démarre pas ? Backend en erreur ?**  
+→ **[DEMARRAGE_ET_DEPANNAGE.md](DEMARRAGE_ET_DEPANNAGE.md)** — guide simple, une commande :
+
+```powershell
+cd C:\Users\clusa\Desktop\cybel
+.\scripts\kiosk_test.ps1 demarrer
+```
+
+Ce document (ci-dessous) traite des **POI, noms et parcours**. Le dépannage technique est dans le guide ci-dessus.
+
+---
+
 ## 1. Règle de nommage (obligatoire)
 
 Les seuls POI reconnus par le robot et le kiosque sont ceux créés dans l'application **Deployment Tool** (Sentrymove) avec le format officiel :
@@ -150,7 +164,9 @@ adb shell "su -c 'cp /data/local/tmp/cybel_lite.py /data/data/com.termux/files/h
 
 ### 4.C — Redémarrer le backend TEST (port 8001)
 
-**Méthode simple (ADB, recommandée)** — une seule commande, sans coupure PowerShell :
+> **Recommandé pour le contrôleur :** `.\scripts\kiosk_test.ps1 redemarrer` — voir [DEMARRAGE_ET_DEPANNAGE.md](DEMARRAGE_ET_DEPANNAGE.md).
+
+**Méthode manuelle (ADB)** — une seule commande, sans coupure PowerShell :
 
 ```powershell
 adb shell "export HOME=/data/data/com.termux/files/home CYBEL_HOME=/data/data/com.termux/files/home/cybel-test PATH=/data/data/com.termux/files/usr/bin:/system/bin && /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/cybel-test/scripts/termux/stop_cybel_test.sh; /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/cybel-test/scripts/termux/start_cybel_test.sh"
@@ -226,15 +242,17 @@ Pour ajouter un arrêt :
 
 ## 7. Dépannage
 
+**Guide simple (backend, app, IP, erreurs fréquentes) :** [DEMARRAGE_ET_DEPANNAGE.md](DEMARRAGE_ET_DEPANNAGE.md)
+
 | Symptôme | Cause probable | Action |
 |----------|----------------|--------|
-| « Point inconnu » | Nom différent robot / CYBEL | Vérifier nom exact dans Sentrymove, resync |
-| POI fantômes (ancienne carte) | Backend pas à jour | Déployer `cybel_lite.py` + redémarrer :8001 |
-| « Synchronisation POI impossible » | Robot hors ligne | Vérifier rosbridge, même réseau |
+| App ne s'ouvre pas / backend down | Backend arrêté ou deps manquantes | `.\scripts\kiosk_test.ps1 demarrer` |
+| Backend toujours KO | uvicorn absent | `.\scripts\kiosk_test.ps1 reparer` |
+| « Point inconnu » | Nom différent robot / CYBEL | Vérifier nom exact dans Sentrymove, resync §4.A |
+| « Synchronisation POI impossible » | Robot hors ligne | Allumer robot, vérifier Sentrymove |
 | POI en minuscules dans la liste | Marqueurs brouillon Sentrymove | Resync — filtre automatique |
 | Robot ne bouge pas | Pas relocalisé / E-stop | Relocaliser via Sentrymove |
-| Backend TEST down | Redémarrage via `su` | Utiliser RUN_COMMAND (§4.C) |
-| Arrêt visite sauté | POI absent du robot | Créer le POI ou retirer l'arrêt du parcours |
+| IP qui change | DHCP normal | `.\scripts\kiosk_test.ps1 ip` — robot reste sur `192.168.20.22` |
 
 ---
 

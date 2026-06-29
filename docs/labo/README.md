@@ -6,6 +6,7 @@ Documentation **terrain** : procédures, commandes et tests A/B kiosque (coords 
 
 | Étape | Document / outil |
 |-------|------------------|
+| **0. Lancer le kiosque (lundi / démo)** | **[DEMARRAGE_ET_DEPANNAGE.md](DEMARRAGE_ET_DEPANNAGE.md)** + `.\scripts\kiosk_test.ps1 demarrer` |
 | **1. Vérifications auto** | [`scripts/preflight_labo.ps1`](../../scripts/preflight_labo.ps1) |
 | **2. Procédure complète** | **[TERRAIN.md](TERRAIN.md)** ← guide pas à pas |
 | **2b. Formation POI / kiosque TEST** | **[GUIDE_CONTROLEUR_POI.md](GUIDE_CONTROLEUR_POI.md)** |
@@ -31,6 +32,7 @@ Variables d'environnement optionnelles : `CYBEL_TERMUX_HOST`, `CYBEL_TERMUX_PORT
 | `data/lab_tour.json` | 6 arrêts visite (`target_point` format Deployment Tool) |
 | `data/points.json` | POI synchronisés depuis le robot |
 | `android/CybelVisitorKioskTest/out/*.apk` | APK test POI (port 8001) |
+| `scripts/kiosk_test.ps1` | **Démarrage / dépannage kiosque TEST** (contrôleur) |
 | `scripts/deploy_termux.py --target test` | Déploiement backend `~/cybel-test` |
 
 ## Voir aussi
