@@ -7,6 +7,7 @@ Index de la documentation du projet **CYBEL** — plateforme de commande pour le
 | Besoin | Document |
 |--------|----------|
 | Lancer en dev (PC) | [README racine](../README.md) § Commandes |
+| **Kiosque tablette (lundi / panne)** | **[labo/DEMARRAGE_ET_DEPANNAGE.md](labo/DEMARRAGE_ET_DEPANNAGE.md)** + `scripts/kiosk_test.ps1` |
 | Connecter le robot | [ROBOT_CONNECTION.md](ROBOT_CONNECTION.md) |
 | Interface opérateur | [INTERFACE.md](INTERFACE.md) |
 | **Session labo / terrain** | **[labo/TERRAIN.md](labo/TERRAIN.md)** |
@@ -22,6 +23,7 @@ Procédures sur le robot physique, sync POI, tests kiosque A/B.
 |----------|-------------|
 | [labo/README.md](labo/README.md) | Index section labo |
 | [labo/TERRAIN.md](labo/TERRAIN.md) | **Procédure pas à pas + commandes** |
+| [labo/DEMARRAGE_ET_DEPANNAGE.md](labo/DEMARRAGE_ET_DEPANNAGE.md) | **Démarrage kiosque TEST (contrôleur)** |
 | [labo/GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md) | **Formation POI → CybelVisitorKioskTest** |
 | [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md) | Comparaison kiosque coords vs POI |
 | [SENTRYMOVE_POI_SYNC.md](SENTRYMOVE_POI_SYNC.md) | Sync POI ROS → `points.json` |

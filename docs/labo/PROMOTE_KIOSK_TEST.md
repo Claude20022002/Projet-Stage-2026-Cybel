@@ -32,7 +32,7 @@ adb push data/kiosk_config.poi.json /data/local/tmp/kiosk_config.json
 adb shell "cp /data/local/tmp/kiosk_config.json /data/data/com.termux/files/home/cybel-test/data/kiosk_config.json"
 ```
 
-Redémarrer le backend : voir [GUIDE_CONTROLEUR_POI.md](GUIDE_CONTROLEUR_POI.md) §4.C.
+Redemarrer le backend : `.\scripts\kiosk_test.ps1 redemarrer` ou [DEMARRAGE_ET_DEPANNAGE.md](DEMARRAGE_ET_DEPANNAGE.md).
 
 ### 4. Lancer
 

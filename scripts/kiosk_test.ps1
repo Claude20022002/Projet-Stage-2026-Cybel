@@ -1,19 +1,16 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Démarrage et dépannage du kiosque visiteur TEST (CybelVisitorKioskTest, port 8001).
+  Demarrage et depannage du kiosque visiteur TEST (CybelVisitorKioskTest, port 8001).
 
 .DESCRIPTION
-  Script « une commande » pour le contrôleur labo. Évite les pièges PowerShell (lignes coupées, tar Android, etc.).
+  Script une commande pour le controleur labo. Evite les pieges PowerShell (lignes coupees, tar Android).
 
 .EXAMPLE
   .\scripts\kiosk_test.ps1 demarrer
 
 .EXAMPLE
   .\scripts\kiosk_test.ps1 status
-
-.EXAMPLE
-  .\scripts\kiosk_test.ps1 redemarrer
 #>
 [CmdletBinding()]
 param(
@@ -33,9 +30,9 @@ $EnvBlock = "export HOME=$TermuxHome CYBEL_HOME=$CybelTest PATH=/data/data/com.t
 function Write-Titre {
     param([string] $Texte)
     Write-Host ""
-    Write-Host ("─" * 50) -ForegroundColor DarkGray
+    Write-Host ("=" * 50) -ForegroundColor DarkGray
     Write-Host $Texte -ForegroundColor Cyan
-    Write-Host ("─" * 50) -ForegroundColor DarkGray
+    Write-Host ("=" * 50) -ForegroundColor DarkGray
 }
 
 function Invoke-Termux {
@@ -43,7 +40,7 @@ function Invoke-Termux {
     $full = "$EnvBlock && $Commande"
     $raw = adb shell $full 2>&1
     if ($LASTEXITCODE -ne 0 -and -not $raw) {
-        throw "adb shell a échoué (code $LASTEXITCODE). Câble USB branché ? adb devices"
+        throw "adb shell a echoue (code $LASTEXITCODE). Cable USB branche ? adb devices"
     }
     return ($raw | Out-String).TrimEnd()
 }
@@ -51,11 +48,11 @@ function Invoke-Termux {
 function Test-Adb {
     $devices = adb devices 2>&1 | Out-String
     if ($devices -notmatch "`tdevice") {
-        Write-Host "[ERREUR] Aucune tablette détectée par ADB." -ForegroundColor Red
-        Write-Host "  → Branchez le câble USB, déverrouillez la tablette, acceptez le débogage USB." -ForegroundColor Yellow
+        Write-Host "[ERREUR] Aucune tablette detectee par ADB." -ForegroundColor Red
+        Write-Host "  -> Branchez le cable USB, deverrouillez la tablette, acceptez le debogage USB." -ForegroundColor Yellow
         return $false
     }
-    Write-Host "[OK] Tablette connectée (ADB)" -ForegroundColor Green
+    Write-Host "[OK] Tablette connectee (ADB)" -ForegroundColor Green
     return $true
 }
 
@@ -64,129 +61,116 @@ function Get-IpTablette {
     return ($out | Out-String).Trim()
 }
 
-function Test-Backend {
-    $out = Invoke-Termux "$Bash $CybelTest/scripts/termux/start_cybel_test.sh 2>&1 | tail -5"
-    if ($out -match "OK — health check") {
-        Write-Host "[OK] Backend actif sur le port 8001" -ForegroundColor Green
-        if ($out -match "http://[\d\.]+:8001") {
-            $m = [regex]::Match($out, "http://[\d\.]+:8001/kiosk/")
-            if ($m.Success) {
-                Write-Host "  → URL kiosque : $($m.Value)" -ForegroundColor DarkGray
-            }
-        }
-        return $true
-    }
-    Write-Host "[!!] Backend absent ou en erreur" -ForegroundColor Yellow
-    return $false
+function Test-BackendHealth {
+    $out = Invoke-Termux "$Bash $CybelTest/scripts/termux/start_cybel_test.sh 2>&1"
+    return ($out -match '(?i)(health check|deja actif)')
 }
 
 function Restart-Backend {
-    Write-Titre "Redémarrage du backend (port 8001)"
+    Write-Titre "Redemarrage du backend (port 8001)"
     $out = Invoke-Termux "$Bash $CybelTest/scripts/termux/stop_cybel_test.sh 2>/dev/null; $Bash $CybelTest/scripts/termux/start_cybel_test.sh"
     Write-Host $out
-    if ($out -match "OK — health check") {
-        Write-Host "[OK] Backend redémarré" -ForegroundColor Green
+    if ($out -match '(?i)health check') {
+        Write-Host "[OK] Backend redemarre" -ForegroundColor Green
         return $true
     }
-    Write-Host "[ERREUR] Le backend n'a pas répondu au test de santé." -ForegroundColor Red
+    Write-Host "[ERREUR] Le backend n'a pas repondu au test de sante." -ForegroundColor Red
     return $false
 }
 
 function Repair-Deps {
-    Write-Titre "Réparation des dépendances Python (bootstrap lite)"
+    Write-Titre "Reparation des dependances Python (bootstrap lite)"
     $out = Invoke-Termux "$Bash $CybelTest/scripts/termux/bootstrap_lite.sh"
     Write-Host $out
     if ($out -match "deps OK") {
-        Write-Host "[OK] Dépendances installées" -ForegroundColor Green
+        Write-Host "[OK] Dependances installees" -ForegroundColor Green
         return $true
     }
-    Write-Host "[!!] Bootstrap terminé avec avertissements — on tente quand même le redémarrage" -ForegroundColor Yellow
+    Write-Host "[!!] Bootstrap termine avec avertissements - on tente quand meme le redemarrage" -ForegroundColor Yellow
     return $true
 }
 
 function Start-App {
     Write-Titre "Lancement de l'application CYBEL Accueil (TEST)"
     adb shell am start -n com.cybel.visitorkiosk.test/.MainActivity | Out-Null
-    Write-Host "[OK] Application lancée" -ForegroundColor Green
+    Write-Host "[OK] Application lancee" -ForegroundColor Green
 }
 
 function Show-Logs {
-    Write-Titre "Dernières lignes du journal backend"
+    Write-Titre "Dernieres lignes du journal backend"
     $log = adb shell "cat $TermuxHome/cybel-test-uvicorn.log 2>/dev/null | tail -40" 2>&1
     Write-Host ($log | Out-String)
 }
 
 function Show-Status {
-    Write-Titre "État du kiosque TEST"
+    Write-Titre "Etat du kiosque TEST"
     if (-not (Test-Adb)) { return 1 }
 
     $ip = Get-IpTablette
     if ($ip) {
         Write-Host "IP tablette (Wi-Fi labo) : $ip" -ForegroundColor DarkGray
-        Write-Host "  (Cette adresse change avec le DHCP — c'est normal.)" -ForegroundColor DarkGray
+        Write-Host "  (Cette adresse change avec le DHCP - c'est normal.)" -ForegroundColor DarkGray
         Write-Host "Adresse robot depuis Termux : 192.168.20.22 (ne pas confondre)" -ForegroundColor DarkGray
     }
 
     $ok = $false
     try {
-        $health = Invoke-Termux "/data/data/com.termux/files/usr/bin/python -c `"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/api/health', timeout=3).read().decode())`" 2>/dev/null"
-        if ($health -match '"status"\s*:\s*"ok"') {
-            Write-Host "[OK] Backend répond : $health" -ForegroundColor Green
+        if (Test-BackendHealth) {
+            Write-Host "[OK] Backend actif sur le port 8001" -ForegroundColor Green
             $ok = $true
         }
     }
     catch { }
 
     if (-not $ok) {
-        Write-Host "[!!] Backend port 8001 : pas de réponse" -ForegroundColor Yellow
-        Write-Host "  → Lancez : .\scripts\kiosk_test.ps1 redemarrer" -ForegroundColor Yellow
+        Write-Host "[!!] Backend port 8001 : pas de reponse" -ForegroundColor Yellow
+        Write-Host "  -> Lancez : .\scripts\kiosk_test.ps1 redemarrer" -ForegroundColor Yellow
     }
     return $(if ($ok) { 0 } else { 1 })
 }
 
 function Start-Full {
-    Write-Titre "Démarrage complet du kiosque TEST"
-    Write-Host "Étape 1/4 — Vérifier la connexion USB..." -ForegroundColor White
+    Write-Titre "Demarrage complet du kiosque TEST"
+    Write-Host "Etape 1/4 - Verifier la connexion USB..." -ForegroundColor White
     if (-not (Test-Adb)) { return 1 }
 
-    Write-Host "Étape 2/4 — Vérifier le backend..." -ForegroundColor White
+    Write-Host "Etape 2/4 - Verifier le backend..." -ForegroundColor White
     $backendOk = $false
     try {
-        $health = Invoke-Termux "/data/data/com.termux/files/usr/bin/python -c `"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/api/health', timeout=3).read().decode())`" 2>/dev/null"
-        $backendOk = $health -match '"status"\s*:\s*"ok"'
+        $backendOk = Test-BackendHealth
     }
     catch { }
 
     if (-not $backendOk) {
-        Write-Host "  Backend arrêté — redémarrage..." -ForegroundColor Yellow
+        Write-Host "  Backend arrete - redemarrage..." -ForegroundColor Yellow
         if (-not (Restart-Backend)) {
-            Write-Host "  Échec — réparation des dépendances..." -ForegroundColor Yellow
+            Write-Host "  Echec - reparation des dependances..." -ForegroundColor Yellow
             Repair-Deps | Out-Null
             if (-not (Restart-Backend)) {
                 Write-Host ""
-                Write-Host "[ERREUR] Impossible de démarrer le backend." -ForegroundColor Red
-                Write-Host "  → Consultez les logs : .\scripts\kiosk_test.ps1 logs" -ForegroundColor Yellow
-                Write-Host "  → Puis contactez le référent technique si le problème persiste." -ForegroundColor Yellow
+                Write-Host "[ERREUR] Impossible de demarrer le backend." -ForegroundColor Red
+                Write-Host "  -> Consultez les logs : .\scripts\kiosk_test.ps1 logs" -ForegroundColor Yellow
+                Write-Host "  -> Puis contactez le referent technique si le probleme persiste." -ForegroundColor Yellow
                 return 1
             }
         }
     }
     else {
-        Write-Host "[OK] Backend déjà actif" -ForegroundColor Green
+        Write-Host "[OK] Backend deja actif" -ForegroundColor Green
     }
 
-    Write-Host "Étape 3/4 — Lancer l'application..." -ForegroundColor White
+    Write-Host "Etape 3/4 - Lancer l'application..." -ForegroundColor White
     Start-App
 
-    Write-Host "Étape 4/4 — Terminé" -ForegroundColor White
+    Write-Host "Etape 4/4 - Termine" -ForegroundColor White
     $ip = Get-IpTablette
     Write-Host ""
     Write-Host "Le kiosque devrait s'afficher sur la tablette." -ForegroundColor Green
     if ($ip) {
-        Write-Host "URL (réseau labo) : http://${ip}:8001/kiosk/" -ForegroundColor DarkGray
+        Write-Host "URL (reseau labo) : http://${ip}:8001/kiosk/" -ForegroundColor DarkGray
     }
     Write-Host ""
-    Write-Host "Si l'écran reste blanc ou affiche une erreur :" -ForegroundColor Yellow
+    Write-Host "Si l'ecran reste blanc ou affiche une erreur :" -ForegroundColor Yellow
     Write-Host "  .\scripts\kiosk_test.ps1 redemarrer" -ForegroundColor Yellow
     return 0
 }
