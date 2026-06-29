@@ -190,13 +190,30 @@ def deploy_remote(
     return 0
 
 
+def write_bundle(bundle: bytes, target: str) -> Path:
+    out_dir = ROOT / "out"
+    out_dir.mkdir(exist_ok=True)
+    out_path = out_dir / f"cybel-deploy-{target}.tar.gz"
+    out_path.write_bytes(bundle)
+    legacy = out_dir / "cybel-deploy.tar.gz"
+    legacy.write_bytes(bundle)
+    print(f"Archive écrite : {out_path} ({len(bundle) / 1024:.1f} KiB)")
+    print(f"Copie legacy : {legacy}")
+    return out_path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Déploiement CYBEL sur Termux")
-    parser.add_argument("--host", default=os.environ.get("CYBEL_TERMUX_HOST", "172.16.0.130"))
+    parser.add_argument("--host", default=os.environ.get("CYBEL_TERMUX_HOST", "172.16.0.145"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("CYBEL_TERMUX_PORT", "8022")))
     parser.add_argument("--user", default=os.environ.get("CYBEL_TERMUX_USER", "u0_a92"))
     parser.add_argument("--password", default=os.environ.get("CYBEL_TERMUX_PASSWORD", ""))
     parser.add_argument("--skip-kiosk-build", action="store_true")
+    parser.add_argument(
+        "--bundle-only",
+        action="store_true",
+        help="Crée out/cybel-deploy.tar.gz sans SSH (déploiement ADB manuel)",
+    )
     parser.add_argument("--no-bootstrap", action="store_true", help="Ne pas réinstaller pip deps")
     parser.add_argument("--full", action="store_true", help="Forcer bootstrap complet (pas lite)")
     parser.add_argument("--lite-only", action="store_true", help="Bootstrap lite uniquement")
@@ -209,10 +226,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    password = args.password or getpass.getpass(f"Mot de passe SSH ({args.user}@{args.host}): ")
-
     build_kiosk(args.skip_kiosk_build)
     bundle = create_bundle()
+    if args.bundle_only:
+        write_bundle(bundle, args.target)
+        remote_dir = "cybel-test" if args.target == "test" else "cybel"
+        print("\nDéploiement ADB : voir docs/labo/GUIDE_CONTROLEUR_POI.md §4.B")
+        print(f"Cible Termux : ~/{remote_dir}")
+        return 0
+
+    password = args.password or getpass.getpass(f"Mot de passe SSH ({args.user}@{args.host}): ")
+
     return deploy_remote(
         args.host,
         args.port,

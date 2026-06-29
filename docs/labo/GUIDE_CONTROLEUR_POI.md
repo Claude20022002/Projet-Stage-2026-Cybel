@@ -56,9 +56,19 @@ La carte active dans Deployment Tool doit être **laboV2**.
 
 ### 3.1 Prérequis
 
-- Robot allumé, tablette sur le même réseau (`192.168.20.22` ou hotspot `10.42.0.1`)
+- Robot allumé, tablette sur le même réseau
 - Application **Sentrymove** / **Deployment Tool** installée
 - Carte **laboV2** sélectionnée, robot **relocalisé**
+
+> **Adresses réseau (ne pas confondre)**  
+> | Interface | Adresse typique | Usage |
+> |-----------|-----------------|-------|
+> | Tablette `wlan0` (DHCP labo) | `172.16.0.x` (ex. `.145`) | SSH PC→tablette, URL kiosque depuis le réseau |
+> | Lien interne tablette↔châssis `eth0` | `192.168.20.22` | **rosbridge depuis Termux** (`ROBOT_HOST` dans `cybel.env`) |
+> | Hotspot robot | `10.42.0.1` | Sentrymove depuis un PC externe uniquement |
+>
+> L'IP DHCP `172.16.0.x` de la tablette **change** ; pour SSH/déploiement, repérez-la avec `adb shell ip -4 addr show wlan0`.  
+> **Depuis Termux**, le robot reste en général joignable sur **`192.168.20.22`** — ne remplacez pas cette valeur par l'IP wlan0 de la tablette.
 
 ### 3.2 Procédure
 
@@ -115,10 +125,14 @@ python scripts/deploy_termux.py --host <IP_TABLETTE> --target test --lite-only
 
 **Option 2 — ADB USB** (sans SSH) :
 
+> **Piège** : `su -c 'tar xzf …'` utilise le `tar` Android, qui **n'a pas gunzip** → `tar: exec gunzip: No such file or directory`.  
+> Il faut extraire avec le **`tar` Termux** (voir ci-dessous).
+
 ```powershell
-python scripts/deploy_termux.py --bundle-only
+python scripts/deploy_termux.py --bundle-only --target test --skip-kiosk-build
 adb push out/cybel-deploy.tar.gz /data/local/tmp/
-adb shell "su -c 'cd /data/data/com.termux/files/home/cybel-test && tar xzf /data/local/tmp/cybel-deploy.tar.gz'"
+adb shell "export HOME=/data/data/com.termux/files/home PATH=/data/data/com.termux/files/usr/bin:/system/bin && mkdir -p /data/data/com.termux/files/home/cybel-test && /data/data/com.termux/files/usr/bin/tar -xzf /data/local/tmp/cybel-deploy.tar.gz -C /data/data/com.termux/files/home/cybel-test"
+adb shell "export HOME=/data/data/com.termux/files/home CYBEL_HOME=/data/data/com.termux/files/home/cybel-test PATH=/data/data/com.termux/files/usr/bin:/system/bin && /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/cybel-test/scripts/termux/bootstrap_lite.sh"
 
 adb push data/points.json /data/local/tmp/points.json
 adb push data/lab_tour.json /data/local/tmp/lab_tour.json
@@ -136,11 +150,23 @@ adb shell "su -c 'cp /data/local/tmp/cybel_lite.py /data/data/com.termux/files/h
 
 ### 4.C — Redémarrer le backend TEST (port 8001)
 
-Via **Termux RUN_COMMAND** (ne pas utiliser `su` seul — Python introuvable) :
+**Méthode simple (ADB, recommandée)** — une seule commande, sans coupure PowerShell :
+
+```powershell
+adb shell "export HOME=/data/data/com.termux/files/home CYBEL_HOME=/data/data/com.termux/files/home/cybel-test PATH=/data/data/com.termux/files/usr/bin:/system/bin && /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/cybel-test/scripts/termux/stop_cybel_test.sh; /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/home/cybel-test/scripts/termux/start_cybel_test.sh"
+```
+
+Résultat attendu : `OK — health check http://127.0.0.1:8001/api/health` et URL kiosque `http://172.16.0.x:8001/kiosk/`.
+
+**Alternative — Termux RUN_COMMAND** (utilisée par l'app Android) :
+
+> **Piège PowerShell** : si la ligne `am startservice … --es` est **coupée** ou collée en plusieurs morceaux, Android affiche `Error: Argument expected after "--es"`. Copiez la commande **en entier**, sur **une seule ligne**.
 
 ```powershell
 adb shell am startservice -n com.termux/com.termux.app.RunCommandService -a com.termux.RUN_COMMAND --es com.termux.RUN_COMMAND_PATH /data/data/com.termux/files/usr/bin/bash --esa com.termux.RUN_COMMAND_ARGUMENTS "-lc","bash ~/cybel-test/scripts/termux/stop_cybel_test.sh; CYBEL_HOME=~/cybel-test bash ~/cybel-test/scripts/termux/start_cybel_test.sh" --es com.termux.RUN_COMMAND_WORKDIR /data/data/com.termux/files/home --ez com.termux.RUN_COMMAND_BACKGROUND true
 ```
+
+Si le backend ne démarre toujours pas : `adb shell cat /data/data/com.termux/files/home/cybel-test-uvicorn.log` — erreur fréquente `No module named 'uvicorn'` → relancer §4.B `bootstrap_lite.sh`.
 
 ### 4.D — Sync API depuis la tablette (sans PC)
 

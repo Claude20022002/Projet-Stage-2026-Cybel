@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-06-26T12:09:42.200737+00:00",
+  "updated_at": "2026-06-29T11:19:22.947529+00:00",
   "points": [
     {
       "id": "m1",
@@ -44,6 +44,17 @@
       "theta": -0.4886921021621723,
       "floor": "0",
       "kiosk_visible": true,
+      "source": "merged"
+    },
+    {
+      "id": "m7",
+      "name": "POINT-RECHARGE",
+      "type": "common",
+      "x": -1.47,
+      "y": -0.12,
+      "theta": 0.12217298440954116,
+      "floor": "0",
+      "kiosk_visible": false,
       "source": "ros"
     },
     {
@@ -55,10 +66,10 @@
       "theta": 0.6632250694881756,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
-      "id": "m8",
+      "id": "m9",
       "name": "POSTE-ETIQUETAGE",
       "type": "common",
       "x": -5.03,
@@ -69,23 +80,12 @@
       "source": "merged"
     },
     {
-      "id": "m3",
-      "name": "POSTE-MACHINE",
-      "type": "common",
-      "x": 0.37,
-      "y": -5.13,
-      "theta": 0.4014257380739195,
-      "floor": "0",
-      "kiosk_visible": true,
-      "source": "ros"
-    },
-    {
-      "id": "m7",
+      "id": "m8",
       "name": "POSTE-REMPLISSAGE-BOUCHONNAGE",
       "type": "common",
-      "x": -2.12,
-      "y": -10.08,
-      "theta": -2.3038344178816708,
+      "x": -1.64,
+      "y": -9.63,
+      "theta": -1.7104227348582817,
       "floor": "0",
       "kiosk_visible": true,
       "source": "merged"
