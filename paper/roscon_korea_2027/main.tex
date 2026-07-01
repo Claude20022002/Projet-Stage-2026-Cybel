@@ -1,5 +1,5 @@
-%% CYBEL — ROSCon Korea 2027 companion paper (max 8 pages, IEEE two-column)
-%% Build: pdflatex main && bibtex main && pdflatex main && pdflatex main
+% CYBEL — ROSCon Korea 2027 companion paper (max 8 pages, IEEE two-column)
+% Build: pdflatex main && bibtex main && pdflatex main && pdflatex main
 \documentclass[conference]{IEEEtran}
 
 \usepackage[T1]{fontenc}
@@ -24,6 +24,8 @@
 \setlist{nosep,leftmargin=*}
 
 \newcommand{\ros}{\textsc{ros}}
+\newcommand{\rosbridge}{\textsc{rosbridge}}
+\newcommand{\rosapi}{\texttt{rosapi}}
 \newcommand{\cybel}{\textsc{Cybel}}
 
 \begin{document}
@@ -32,9 +34,9 @@
 Open \rosbridge{} Integration and Edge Conversational Stack Without Vendor Support}
 
 \author{
-\IEEEauthorblockN{[Author Name]}
+\IEEEauthorblockN{Claudia LUSAMOTE KIMFUTA}
 \IEEEauthorblockA{HESTIM Engineering \& Business School\\
-Email: \texttt{author@hestim.ma}}
+Email: \texttt{clusamote@gmail.com}}
 \and
 \IEEEauthorblockN{Dr. Sridath Tula}
 \IEEEauthorblockA{HESTIM Engineering \& Business School\\
@@ -44,16 +46,18 @@ Supervisor}
 \maketitle
 
 \begin{abstract}
+
 Commercial service robots often ship with proprietary Android applications and undisclosed communication protocols, preventing customization of reception flows, guided tours, and conversational assistants.
-We present \cybel{}, an open edge platform built by \emph{non-destructive reverse engineering} of the CIOT TY1251D-03195 reception robot---a dual-processor system combining a \ros{} navigation chassis and an Android~7.1 head---without manufacturer documentation or support.
-Our seven-phase methodology combines network mapping, \rosbridge{}/\rosapi{} introspection, static APK analysis (JADX), passive MQTT observation, and field validation using rule \textbf{H4}: a successful \rosbridge{} transport acknowledgment does not guarantee motor execution.
-We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}), autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and an edge conversational layer---local knowledge engine, Android TTS bridge, guided tour orchestration---replacing the vendor welcome application.
+We present \cybel{}, an open edge platform built by \emph{non-destructive reverse engineering} of the CIOT TY1251D-03195 reception robot a dual-processor system combining a \ros{} navigation chassis and an Android~7.1 head without manufacturer documentation or support.
+Our seven-phase methodology combines network mapping, \rosbridge{}/\rosapi{} introspection, static APK analysis (JADX)~\cite{cybel_architecture}, passive MQTT observation, and field validation using rule \textbf{H4}: a successful \rosbridge{} transport acknowledgment does not guarantee motor execution.
+We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}), autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and an edge conversational layer local knowledge engine, Android TTS bridge, guided tour orchestration replacing the vendor welcome application.
 A hybrid strategy reusing POIs from the manufacturer Deployment Tool (Sentrymove) improves navigation reliability over coordinate-only goals.
 Field results show ${<}100$\,ms local API latency, ${\sim}90\%$ \rosbridge{} session reliability, and an autonomous visitor kiosk on Termux.
+
 \end{abstract}
 
 \begin{IEEEkeywords}
-Service robotics, reverse engineering, \ros{}, \rosbridge{}, embedded Android, human--robot interaction, edge computing, text-to-speech
+Service robotics, reverse engineering, \ros{}, \rosbridge{}, embedded Android, human-robot interaction, edge computing, text-to-speech
 \end{IEEEkeywords}
 
 %==============================================================================
@@ -63,7 +67,7 @@ Service robotics, reverse engineering, \ros{}, \rosbridge{}, embedded Android, h
 Mobile reception robots integrate mature SLAM and motion planning with touchscreen and speech interfaces, yet remain software black boxes: no public SDK, no message schemas, and often mandatory vendor cloud services.
 For research labs and training institutions, this closure blocks custom visit paths, domain-specific knowledge bases, and open conversational agents.
 
-We address the question: \emph{How can a third-party command and interaction platform match or exceed a proprietary Android--\ros{} welcome application when no official interface documentation exists?}
+We address the question: \emph{How can a third-party command and interaction platform match or exceed a proprietary Android-\ros{} welcome application when no official interface documentation exists?}
 Sub-problems include discovering network entry points, reconstructing message formats, validating causal command effects, rebuilding speech when \ros{} exposes no TTS channel, and operating on closed robot Wi-Fi without guaranteed Internet.
 
 \textbf{Contributions} (project \cybel{}, HESTIM 2026):
@@ -87,8 +91,8 @@ The codebase and exploration scripts are maintained as reproducible artifacts.
 
 The CIOT TY1251D-03195 combines:
 \begin{itemize}
-\item \textbf{Chassis:} Linux + \ros{} (Noetic/Melodic) --- SLAM, \texttt{move\_base}, LiDAR/RGBD, \rosbridge{}, MQTT broker.
-\item \textbf{Head:} Android~7.1 (RK3399, 2\,GB RAM) --- 15.6'' touchscreen, cameras, speakers, vendor apps.
+\item \textbf{Chassis:} Linux + \ros{} (Noetic/Melodic), SLAM, \texttt{move\_base}, LiDAR/RGBD, \rosbridge{}, MQTT broker.
+\item \textbf{Head:} Android~7.1 (RK3399, 2\,GB RAM) - 15.6'' touchscreen, cameras, speakers, vendor apps.
 \end{itemize}
 
 \cybel{} never obtains shell access on the chassis (SSH locked; brute-force triggers lockout).
@@ -115,7 +119,7 @@ Mapping revealed three distinct segments (Fig.~\ref{fig:network}):
   \draw[arr] (pc) -- node[left]{\scriptsize ADB/SSH} (head);
   \draw[arr] (head) -- (eth);
   \draw[arr] (eth) -- node[right]{\scriptsize \rosbridge{}} (ch);
-  \draw[arr] (pc) .. controls +(0.8,-1.2) and +(-0.8,0.5) .. node[above,sloped]{\scriptsize Wi-Fi AP} (wifi);
+  \draw[arr] (pc) .. controls +(-2.8,-1) and +(-1.4,0.5) .. node[above,sloped]{\scriptsize Wi-Fi AP} (wifi);
   \draw[arr] (wifi) -- (ch);
 \end{tikzpicture}%
 }
@@ -125,7 +129,7 @@ Mapping revealed three distinct segments (Fig.~\ref{fig:network}):
 
 \begin{itemize}
 \item \textbf{Robot AP} (\texttt{TY1251D-03195}): chassis at \texttt{10.42.0.1:9090}.
-\item \textbf{Internal eth0:} head \texttt{192.168.20.1} $\leftrightarrow$ chassis \texttt{192.168.20.22:9090} --- preferred path from Termux.
+\item \textbf{Internal eth0:} head \texttt{192.168.20.1} $\leftrightarrow$ chassis \texttt{192.168.20.22:9090}, preferred path from Termux.
 \item \textbf{Lab Wi-Fi:} head \texttt{172.16.0.x} (DHCP); PC uses ADB for deployment.
 \end{itemize}
 
@@ -139,7 +143,7 @@ Vendor packages identified via ADB: \texttt{com.ciot.welcomepatrol} (welcome UI)
 
 \begin{enumerate}[label=\textbf{P\arabic*.},leftmargin=1.4em]
 \item Observe before publishing (passive MQTT/\rosbridge{} first).
-\item Verify real effects --- rule \textbf{H4}: after teleop publish, \texttt{/robot\_pose} must change.
+\item Verify real effects  rule \textbf{H4}: after teleop publish, \texttt{/robot\_pose} must change.
 \item Triangulate network traces, \rosapi{}, decompiled APK, and field logs.
 \item Remain non-destructive: no firmware flash, no chassis root.
 \item Mock-first development before \texttt{RealRobot} integration.
@@ -177,7 +181,7 @@ Rejected hypotheses (documented): legacy teleop topic \texttt{/mobile\_base/comm
 
 \subsection{Transport and client}
 
-\rosbridge{} v2 over WebSocket TCP~9090; JSON operations \texttt{subscribe}, \texttt{publish}, \texttt{advertise}, \texttt{call\_service}.
+\rosbridge{} v2 over WebSocket TCP~9090~\cite{crick2012rosbridge,rosbridge_suite}; JSON operations \texttt{subscribe}, \texttt{publish}, \texttt{advertise}, \texttt{call\_service}.
 Our \texttt{RosbridgeClient} (\texttt{sdk/rosbridge.py}) uses three connection retries (20\,s timeout), 20\,s ping keepalive, and automatic reconnect.
 
 \subsection{Teleoperation}
@@ -269,7 +273,7 @@ The vendor \texttt{welcomepatrol} app couples Iflytek TTS via opaque IPC and a p
 
 \subsection{TTS channel discovery}
 
-No \ros{} topic, service, HTTP port, or MQTT payload exposed TTS on TY1251D (Table~\ref{tab:tts}).
+No \ros{} topic, service, HTTP port, or MQTT payload exposed TTS on TY1251D (Table~\ref{tab:tts})~\cite{cybel_tts}.
 
 \begin{table}[!t]
 \caption{TTS investigation summary}
@@ -322,7 +326,7 @@ Sentrymove (Deployment Tool) navigates reliably via named POIs on map \texttt{la
 \item A/B test: port~8000 (coordinates) vs.\ 8001 (POI) on same hardware.
 \end{enumerate}
 
-Gap analysis (\texttt{CYBEL\_GAP\_ANALYSIS.md}) drove fixes: mux teleop topic, POI service chain in lite backend, localization threshold 60\%, cancellation parity.
+Gap analysis~\cite{cybel_gap} drove fixes: mux teleop topic, POI service chain in lite backend, localization threshold 60\%, cancellation parity.
 
 %==============================================================================
 \section{Evaluation and Discussion}
@@ -382,6 +386,7 @@ This work was conducted at HESTIM Engineering \& Business School under supervisi
 We thank the HESTIM robotics lab for robot access and field testing support.
 
 %==============================================================================
+\nocite{quigley2009ros,thrun2005probrob,bartneck2020hri,cybel2026}
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
