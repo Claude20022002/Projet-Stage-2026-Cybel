@@ -25,16 +25,16 @@
 C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: Architecture and {APK}
   audit notes,'' 2026, internal technical documentation, HESTIM robotics lab.
 
-\bibitem{comparetti2009prospex}
-P.~M. Comparetti, G.~Wondracek, C.~Kruegel, and E.~Kirda, ``Prospex: Protocol
-  specification extraction,'' in \emph{Proceedings of the IEEE Symposium on
-  Security and Privacy}, 2009.
-
 \bibitem{enck2014taintdroid}
 W.~Enck, P.~Gilbert, B.-G. Chun, L.~P. Cox, J.~Jung, P.~McDaniel, and A.~N.
   Sheth, ``{TaintDroid}: An information-flow tracking system for realtime
   privacy monitoring on smartphones,'' \emph{ACM Transactions on Computer
   Systems}, vol.~32, no.~2, 2014.
+
+\bibitem{comparetti2009prospex}
+P.~M. Comparetti, G.~Wondracek, C.~Kruegel, and E.~Kirda, ``Prospex: Protocol
+  specification extraction,'' in \emph{Proceedings of the IEEE Symposium on
+  Security and Privacy}, 2009.
 
 \bibitem{cybel2026}
 C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL}: Reproducible artifacts and
