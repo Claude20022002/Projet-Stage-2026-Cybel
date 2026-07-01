@@ -1,5 +1,116 @@
 {
   "version": 1,
-  "updated_at": "2026-06-29T13:53:32.296095+00:00",
-  "points": []
+  "updated_at": "2026-07-01T14:18:42.785227+00:00",
+  "points": [
+    {
+      "id": "m1",
+      "name": "CNC ROUTEUR",
+      "type": "common",
+      "x": 0.99,
+      "y": 0.02,
+      "theta": -0.0698130774081258,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m3",
+      "name": "EXTRUSION-SOUFFLAGE",
+      "type": "common",
+      "x": -3.32,
+      "y": -8.02,
+      "theta": 2.583087227293057,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m5",
+      "name": "IMPRIMANTE 3D",
+      "type": "common",
+      "x": -3.17,
+      "y": 3.72,
+      "theta": -2.40855443299144,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m6",
+      "name": "POINT-MACHINE",
+      "type": "common",
+      "x": -3.42,
+      "y": -2.69,
+      "theta": -0.4886921021621723,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m7",
+      "name": "POINT-RECHARGE",
+      "type": "common",
+      "x": -1.47,
+      "y": -0.12,
+      "theta": 0.12217298440954116,
+      "floor": "0",
+      "kiosk_visible": false,
+      "source": "ros"
+    },
+    {
+      "id": "m0",
+      "name": "PORTE-LABO",
+      "type": "common",
+      "x": 3.95,
+      "y": -5.5,
+      "theta": 0.6632250694881756,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m9",
+      "name": "POSTE-ETIQUETAGE",
+      "type": "common",
+      "x": -5.03,
+      "y": -8.97,
+      "theta": -2.4958208360336616,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m8",
+      "name": "POSTE-REMPLISSAGE-BOUCHONNAGE",
+      "type": "common",
+      "x": -1.64,
+      "y": -9.63,
+      "theta": -1.7104227348582817,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m2",
+      "name": "SÉRIGRAPHIE",
+      "type": "common",
+      "x": 0.28,
+      "y": 3.65,
+      "theta": 2.8274333592554166,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    },
+    {
+      "id": "m4",
+      "name": "THERMOFORMAGE",
+      "type": "common",
+      "x": -3.59,
+      "y": 0.39,
+      "theta": 0.4712390106391636,
+      "floor": "0",
+      "kiosk_visible": true,
+      "source": "ros"
+    }
+  ]
 }

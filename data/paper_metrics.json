@@ -1,0 +1,13 @@
+{
+  "collected_at": "2026-07-01T15:59:20.765182",
+  "robot_host": "10.42.0.1",
+  "phases_run": [
+    "tts"
+  ],
+  "tts_trials": 5,
+  "tts_latency_adb_min_ms": 651,
+  "tts_latency_adb_avg_ms": 923,
+  "tts_latency_adb_max_ms": 1555,
+  "tts_latency_perceived_ms": 1223,
+  "tts_note": "Latence ADB = commande→ack broadcast. Latence audio réelle ≈ +300 ms (init TextToSpeech Google)."
+}
