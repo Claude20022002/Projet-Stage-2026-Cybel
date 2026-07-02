@@ -833,22 +833,27 @@ Exemples :
   python scripts/collect_paper_data.py --host 192.168.20.22 --teleop-trials 10 --nav-trials 5
   python scripts/collect_paper_data.py --phase rosapi --host 10.42.0.1
   python scripts/collect_paper_data.py --phase tts --adb-serial 172.16.0.194:5555
+  python scripts/collect_paper_data.py --phase tour --host 192.168.20.22 --tour-trials 3
         """,
     )
     parser.add_argument("--host", default=DEFAULT_HOST,
-                        help=f"IP rosbridge (défaut: {DEFAULT_HOST})")
+                        help=f"IP rosbridge et backend (défaut: {DEFAULT_HOST})")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--backend-port", type=int, default=DEFAULT_BACKEND_PORT,
+                        help=f"Port HTTP du backend CYBEL (défaut: {DEFAULT_BACKEND_PORT})")
     parser.add_argument("--teleop-trials", type=int, default=10, metavar="N",
                         help="Nombre d'essais téléopération (défaut: 10)")
     parser.add_argument("--nav-trials", type=int, default=5, metavar="N",
                         help="Nombre d'essais navigation S1+S3 chacun (défaut: 5)")
     parser.add_argument("--tts-trials", type=int, default=5, metavar="N",
                         help="Nombre de mesures TTS (défaut: 5)")
+    parser.add_argument("--tour-trials", type=int, default=3, metavar="N",
+                        help="Nombre d'essais visite guidée (défaut: 3)")
     parser.add_argument("--adb-serial", default=DEFAULT_ADB_SERIAL,
                         help=f"Identifiant ADB de la tête Android (défaut: {DEFAULT_ADB_SERIAL})")
     parser.add_argument(
-        "--phase", nargs="+", choices=["rosapi", "teleop", "nav", "tts"],
-        help="Phases à exécuter (défaut: toutes). Ex: --phase rosapi tts",
+        "--phase", nargs="+", choices=["rosapi", "teleop", "nav", "tts", "tour"],
+        help="Phases à exécuter (défaut: toutes sauf tour). Ex: --phase tour",
     )
     args = parser.parse_args()
     asyncio.run(run_async(args))
