@@ -25,6 +25,8 @@ import math
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -46,6 +48,7 @@ POINTS_FILE = DATA_DIR / "points.json"
 # ── Paramètres ─────────────────────────────────────────────────────────────────
 DEFAULT_HOST = "10.42.0.1"
 DEFAULT_PORT = 9090
+DEFAULT_BACKEND_PORT = 8000
 DEFAULT_ADB_SERIAL = "172.16.0.194:5555"
 
 TELEOP_SPEED = 0.15           # m/s — vitesse forward (faible pour sécurité)
@@ -58,6 +61,9 @@ NAV_INTER_TRIAL = 6.0         # s   — pause entre essais (repositionnement)
 
 TTS_TEXT = "Bonjour"          # texte court pour minimiser la durée du test
 TTS_INTER_TRIAL = 2.5         # s   — laisser le TTS terminer avant mesure suivante
+
+TOUR_POLL_INTERVAL = 20.0     # s   — intervalle de polling statut visite
+TOUR_TIMEOUT = 3600.0         # s   — timeout max par essai de visite (60 min)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
