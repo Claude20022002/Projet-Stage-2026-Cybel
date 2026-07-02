@@ -27,6 +27,7 @@ $CybelTest = "$TermuxHome/cybel-test"
 $CybelMain = "$TermuxHome/cybel"
 $Bash = "/data/data/com.termux/files/usr/bin/bash"
 $Pip  = "/data/data/com.termux/files/usr/bin/pip"
+$Py   = "/data/data/com.termux/files/usr/bin/python"
 $EnvBlock     = "export HOME=$TermuxHome CYBEL_HOME=$CybelTest PATH=/data/data/com.termux/files/usr/bin:/system/bin"
 $EnvBlockMain = "export HOME=$TermuxHome CYBEL_HOME=$CybelMain PATH=/data/data/com.termux/files/usr/bin:/system/bin"
 
@@ -45,6 +46,13 @@ function Invoke-Termux {
     if ($LASTEXITCODE -ne 0 -and -not $raw) {
         throw "adb shell a echoue (code $LASTEXITCODE). Cable USB branche ? adb devices"
     }
+    return ($raw | Out-String).TrimEnd()
+}
+
+function Invoke-TermuxMain {
+    param([string] $Commande)
+    $full = "$EnvBlockMain && $Commande"
+    $raw = adb shell $full 2>&1
     return ($raw | Out-String).TrimEnd()
 }
 
@@ -93,6 +101,57 @@ function Repair-Deps {
     return $true
 }
 
+function Set-AdbPortForward {
+    param([int]$PcPort = 8001, [int]$DevicePort = 8000)
+    Write-Host "ADB port forward : PC localhost:$PcPort -> tablette:$DevicePort ..." -ForegroundColor White
+    $null = adb forward tcp:$PcPort tcp:$DevicePort 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] ADB forward actif : localhost:$PcPort -> device:$DevicePort" -ForegroundColor Green
+        return $true
+    }
+    Write-Host "[ERREUR] adb forward tcp:${PcPort} tcp:${DevicePort} a echoue" -ForegroundColor Red
+    return $false
+}
+
+function Repair-MainBackend {
+    Write-Titre "Reparation backend principal (~/cybel, port 8000)"
+
+    # 1. Installer uvicorn + starlette (manquants dans cybel_lite.py)
+    Write-Host "Etape 1/3 - Installation uvicorn starlette websockets..." -ForegroundColor White
+    $pip = Invoke-TermuxMain "$Pip install uvicorn starlette websockets --quiet 2>&1 | tail -3"
+    if ($pip) { Write-Host $pip }
+
+    # 2. Stopper les anciennes instances du backend principal
+    Write-Host "Etape 2/3 - Arret du backend existant..." -ForegroundColor White
+    Invoke-TermuxMain "pkill -f cybel_lite 2>/dev/null; pkill -f start_cybel 2>/dev/null; echo stopped" | Out-Null
+    Start-Sleep -Seconds 2
+
+    # 3. Relancer le backend principal en arriere-plan
+    Write-Host "Etape 3/3 - Demarrage backend principal..." -ForegroundColor White
+    $startScript = "$CybelMain/scripts/termux/start_cybel.sh"
+    $out = Invoke-TermuxMain "if [ -f $startScript ]; then nohup $Bash $startScript > $TermuxHome/cybel-uvicorn.log 2>&1 & sleep 4 && echo launched; else echo noscript; fi"
+    if ($out -match "launched") {
+        Write-Host "[OK] Backend principal lance via start_cybel.sh" -ForegroundColor Green
+        return $true
+    }
+    # Fallback : lancer cybel_lite.py directement
+    Write-Host "[!!] start_cybel.sh absent, lancement direct de cybel_lite.py..." -ForegroundColor Yellow
+    $litePy = "$CybelMain/scripts/termux/cybel_lite.py"
+    Invoke-TermuxMain "nohup $Py $litePy > $TermuxHome/cybel-uvicorn.log 2>&1 &" | Out-Null
+    Start-Sleep -Seconds 4
+    return $true
+}
+
+function Test-LocalhostBackend {
+    param([int]$Port = 8001)
+    try {
+        $resp = Invoke-WebRequest -Uri "http://localhost:$Port/api/health" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+        return ($resp.StatusCode -eq 200)
+    } catch {
+        return $false
+    }
+}
+
 function Start-App {
     Write-Titre "Lancement de l'application CYBEL Accueil (TEST)"
     adb shell am start -n com.cybel.visitorkiosk.test/.MainActivity | Out-Null
@@ -100,9 +159,12 @@ function Start-App {
 }
 
 function Show-Logs {
-    Write-Titre "Dernieres lignes du journal backend"
-    $log = adb shell "cat $TermuxHome/cybel-test-uvicorn.log 2>/dev/null | tail -40" 2>&1
+    Write-Titre "Logs backend PRINCIPAL (~/cybel, port 8000)"
+    $log = adb shell "cat $TermuxHome/cybel-uvicorn.log 2>/dev/null | tail -40" 2>&1
     Write-Host ($log | Out-String)
+    Write-Titre "Logs backend TEST (~/cybel-test, port 8001)"
+    $logTest = adb shell "cat $TermuxHome/cybel-test-uvicorn.log 2>/dev/null | tail -20" 2>&1
+    Write-Host ($logTest | Out-String)
 }
 
 function Show-Status {
@@ -184,7 +246,31 @@ try {
         "demarrer"   { exit (Start-Full) }
         "status"     { exit (Show-Status) }
         "redemarrer" { if (-not (Test-Adb)) { exit 1 }; if (Restart-Backend) { exit 0 } else { exit 1 } }
-        "reparer"    { if (-not (Test-Adb)) { exit 1 }; Repair-Deps | Out-Null; if (Restart-Backend) { exit 0 } else { exit 1 } }
+        "reparer"    {
+            if (-not (Test-Adb)) { exit 1 }
+
+            # 1. Reparer le backend PRINCIPAL (~/cybel, port 8000)
+            Repair-MainBackend | Out-Null
+
+            # 2. ADB port forward : PC:8001 -> tablette:8000 (backend principal)
+            Set-AdbPortForward -PcPort 8001 -DevicePort 8000 | Out-Null
+
+            # 3. Verifier l'acces depuis le PC
+            Write-Host "Verification sante via localhost:8001 ..." -ForegroundColor White
+            Start-Sleep -Seconds 2
+            if (Test-LocalhostBackend -Port 8001) {
+                Write-Host "[OK] Backend accessible sur http://localhost:8001" -ForegroundColor Green
+                Write-Host ""
+                Write-Host "  Lancez la collecte tour avec :" -ForegroundColor Cyan
+                Write-Host "  python scripts/collect_paper_data.py --phase tour --host localhost --backend-port 8001 --tour-trials 3" -ForegroundColor Yellow
+                exit 0
+            } else {
+                Write-Host "[ERREUR] Backend non accessible sur localhost:8001" -ForegroundColor Red
+                Write-Host "  Consultez les logs Termux :" -ForegroundColor Yellow
+                Write-Host "  .\scripts\kiosk_test.ps1 logs" -ForegroundColor Yellow
+                exit 1
+            }
+        }
         "lancer"     { if (-not (Test-Adb)) { exit 1 }; Start-App; exit 0 }
         "logs"       { if (-not (Test-Adb)) { exit 1 }; Show-Logs; exit 0 }
         "ip"         { if (-not (Test-Adb)) { exit 1 }; $ip = Get-IpTablette; Write-Host "IP tablette : $ip"; exit 0 }

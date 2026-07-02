@@ -600,6 +600,17 @@ def _http_post(url: str, timeout: float = 15.0) -> dict:
         return {"error": str(exc), "ok": False}
 
 
+def _tour_stop(base: str) -> None:
+    """Stop any running tour (best-effort, non-fatal)."""
+    _http_post(f"{base}/api/tour/stop", timeout=10.0)
+    time.sleep(2)
+
+
+def _tour_is_running(base: str) -> bool:
+    st = _http_get(f"{base}/api/tour/status")
+    return st.get("state") in ("running", "navigating", "speaking", "returning")
+
+
 async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
     base = f"http://{host}:{backend_port}"
     print(f"\n[Phase tour] Visite guidée complète — {n_trials} essai(s) via {base}")
@@ -622,19 +633,38 @@ async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
                 f"\n  ⚠  Replacez le robot si nécessaire, puis appuyez sur ENTRÉE "
                 f"pour l'essai {trial_i + 1}/{n_trials} ... "
             )
+            # Stopper la visite précédente si toujours en cours
+            if _tour_is_running(base):
+                print("  [INFO] Visite précédente encore active — arrêt forcé...")
+                _tour_stop(base)
         else:
             print(f"\n  Essai 1/{n_trials} — démarrage de la visite...")
 
         t0 = time.time()
-        start_resp = _http_post(f"{base}/api/tour/start?lang=fr")
 
-        if start_resp.get("error") or not start_resp.get("ok"):
+        # Le backend bloque ~15-30s sur sync_poi + prepare_for_tour + ensure_auto_navigation
+        # → timeout genereux de 90s pour le start
+        start_resp = _http_post(f"{base}/api/tour/start?lang=fr", timeout=90.0)
+
+        poll_only = False  # basculer en mode polling si le start semble avoir fonctionné
+        start_err = str(start_resp.get("error", ""))
+
+        if "timed out" in start_err or "timeout" in start_err.lower():
+            # Le client a coupé mais le serveur a probablement lancé la visite
+            print("  [INFO] Délai dépassé côté client — le serveur a peut-être lancé la visite, polling...")
+            poll_only = True
+        elif "déjà en cours" in start_err or "already" in start_err.lower():
+            print("  [INFO] Visite déjà en cours (essai précédent non terminé) — polling...")
+            poll_only = True
+        elif start_resp.get("error") or not start_resp.get("ok"):
             err = start_resp.get("error", "démarrage refusé")
             print(f"  [ÉCHEC] Impossible de démarrer : {err}")
-            results.append({"success": False, "error": err, "elapsed_s": 0.0})
+            results.append({"success": False, "error": str(err), "elapsed_s": 0.0})
             continue
 
-        print(f"  [OK] Visite démarrée. Polling toutes les {TOUR_POLL_INTERVAL:.0f} s...")
+        if not poll_only:
+            print(f"  [OK] Visite démarrée. Polling toutes les {TOUR_POLL_INTERVAL:.0f} s...")
+
         success = False
         error_msg = None
 
@@ -666,6 +696,11 @@ async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
                 break
             if state in ("stopped", "error"):
                 error_msg = st.get("error") or state
+                break
+            if poll_only and state in ("idle", "unknown"):
+                # Tour déjà finie avant qu'on commence à poller (cas rare)
+                print("  [INFO] Aucune visite active détectée au premier polling")
+                error_msg = "aucune visite active"
                 break
 
         elapsed_total = time.time() - t0
