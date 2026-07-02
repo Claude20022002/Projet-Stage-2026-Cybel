@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Awaitable, Callable, Literal, Any
 
-TourPhase = Literal["", "intro", "navigating", "presenting", "dwell", "outro"]
+TourPhase = Literal["", "intro", "navigating", "presenting", "dwell", "outro", "returning"]
 TourStateName = Literal["idle", "running", "completed", "stopped", "error"]
 
 
@@ -50,6 +50,7 @@ class LabTour:
     outro_speech_fr: str
     outro_speech_en: str
     stops: list[TourStop]
+    return_point: str | None = None
 
 
 @dataclass
@@ -185,6 +186,7 @@ def load_lab_tour(path: Path | None = None) -> LabTour:
         outro_speech_fr=str(raw.get("outro_speech_fr", "")),
         outro_speech_en=str(raw.get("outro_speech_en", "")),
         stops=stops,
+        return_point=raw.get("return_point") or None,
     )
 
 
@@ -388,6 +390,28 @@ class TourEngine:
                 if self._tracer:
                     self._tracer.phase("outro", message="Fin de visite")
                 await self._speak(outro)
+
+            if self.tour.return_point and not self._cancel:
+                self._status.phase = "returning"
+                self._status.message = f"Retour à {self.tour.return_point}"
+                if self._tracer:
+                    self._tracer.phase(
+                        "returning", message=f"Retour {self.tour.return_point}"
+                    )
+                _return_stop = TourStop(
+                    id="return_charge",
+                    name_fr="Retour base de recharge",
+                    name_en="Return to charging station",
+                    equipment_fr=self.tour.return_point,
+                    equipment_en=self.tour.return_point,
+                    speech_fr="",
+                    speech_en="",
+                    target_point=self.tour.return_point,
+                )
+                try:
+                    await self._navigate(_return_stop, len(self.tour.stops))
+                except Exception:
+                    pass
 
             self._status.state = "completed"
             self._status.phase = ""
