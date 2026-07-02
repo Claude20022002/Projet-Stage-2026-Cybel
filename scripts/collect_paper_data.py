@@ -572,6 +572,128 @@ def phase_tts(adb_serial: str, n_trials: int = 5) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Phase 5 — tour : visite guidée complète (API REST backend)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _http_get(url: str, timeout: float = 10.0) -> dict:
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+def _http_post(url: str, timeout: float = 15.0) -> dict:
+    try:
+        req = urllib.request.Request(url, data=b"", method="POST")
+        req.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            detail = json.loads(body).get("detail", body)
+        except Exception:
+            detail = body
+        return {"error": detail, "ok": False}
+    except Exception as exc:
+        return {"error": str(exc), "ok": False}
+
+
+async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
+    base = f"http://{host}:{backend_port}"
+    print(f"\n[Phase tour] Visite guidée complète — {n_trials} essai(s) via {base}")
+
+    # Recharger le tour depuis le disque (prend en compte return_point = POINT-RECHARGE)
+    reload_resp = _http_post(f"{base}/api/tour/reload")
+    if "error" in reload_resp:
+        print(f"  [ATTENTION] Rechargement tour échoué : {reload_resp['error']}")
+        print("  >> Le backend est-il démarré sur Termux ?")
+    else:
+        n_stops = reload_resp.get("stops", "?")
+        print(f"  [OK] Tour rechargé — {n_stops} arrêt(s) + retour POINT-RECHARGE")
+
+    results = []
+    session_start = time.time()
+
+    for trial_i in range(n_trials):
+        if trial_i > 0:
+            input(
+                f"\n  ⚠  Replacez le robot si nécessaire, puis appuyez sur ENTRÉE "
+                f"pour l'essai {trial_i + 1}/{n_trials} ... "
+            )
+        else:
+            print(f"\n  Essai 1/{n_trials} — démarrage de la visite...")
+
+        t0 = time.time()
+        start_resp = _http_post(f"{base}/api/tour/start?lang=fr")
+
+        if start_resp.get("error") or not start_resp.get("ok"):
+            err = start_resp.get("error", "démarrage refusé")
+            print(f"  [ÉCHEC] Impossible de démarrer : {err}")
+            results.append({"success": False, "error": err, "elapsed_s": 0.0})
+            continue
+
+        print(f"  [OK] Visite démarrée. Polling toutes les {TOUR_POLL_INTERVAL:.0f} s...")
+        success = False
+        error_msg = None
+
+        while True:
+            await asyncio.sleep(TOUR_POLL_INTERVAL)
+            elapsed = time.time() - t0
+
+            if elapsed > TOUR_TIMEOUT:
+                error_msg = f"timeout {TOUR_TIMEOUT/60:.0f} min"
+                print(f"  [TIMEOUT] {error_msg}")
+                break
+
+            st = _http_get(f"{base}/api/tour/status")
+            if "error" in st:
+                print(f"  [WARN] Impossible de lire le statut : {st['error']}")
+                continue
+
+            state = st.get("state", "unknown")
+            phase = st.get("phase", "")
+            idx = st.get("current_index", -1)
+            total = st.get("total_stops", "?")
+            name = st.get("current_stop_name", "")
+            label = f"arrêt {idx + 1}/{total} {name}" if idx >= 0 else phase
+
+            print(f"    t+{elapsed:5.0f}s | {state:10s} | {label}")
+
+            if state == "completed":
+                success = True
+                break
+            if state in ("stopped", "error"):
+                error_msg = st.get("error") or state
+                break
+
+        elapsed_total = time.time() - t0
+        results.append({
+            "success": success,
+            "elapsed_s": round(elapsed_total, 1),
+            "error": error_msg,
+        })
+        outcome = "SUCCÈS" if success else f"ÉCHEC ({error_msg})"
+        print(f"  → Essai {trial_i + 1} : {outcome} en {elapsed_total / 60:.1f} min")
+
+    session_h = (time.time() - session_start) / 3600
+    n_ok = sum(1 for r in results if r["success"])
+    rate_pct = round(100 * n_ok / max(n_trials, 1), 1)
+
+    print(f"\n  Taux de complétion : {rate_pct}%  ({n_ok}/{n_trials})")
+    print(f"  Durée session visite : {session_h:.2f} h")
+
+    return {
+        "tour_trials": n_trials,
+        "tour_successes": n_ok,
+        "tour_completion_rate_pct": rate_pct,
+        "tour_results": results,
+        "tour_session_duration_h": round(session_h, 2),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Rapport final
 # ══════════════════════════════════════════════════════════════════════════════
 
