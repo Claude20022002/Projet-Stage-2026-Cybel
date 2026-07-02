@@ -1,13 +1,28 @@
 {
-  "collected_at": "2026-07-01T15:59:20.765182",
-  "robot_host": "10.42.0.1",
+  "collected_at": "2026-07-02T12:10:45.269254",
+  "robot_host": "192.168.20.22",
   "phases_run": [
-    "tts"
+    "tour"
   ],
-  "tts_trials": 5,
-  "tts_latency_adb_min_ms": 651,
-  "tts_latency_adb_avg_ms": 923,
-  "tts_latency_adb_max_ms": 1555,
-  "tts_latency_perceived_ms": 1223,
-  "tts_note": "Latence ADB = commande→ack broadcast. Latence audio réelle ≈ +300 ms (init TextToSpeech Google)."
+  "tour_trials": 3,
+  "tour_successes": 0,
+  "tour_completion_rate_pct": 0.0,
+  "tour_results": [
+    {
+      "success": false,
+      "error": "<urlopen error [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée>",
+      "elapsed_s": 0.0
+    },
+    {
+      "success": false,
+      "error": "<urlopen error [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée>",
+      "elapsed_s": 0.0
+    },
+    {
+      "success": false,
+      "error": "<urlopen error [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée>",
+      "elapsed_s": 0.0
+    }
+  ],
+  "tour_session_duration_h": 0.0
 }

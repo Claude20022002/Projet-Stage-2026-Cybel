@@ -189,22 +189,42 @@ Mapping revealed three distinct segments (Fig.~\ref{fig:network}), which is itse
 \centering
 \resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[
-  node distance=0.55cm and 0.35cm,
-  box/.style={draw, rounded corners=2pt, align=center, font=\scriptsize, inner sep=3pt},
-  arr/.style={-{Stealth[length=2pt]}, font=\tiny}
+  node distance=0.7cm and 1.6cm,
+  box/.style={draw, rounded corners=3pt, align=center, font=\tiny,
+              inner sep=4pt, minimum width=2.4cm},
+  arr/.style={-{Stealth[length=3.5pt]}, semithick},
+  lbl/.style={font=\tiny, fill=white, inner sep=1pt}
 ]
-  \node[box, fill=blue!8] (pc) {Dev PC\\{\scriptsize lab Wi-Fi}};
-  \node[box, fill=green!10, below=of pc] (head) {Android head (Termux)\\{\scriptsize wlan0 \texttt{172.16.0.x}}\\{\scriptsize eth0 \texttt{192.168.20.1}}};
-  \node[box, fill=red!8, right=1.2cm of head] (ch) {Chassis ROS\\{\scriptsize \texttt{192.168.20.22}:9090}\\{\scriptsize \texttt{10.42.0.1}:9090 via AP}};
-  \node[box, fill=yellow!12, left=1.0cm of ch] (wifi) {Robot AP\\{\scriptsize SSID \texttt{TY1251D-*}}};
+  \node[box, fill=blue!10] (pc)
+    {\textbf{Dev PC}\\lab Wi-Fi};
 
-  \draw[arr] (pc) -- node[left]{\scriptsize ADB / SSH :8022} (head);
-  \draw[arr] (head) -- node[above,sloped]{\scriptsize eth0 \rosbridge{}} (ch);
-  \draw[arr] (pc) .. controls +(-2.6,-1.0) and +(-1.2,0.4) .. node[above,sloped]{\scriptsize Wi-Fi AP} (wifi);
-  \draw[arr] (wifi) -- (ch);
+  \node[box, fill=green!12, below=0.7cm of pc] (head)
+    {\textbf{Android head} (Termux)\\
+     wlan0: \texttt{172.16.0.x}\\
+     eth0:\;\texttt{192.168.20.1}};
+
+  \node[box, fill=red!10, right=1.6cm of head] (ch)
+    {\textbf{Chassis ROS}\\
+     rosbridge :9090\\
+     \texttt{192.168.20.22}};
+
+  \node[box, fill=yellow!20, below=0.7cm of ch] (ap)
+    {\textbf{Robot AP hotspot}\\
+     SSID: \texttt{TY1251D-*}\\
+     \texttt{10.42.0.1:9090}};
+
+  \draw[arr] (pc)   -- node[lbl, left]{ADB / SSH :8022} (head);
+  \draw[arr] (head) -- node[lbl, above]{rosbridge (eth0)} (ch);
+  \draw[arr] (pc.east) .. controls +(1.0,-0.5) and +(-1.1,1.2) ..
+             node[lbl, near start, right]{Wi-Fi} (ap.north);
+  \draw[arr] (ap)   -- (ch);
 \end{tikzpicture}%
 }
-\caption{Network topology on CIOT TY1251D-03195. \cybel{} on Termux reaches \rosbridge{} at \texttt{192.168.20.22} (internal eth0). A dev PC may also use \texttt{10.42.0.1} on the robot hotspot. The head's lab DHCP address (\texttt{172.16.0.x}) must not be confused with the chassis IP.}
+\caption{Network topology on CIOT TY1251D-03195. \\ \cybel{} on Termux
+  reaches \rosbridge{} at \texttt{192.168.20.22} (internal eth0, preferred path).
+  A dev PC can also reach the chassis directly via the robot's hotspot
+  (\texttt{10.42.0.1:9090}). The head's DHCP address (\texttt{172.16.0.x})
+  must not be confused with the chassis IP.}
 \label{fig:network}
 \end{figure}
 
@@ -236,7 +256,7 @@ This section is the core of the paper: it presents the methodology as a set of f
 \subsection{Hypotheses and their resolution}
 \label{sec:hypotheses}
 
-\begin{itemize}[leftmargin=1.3em]
+\begin{itemize}[leftmargin=1em]
 \item \textbf{H1 (APK-as-spec) - CONFIRMED.} Every \rosbridge{} topic and service name later confirmed on the wire (Section~\ref{sec:proto}) was first located inside \texttt{selfchassislibrary} via JADX. \emph{Why it holds:} the vendor's own Android app must itself speak the true protocol to control the chassis, so its compiled code is a lower bound on the real command surface, unlike documentation which may be aspirational or outdated.
 \item \textbf{H2 (MQTT-as-command-channel) - REJECTED.} Passive MQTT observation (wildcard subscription \texttt{\#}, multiple sessions, 1 topic logged: \texttt{test\_mul}, odometry only) showed only odometry and status telemetry; no motion command reproducibly changed robot state when replayed on MQTT. \emph{Why it fails:} JADX audit of \texttt{selfchassislibrary} shows the MQTT client is wired exclusively to telemetry publishers on the chassis side; the command path is implemented only over the \rosbridge{} WebSocket, so MQTT is architecturally read-only from this robot's perspective. This is the diagnostic value of a rejected hypothesis: it saved further engineering effort on a channel that could never work, and it is documented here so future integrators of the \emph{same vendor family} do not repeat the exploration.
 \item \textbf{H3 (POI reuse) - CONFIRMED (with prerequisites).} On map \texttt{laboV2}, the \cybel{} stack (\texttt{navigate\_to\_point} $\rightarrow$ \texttt{/tag\_manager/navi} then fallback \texttt{/poi}, after \texttt{\_prepare\_for\_navigation}) navigates reliably to Deployment Tool POIs, consistent with Sentrymove behavior. Coordinate-only \texttt{/navi\_goal} (strategy S1) showed recurrent field failures: goals published while \texttt{nav\_status} stayed at 601 (trace \texttt{tour\_20260623\_142601}). \emph{Why it holds:} POI names reference the vendor's \texttt{marker\_manager} map frame; raw coordinates extracted offline drift relative to the live SLAM map. \emph{Measurement caveat (H4):} isolated \rosbridge{} benchmarks that read \texttt{nav\_status} immediately after a service call can report stale code 603 from a \emph{previous} navigation; validation must wait for 601$\rightarrow$602$\rightarrow$603 transitions, as \cybel{}'s \texttt{wait\_for\_navigation\_arrival} does.
@@ -284,8 +304,8 @@ Table~\ref{tab:re-effort} reports the quantitative effort behind the pipeline ab
 \textbf{Metric} & \textbf{Value} \\
 \midrule
 APKs statically analyzed (JADX) & 2 (\texttt{welcomepatrol}, \texttt{sentrymove}) \\
-Distinct \ros{} topics (/rosapi) & \ph{N topics from collect\_paper\_data.py --phase rosapi} \\
-Distinct \ros{} services (/rosapi) & \ph{N services from collect\_paper\_data.py --phase rosapi} \\
+Distinct \ros{} topics (/rosapi) & 455 \\
+Distinct \ros{} services (/rosapi) & 308 \\
 MQTT topics observed (all telemetry) & 1 (\texttt{test\_mul}) \\
 Hypotheses tested (confirmed / rejected) & 3 / 1 (H1,\,H3,\,H4 / H2) \\
 Elapsed wall-clock time, phases 1--6 & 2 weeks \\
@@ -482,13 +502,13 @@ Quantitative trials should be collected with \texttt{scripts/collect\_paper\_dat
 \textbf{Strategy} & \textbf{Mechanism} & \textbf{Observed outcome} \\
 \midrule
 S1 coords & \texttt{/navi\_goal} & Recurrent failures: \texttt{nav\_status} stays 601; ``speaks but does not move'' \\[2pt]
-S3 POI & \texttt{/tag\_manager/navi} $\rightarrow$ \texttt{/poi} & Reliable when POIs synced from Deployment Tool; validated guided tour \\[2pt]
+S3 POI & \texttt{/tag\_manager/\allowbreak{}navi} $\rightarrow$ \texttt{/poi} & Reliable when POIs synced from Deployment Tool; validated guided tour \\[2pt]
 Sentrymove & same as S3 & Reference baseline (vendor app) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Benchmark pitfall (H4).} A raw \rosbridge{} script that fires \texttt{/tag\_manager/navi} and reads \texttt{nav\_status} within ${<}1$\,s may report code 603 from the \emph{previous} navigation without any new motion --- this is a measurement artifact, not evidence that the service is absent on the firmware.
+\textbf{Benchmark pitfall (H4).} A raw \rosbridge{} script that fires \texttt{/tag\_manager/navi} and reads \texttt{nav\_status} within ${<}1$\,s may report code 603 from the \emph{previous} navigation without any new motion this is a measurement artifact, not evidence that the service is absent on the firmware.
 
 \subsection{Reverse-engineering and field metrics}
 
@@ -567,7 +587,7 @@ LLM-backend ready & $\times$ & \checkmark (API contract) \\
 The four hypotheses transfer beyond this unit. H1 should hold for any vendor robot whose Android companion app is the primary control surface the app must speak the true wire protocol. 
 H4 should hold for any robot with a safety or mode-gating layer between its message bus and actuators, common in commercial mobile bases. H2's rejection is vendor-specific: another robot could use MQTT for commands; the value here is the triangulation method (P3) that detects this quickly. 
 H3's confirmation is vendor-specific in \emph{details} (POI naming on \texttt{laboV2}, \texttt{marker\_manager} schema) but the \emph{pattern} transfers: reuse the vendor's map artifacts rather than re-derive coordinates offline.
-What remains vendor-specific: exact topic names, manual-mode gate semantics, POI naming convention, and TTS broadcast contract --- all rediscoverable via the same seven-phase pipeline.
+What remains vendor-specific: exact topic names, manual-mode gate semantics, POI naming convention, and TTS broadcast contract all rediscoverable via the same seven-phase pipeline.
 
 \subsection{Ethical considerations}
 
