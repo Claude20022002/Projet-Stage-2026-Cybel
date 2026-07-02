@@ -10,6 +10,7 @@
   "intro_speech_en": "Welcome to the HESTIM laboratory. We are using the laboV2 map with updated waypoints. Please follow me for a full tour of the industrial workstations.",
   "outro_speech_fr": "La visite du laboratoire laboV2 est terminée. Merci de votre attention. N'hésitez pas à me poser des questions sur les équipements.",
   "outro_speech_en": "The laboV2 laboratory tour is complete. Thank you for your attention. Feel free to ask me questions about the equipment.",
+  "return_point": "POINT-RECHARGE",
   "stops": [
     {
       "id": "porte_labo",
