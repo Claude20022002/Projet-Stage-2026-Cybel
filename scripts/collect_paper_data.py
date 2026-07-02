@@ -801,6 +801,19 @@ async def run_async(args) -> dict:
     if "tts" in phases:
         metrics.update(phase_tts(args.adb_serial, n_trials=args.tts_trials))
 
+    # Phase tour (HTTP REST — indépendante de rosbridge)
+    if "tour" in phases:
+        input(
+            "\n  ⚠  Phase visite guidée : assurez-vous que :\n"
+            "       1. Le backend CYBEL tourne sur Termux (port 8000)\n"
+            "       2. Le robot est localisé et la carte est chargée\n"
+            "       3. Le robot est libre de ses mouvements dans le labo\n"
+            "     Appuyez sur ENTRÉE pour lancer la visite complète ... "
+        )
+        metrics.update(
+            await phase_tour(args.host, args.backend_port, n_trials=args.tour_trials)
+        )
+
     # Sauvegarde
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8")
