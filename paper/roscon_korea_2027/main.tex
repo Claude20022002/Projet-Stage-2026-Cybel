@@ -486,7 +486,7 @@ This result rejects H3 and directly reinforces H4: \texttt{/tag\_manager/navi} i
 \textbf{Strategy} & \textbf{Success} & \textbf{Avg.} & \textbf{Failure mode} \\
 \midrule
 S1 (\texttt{/navi\_goal}) & 80\% (4/5) & 3.5\,s & trial~1: mid-reset \\[2pt]
-S3 (\texttt{/tag\_manager/navi}) & 0\%$^{\dagger}$ & --- & service non-functional \\
+S3 (\texttt{/tag\_manager/navi}) & 0\%$^{\dagger}$ & - & service non-functional \\
 \bottomrule
 \multicolumn{4}{@{}p{\columnwidth}@{}}{\tiny $^{\dagger}$Two apparent successes (0.5\,s, 0.6\,s) were stale \texttt{nav\_status=603} reads; no navigation triggered.}
 \end{tabular}
@@ -506,9 +506,9 @@ Table~\ref{tab:metrics} reports system-level indicators; Table~\ref{tab:re-effor
 \textbf{Metric} & \textbf{Value} \\
 \midrule
 Local REST latency & ${<}100$\,ms \\
-\rosbridge{} connect & 2--60\,s (3$\times$20\,s retry) \\
+\rosbridge{} connect & 2-60\,s (3$\times$20\,s retry) \\
 Session reliability & ${\sim}90\%$ (Wi-Fi dependent) \\
-Wi-Fi RTT & 89--1654\,ms \\
+Wi-Fi RTT & 89-1654\,ms \\
 Unit tests & 110/110 passed \\
 Teleoperation success rate & $100\%$ (10 trials) \\
 Guided-tour completion rate & \ph{XX\%} (\ph{N} trials) \\
