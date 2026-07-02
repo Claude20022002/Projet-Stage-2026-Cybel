@@ -24,8 +24,11 @@ $ErrorActionPreference = "Stop"
 
 $TermuxHome = "/data/data/com.termux/files/home"
 $CybelTest = "$TermuxHome/cybel-test"
+$CybelMain = "$TermuxHome/cybel"
 $Bash = "/data/data/com.termux/files/usr/bin/bash"
-$EnvBlock = "export HOME=$TermuxHome CYBEL_HOME=$CybelTest PATH=/data/data/com.termux/files/usr/bin:/system/bin"
+$Pip  = "/data/data/com.termux/files/usr/bin/pip"
+$EnvBlock     = "export HOME=$TermuxHome CYBEL_HOME=$CybelTest PATH=/data/data/com.termux/files/usr/bin:/system/bin"
+$EnvBlockMain = "export HOME=$TermuxHome CYBEL_HOME=$CybelMain PATH=/data/data/com.termux/files/usr/bin:/system/bin"
 
 function Write-Titre {
     param([string] $Texte)
