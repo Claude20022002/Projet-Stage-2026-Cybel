@@ -727,6 +727,18 @@ def print_paper_summary(m: dict) -> None:
         print(f"\n  [tab:metrics]")
         print(f"    Latence voix (ADB + init TTS) : ~{m['tts_latency_perceived_ms']} ms")
 
+    if "tour_completion_rate_pct" in m:
+        tr = m["tour_completion_rate_pct"]
+        tn = m["tour_trials"]
+        ts = m["tour_successes"]
+        dur = m.get("tour_session_duration_h", 0)
+        print(f"\n  [tab:metrics — visite guidée]")
+        print(f"    Taux de complétion visite : {tr}%  ({ts}/{tn} essais)")
+        print(f"    Durée session kiosque     : {dur:.2f} h  (→ uptime Termux)")
+        print(f"\n  → Dans main.tex, remplacez :")
+        print(f"      \\ph{{XX\\%}} (\\ph{{N}} trials)  par  {tr}\\%  ({tn} essais)")
+        print(f"      \\ph{{X hours}}               par  {dur:.1f} heures")
+
     print(f"\n  Fichier complet : {OUTPUT}")
     print(SEPARATOR)
 
