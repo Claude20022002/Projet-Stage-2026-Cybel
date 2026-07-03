@@ -496,7 +496,11 @@ async def ensure_global_localization(
     target = min_percent if min_percent is not None else LOCALIZATION_MIN_PERCENT
     snap = await fetch_robot_snapshot(timeout=5.0)
     loc = snap.get("localization_percent")
-    if loc is not None and loc >= target:
+    nav_status_now = int(snap.get("nav_status") or 0)
+    # Court-circuit seulement si la loc est bonne ET le nav est déjà prêt (≠600).
+    # Si nav_status=600, il faut appeler /global_locate même avec une bonne loc,
+    # car c'est le service qui fait passer le châssis de 600→601.
+    if loc is not None and loc >= target and nav_status_now != 600:
         return True, snap
     service, _ = await ros_call_service_first(
         [(name, {}) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
@@ -504,13 +508,16 @@ async def ensure_global_localization(
     )
     if not service:
         return False, snap
+    # Délai minimum pour laisser le châssis traiter /global_locate et mettre à jour nav_status
+    await asyncio.sleep(3.0)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
         await asyncio.sleep(1.0)
         snap = await fetch_robot_snapshot(timeout=5.0)
         loc = snap.get("localization_percent")
-        if loc is not None and loc >= target:
+        nav = int(snap.get("nav_status") or 0)
+        if loc is not None and loc >= target and nav != 600:
             return True, snap
     return False, snap
 

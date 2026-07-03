@@ -49,7 +49,12 @@ POINTS_FILE = DATA_DIR / "points.json"
 DEFAULT_HOST = "10.42.0.1"
 DEFAULT_PORT = 9090
 DEFAULT_BACKEND_PORT = 8000
+DEFAULT_BACKEND_TEST_PORT = 8001
 DEFAULT_ADB_SERIAL = "172.16.0.194:5555"
+# IP eth0 interne du châssis ROS — rosbridge oui, backend HTTP Termux non
+CHASSIS_IP_PREFIX = "192.168.20."
+DEBUG_LOG_PATH = ROOT / "debug-952273.log"
+DEBUG_SESSION_ID = "952273"
 
 TELEOP_SPEED = 0.15           # m/s — vitesse forward (faible pour sécurité)
 TELEOP_DURATION = 0.8         # s   — durée de l'impulsion
@@ -64,6 +69,32 @@ TTS_INTER_TRIAL = 2.5         # s   — laisser le TTS terminer avant mesure sui
 
 TOUR_POLL_INTERVAL = 20.0     # s   — intervalle de polling statut visite
 TOUR_TIMEOUT = 3600.0         # s   — timeout max par essai de visite (60 min)
+
+
+def _agent_debug_log(
+    location: str,
+    message: str,
+    data: dict | None = None,
+    *,
+    hypothesis_id: str = "",
+    run_id: str = "pre-fix",
+) -> None:
+    # #region agent log
+    try:
+        payload = {
+            "sessionId": DEBUG_SESSION_ID,
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": int(time.time() * 1000),
+        }
+        with DEBUG_LOG_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+    # #endregion
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -302,6 +333,7 @@ async def wait_nav_done(ws, timeout: float = NAV_TIMEOUT) -> tuple[int, float]:
     """Attend nav_status 603 (arrivé) ou 604 (erreur). Retourne (code, durée_s)."""
     t0 = time.time()
     deadline = t0 + timeout
+    saw_navigating = False
     while time.time() < deadline:
         msg = await ws_recv(ws, timeout=min(1.5, deadline - time.time()))
         topic = msg.get("topic", "")
@@ -312,12 +344,21 @@ async def wait_nav_done(ws, timeout: float = NAV_TIMEOUT) -> tuple[int, float]:
                 code = int(str(data.get("data", "-1")).strip())
             except ValueError:
                 continue
+            if code == 602:
+                saw_navigating = True
             if code in (603, 604):
+                # Ignorer un 603 « stale » (reste d'une nav précédente) sans phase 602
+                if code == 603 and not saw_navigating:
+                    continue
                 return code, time.time() - t0
 
         elif topic == "/robot_status":
             nav = data.get("nav_status", -1)
+            if nav == 602:
+                saw_navigating = True
             if nav in (603, 604):
+                if nav == 603 and not saw_navigating:
+                    continue
                 return nav, time.time() - t0
 
     return -1, time.time() - t0  # -1 = timeout
@@ -356,6 +397,7 @@ async def _nav_send_goal(ws, x: float, y: float, theta: float) -> None:
 async def nav_reset_to_away(ws, away_coords: tuple, away_name: str) -> None:
     """Navigate vers une position 'loin' non comptée pour repositionner le robot avant chaque essai."""
     print(f"    [reset→{away_name}] ...", end=" ", flush=True)
+    await drain(ws, n=20, timeout=0.15)
     await _nav_send_goal(ws, *away_coords)
     code, elapsed = await wait_nav_done(ws, timeout=60.0)
     print(f"{'OK' if code == 603 else '?'} ({elapsed:.1f}s)")
@@ -364,6 +406,7 @@ async def nav_reset_to_away(ws, away_coords: tuple, away_name: str) -> None:
 
 async def nav_s1_trial(ws, x: float, y: float, theta: float, idx: int) -> dict:
     print(f"    S1 essai {idx}: /navi_goal ({x:.2f}, {y:.2f}, θ={theta:.2f}) ...", end=" ", flush=True)
+    await drain(ws, n=20, timeout=0.15)
     await _nav_send_goal(ws, x, y, theta)
     code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT)
     success = code == 603
@@ -384,6 +427,7 @@ async def nav_s3_trial(ws, poi_name: str, poi_id: str, idx: int) -> dict:
         await asyncio.sleep(0.3)
         await drain(ws, n=5, timeout=0.2)
 
+    await drain(ws, n=20, timeout=0.15)
     # Tentative 1 : nom lisible ("CNC ROUTEUR")
     await _fire("/tag_manager/navi", {"name": poi_name, "tag_name": poi_name})
     code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT)
@@ -600,6 +644,103 @@ def _http_post(url: str, timeout: float = 15.0) -> dict:
         return {"error": str(exc), "ok": False}
 
 
+def _backend_health_ok(host: str, port: int, timeout: float = 3.0) -> bool:
+    resp = _http_get(f"http://{host}:{port}/api/health", timeout=timeout)
+    ok = "error" not in resp and resp.get("status") == "ok"
+    _agent_debug_log(
+        "collect_paper_data.py:_backend_health_ok",
+        "backend health probe",
+        {"host": host, "port": port, "ok": ok, "resp_keys": list(resp.keys())[:6]},
+        hypothesis_id="H1",
+    )
+    return ok
+
+
+def resolve_backend_base(
+    backend_host: str | None,
+    backend_port: int | None,
+    robot_host: str,
+) -> tuple[str, str, int, str]:
+    """Retourne (base_url, host, port, note) pour l'API REST Termux (pas le châssis ROS)."""
+    candidates: list[tuple[str, int, str]] = []
+
+    if backend_host:
+        port = backend_port or DEFAULT_BACKEND_PORT
+        candidates.append((backend_host, port, "argument --backend-host"))
+    else:
+        if not robot_host.startswith(CHASSIS_IP_PREFIX):
+            for port in filter(None, (backend_port, DEFAULT_BACKEND_TEST_PORT, DEFAULT_BACKEND_PORT)):
+                candidates.append((robot_host, port, f"--host {robot_host}"))
+        else:
+            _agent_debug_log(
+                "collect_paper_data.py:resolve_backend_base",
+                "robot host looks like chassis IP — skipping for HTTP",
+                {"robot_host": robot_host},
+                hypothesis_id="H1",
+            )
+        candidates.extend([
+            ("127.0.0.1", DEFAULT_BACKEND_TEST_PORT, "ADB forward test (127.0.0.1:8001)"),
+            ("127.0.0.1", DEFAULT_BACKEND_PORT, "ADB forward principal (127.0.0.1:8000)"),
+            ("localhost", DEFAULT_BACKEND_TEST_PORT, "ADB forward test (localhost:8001)"),
+            ("localhost", DEFAULT_BACKEND_PORT, "ADB forward principal (localhost:8000)"),
+        ])
+
+    seen: set[tuple[str, int]] = set()
+    for host, port, note in candidates:
+        key = (host, port)
+        if key in seen:
+            continue
+        seen.add(key)
+        if _backend_health_ok(host, port):
+            base = f"http://{host}:{port}"
+            _agent_debug_log(
+                "collect_paper_data.py:resolve_backend_base",
+                "backend resolved",
+                {"base": base, "via": note, "robot_host": robot_host},
+                hypothesis_id="H1",
+            )
+            return base, host, port, note
+
+    if backend_host:
+        host = backend_host
+        port = backend_port or DEFAULT_BACKEND_PORT
+        note = "fallback explicite --backend-host"
+    elif robot_host.startswith(CHASSIS_IP_PREFIX):
+        host = "127.0.0.1"
+        port = backend_port or DEFAULT_BACKEND_TEST_PORT
+        note = "fallback localhost (châssis ROS en --host)"
+    else:
+        host = robot_host
+        port = backend_port or DEFAULT_BACKEND_PORT
+        note = "fallback --host"
+
+    base = f"http://{host}:{port}"
+    _agent_debug_log(
+        "collect_paper_data.py:resolve_backend_base",
+        "no healthy backend found",
+        {"fallback": base, "robot_host": robot_host, "backend_host": backend_host},
+        hypothesis_id="H1",
+    )
+    return base, host, port, note
+
+
+def _try_relocalize(base: str) -> bool:
+    resp = _http_post(f"{base}/api/robot/relocalize", timeout=20.0)
+    ok = bool(resp.get("ok"))
+    _agent_debug_log(
+        "collect_paper_data.py:_try_relocalize",
+        "relocalize API",
+        {"ok": ok, "error": resp.get("error"), "message": resp.get("message")},
+        hypothesis_id="H5",
+    )
+    if ok:
+        print("  [INFO] Relocalisation automatique lancée via API...")
+        return True
+    err = resp.get("error", "échec inconnu")
+    print(f"  [WARN] Relocalisation API refusée : {err}")
+    return False
+
+
 def _tour_stop(base: str) -> None:
     """Stop any running tour (best-effort, non-fatal)."""
     _http_post(f"{base}/api/tour/stop", timeout=10.0)
@@ -611,9 +752,74 @@ def _tour_is_running(base: str) -> bool:
     return st.get("state") in ("running", "navigating", "speaking", "returning")
 
 
-async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
-    base = f"http://{host}:{backend_port}"
+async def _wait_for_localization(
+    base: str,
+    min_pct: float = 60.0,
+    auto_wait: float = 45.0,
+    *,
+    try_relocalize: bool = True,
+) -> bool:
+    """Poll /api/robot/status until localized or auto_wait seconds pass.
+
+    Returns True when localization_percent >= min_pct.
+    Prints progress every 5 s during the auto-wait window.
+    """
+    relaunch_done = False
+    deadline = time.time() + auto_wait
+    while time.time() < deadline:
+        st = _http_get(f"{base}/api/robot/status", timeout=8.0)
+        loc = float(st.get("localization_percent") or 0.0)
+        connected = bool(st.get("connected"))
+        _agent_debug_log(
+            "collect_paper_data.py:_wait_for_localization",
+            "robot status poll",
+            {
+                "loc_pct": loc,
+                "connected": connected,
+                "nav_status": st.get("nav_status"),
+                "remaining_s": int(deadline - time.time()),
+            },
+            hypothesis_id="H2",
+        )
+        if loc >= min_pct:
+            print(f"  [OK] Localisation : {loc:.0f}% (seuil {min_pct:.0f}%)")
+            return True
+        if try_relocalize and not relaunch_done and loc < min_pct and connected:
+            relaunch_done = True
+            _try_relocalize(base)
+            deadline = time.time() + auto_wait
+        remaining = int(deadline - time.time())
+        print(f"  [attente] Localisation {loc:.0f}% < {min_pct:.0f}% — encore {remaining}s ...", end="\r")
+        await asyncio.sleep(5.0)
+    print()  # newline après les \r
+    return False
+
+
+async def phase_tour(
+    backend_host: str | None,
+    backend_port: int | None,
+    robot_host: str,
+    n_trials: int,
+) -> dict:
+    base, bh, bport, via = resolve_backend_base(backend_host, backend_port, robot_host)
     print(f"\n[Phase tour] Visite guidée complète — {n_trials} essai(s) via {base}")
+    if robot_host.startswith(CHASSIS_IP_PREFIX) and not backend_host:
+        print(
+            "  [INFO] --host pointe le châssis ROS (192.168.20.x) — "
+            "le backend HTTP est sur la tablette Termux, pas sur le robot."
+        )
+    print(f"  [INFO] Backend résolu via : {via}")
+
+    if not _backend_health_ok(bh, bport):
+        print("  [ERREUR] Backend CYBEL injoignable.")
+        print("  >> Sur le PC : .\\scripts\\kiosk_test.ps1 reparer")
+        print("  >> Ou : python scripts/collect_paper_data.py --phase tour \\")
+        print("         --host 192.168.20.22 --backend-host localhost --backend-port 8001")
+        return {
+            "tour_skipped": True,
+            "reason": "backend_unreachable",
+            "tour_backend_url": base,
+        }
 
     # Recharger le tour depuis le disque (prend en compte return_point = POINT-RECHARGE)
     reload_resp = _http_post(f"{base}/api/tour/reload")
@@ -639,6 +845,23 @@ async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
                 _tour_stop(base)
         else:
             print(f"\n  Essai 1/{n_trials} — démarrage de la visite...")
+
+        # --- Vérification localisation avant chaque essai ---
+        print(f"  Vérification localisation (45s max)...")
+        loc_ok = await _wait_for_localization(base)
+        if not loc_ok:
+            print("  [!!] Robot non localisé après 45s d'attente automatique.")
+            print("       Cause probable : le robot a dérivé ou la carte est perdue.")
+            print("       → Sur la tablette CYBEL : appuyez sur 'Relocaliser', attendez ≥60%.")
+            input("       → Puis appuyez sur ENTRÉE une fois relocalisé ... ")
+            loc_ok = await _wait_for_localization(base, auto_wait=30.0)
+            if not loc_ok:
+                st = _http_get(f"{base}/api/robot/status")
+                loc_val = float(st.get("localization_percent") or 0.0)
+                err = f"localisation insuffisante ({loc_val:.0f}%)"
+                print(f"  [ÉCHEC] {err} — essai annulé")
+                results.append({"success": False, "error": err, "elapsed_s": 0.0})
+                continue
 
         t0 = time.time()
 
@@ -725,6 +948,7 @@ async def phase_tour(host: str, backend_port: int, n_trials: int) -> dict:
         "tour_completion_rate_pct": rate_pct,
         "tour_results": results,
         "tour_session_duration_h": round(session_h, 2),
+        "tour_backend_url": base,
     }
 
 
@@ -789,6 +1013,8 @@ async def run_async(args) -> dict:
     metrics: dict = {
         "collected_at": datetime.now().isoformat(),
         "robot_host": args.host,
+        "backend_host": args.backend_host or "(auto)",
+        "backend_port": args.backend_port,
         "phases_run": sorted(phases),
     }
 
@@ -840,13 +1066,19 @@ async def run_async(args) -> dict:
     if "tour" in phases:
         input(
             "\n  ⚠  Phase visite guidée : assurez-vous que :\n"
-            "       1. Le backend CYBEL tourne sur Termux (port 8000)\n"
+            "       1. Le backend CYBEL tourne sur Termux (port 8000 ou 8001)\n"
             "       2. Le robot est localisé et la carte est chargée\n"
             "       3. Le robot est libre de ses mouvements dans le labo\n"
+            "     Si USB branché : .\\scripts\\kiosk_test.ps1 reparer avant de continuer.\n"
             "     Appuyez sur ENTRÉE pour lancer la visite complète ... "
         )
         metrics.update(
-            await phase_tour(args.host, args.backend_port, n_trials=args.tour_trials)
+            await phase_tour(
+                args.backend_host,
+                args.backend_port,
+                args.host,
+                n_trials=args.tour_trials,
+            )
         )
 
     # Sauvegarde
@@ -868,14 +1100,18 @@ Exemples :
   python scripts/collect_paper_data.py --host 192.168.20.22 --teleop-trials 10 --nav-trials 5
   python scripts/collect_paper_data.py --phase rosapi --host 10.42.0.1
   python scripts/collect_paper_data.py --phase tts --adb-serial 172.16.0.194:5555
-  python scripts/collect_paper_data.py --phase tour --host 192.168.20.22 --tour-trials 3
+  python scripts/collect_paper_data.py --phase tour --host 192.168.20.22 --backend-host localhost --backend-port 8001 --tour-trials 3
         """,
     )
     parser.add_argument("--host", default=DEFAULT_HOST,
-                        help=f"IP rosbridge et backend (défaut: {DEFAULT_HOST})")
+                        help=f"IP rosbridge robot (défaut: {DEFAULT_HOST}). "
+                             f"Ne pas utiliser {CHASSIS_IP_PREFIX}x pour le backend HTTP.")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--backend-port", type=int, default=DEFAULT_BACKEND_PORT,
-                        help=f"Port HTTP du backend CYBEL (défaut: {DEFAULT_BACKEND_PORT})")
+    parser.add_argument("--backend-host", default=None,
+                        help="IP du backend Termux (tablette). Défaut : auto (localhost:8001/8000 via ADB)")
+    parser.add_argument("--backend-port", type=int, default=None,
+                        help=f"Port HTTP backend (défaut : auto — test {DEFAULT_BACKEND_TEST_PORT}, "
+                             f"principal {DEFAULT_BACKEND_PORT})")
     parser.add_argument("--teleop-trials", type=int, default=10, metavar="N",
                         help="Nombre d'essais téléopération (défaut: 10)")
     parser.add_argument("--nav-trials", type=int, default=5, metavar="N",

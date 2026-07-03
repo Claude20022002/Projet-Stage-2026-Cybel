@@ -1,6 +1,8 @@
 {
-  "collected_at": "2026-07-02T12:26:45.739152",
-  "robot_host": "localhost",
+  "collected_at": "2026-07-02T15:31:30.270590",
+  "robot_host": "192.168.20.22",
+  "backend_host": "(auto)",
+  "backend_port": null,
   "phases_run": [
     "tour"
   ],
@@ -10,19 +12,20 @@
   "tour_results": [
     {
       "success": false,
-      "error": "timed out",
+      "elapsed_s": 14681.4,
+      "error": "timeout 60 min"
+    },
+    {
+      "success": false,
+      "error": "localisation insuffisante (0%)",
       "elapsed_s": 0.0
     },
     {
       "success": false,
-      "error": "{\"ok\":false,\"error\":\"Une visite est déjà en cours\"}",
-      "elapsed_s": 0.0
-    },
-    {
-      "success": false,
-      "error": "{\"ok\":false,\"error\":\"Une visite est déjà en cours\"}",
+      "error": "localisation insuffisante (0%)",
       "elapsed_s": 0.0
     }
   ],
-  "tour_session_duration_h": 0.02
+  "tour_session_duration_h": 7.11,
+  "tour_backend_url": "http://127.0.0.1:8001"
 }
