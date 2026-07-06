@@ -1,31 +1,70 @@
 {
-  "collected_at": "2026-07-02T15:31:30.270590",
-  "robot_host": "192.168.20.22",
+  "collected_at": "2026-07-03T13:20:54.394853",
+  "robot_host": "10.42.0.1",
   "backend_host": "(auto)",
   "backend_port": null,
   "phases_run": [
-    "tour"
+    "nav"
   ],
-  "tour_trials": 3,
-  "tour_successes": 0,
-  "tour_completion_rate_pct": 0.0,
-  "tour_results": [
-    {
-      "success": false,
-      "elapsed_s": 14681.4,
-      "error": "timeout 60 min"
-    },
-    {
-      "success": false,
-      "error": "localisation insuffisante (0%)",
-      "elapsed_s": 0.0
-    },
-    {
-      "success": false,
-      "error": "localisation insuffisante (0%)",
-      "elapsed_s": 0.0
-    }
-  ],
-  "tour_session_duration_h": 7.11,
-  "tour_backend_url": "http://127.0.0.1:8001"
+  "nav_poi_target": "CNC ROUTEUR",
+  "nav_s1": {
+    "trials": 3,
+    "successes": 3,
+    "success_rate_pct": 100.0,
+    "avg_time_s": 42.5,
+    "avg_recovery_s": null,
+    "results": [
+      {
+        "trial": 1,
+        "strategy": "S1",
+        "success": true,
+        "nav_status_final": 603,
+        "elapsed_s": 40.0
+      },
+      {
+        "trial": 2,
+        "strategy": "S1",
+        "success": true,
+        "nav_status_final": 603,
+        "elapsed_s": 40.9
+      },
+      {
+        "trial": 3,
+        "strategy": "S1",
+        "success": true,
+        "nav_status_final": 603,
+        "elapsed_s": 46.5
+      }
+    ]
+  },
+  "nav_s3": {
+    "trials": 3,
+    "successes": 0,
+    "success_rate_pct": 0.0,
+    "avg_time_s": null,
+    "avg_recovery_s": 150.0,
+    "results": [
+      {
+        "trial": 1,
+        "strategy": "S3",
+        "success": false,
+        "nav_status_final": -1,
+        "elapsed_s": 150.0
+      },
+      {
+        "trial": 2,
+        "strategy": "S3",
+        "success": false,
+        "nav_status_final": -1,
+        "elapsed_s": 150.0
+      },
+      {
+        "trial": 3,
+        "strategy": "S3",
+        "success": false,
+        "nav_status_final": -1,
+        "elapsed_s": 150.0
+      }
+    ]
+  }
 }

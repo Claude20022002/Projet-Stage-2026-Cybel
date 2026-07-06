@@ -61,7 +61,7 @@ TELEOP_DURATION = 0.8         # s   — durée de l'impulsion
 TELEOP_POSE_THRESHOLD = 0.04  # m   — déplacement minimal pour considérer succès
 TELEOP_INTER_TRIAL = 4.0      # s   — pause entre essais (robot se stabilise)
 
-NAV_TIMEOUT = 60              # s   — timeout max par essai de navigation
+NAV_TIMEOUT = 90              # s   — timeout max par essai de navigation
 NAV_INTER_TRIAL = 6.0         # s   — pause entre essais (repositionnement)
 
 TTS_TEXT = "Bonjour"          # texte court pour minimiser la durée du test
@@ -69,6 +69,9 @@ TTS_INTER_TRIAL = 2.5         # s   — laisser le TTS terminer avant mesure sui
 
 TOUR_POLL_INTERVAL = 20.0     # s   — intervalle de polling statut visite
 TOUR_TIMEOUT = 3600.0         # s   — timeout max par essai de visite (60 min)
+
+# URL rosbridge active — initialisée dans run_async, utilisée par wait_nav_done
+_ROSBRIDGE_URL: str = ""
 
 
 def _agent_debug_log(
@@ -102,7 +105,10 @@ def _agent_debug_log(
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def ws_send(ws, msg: dict) -> None:
-    await ws.send(json.dumps(msg))
+    try:
+        await ws.send(json.dumps(msg))
+    except Exception:
+        pass  # WebSocket morte — on ignore silencieusement
 
 
 async def ws_call(ws, service: str, args: dict | None = None, timeout: float = 8.0) -> dict:
@@ -112,12 +118,18 @@ async def ws_call(ws, service: str, args: dict | None = None, timeout: float = 8
     req_id = f"call_{service.replace('/', '_')}_{int(time.time() * 1000)}"
     await ws_send(ws, {"op": "call_service", "id": req_id, "service": service, "args": args})
     deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            raw = await asyncio.wait_for(ws.recv(), timeout=min(2.0, deadline - time.time()))
-        except asyncio.TimeoutError:
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
             break
-        data = json.loads(raw)
+        try:
+            raw = await asyncio.wait_for(ws.recv(), timeout=min(2.0, max(0.05, remaining)))
+        except (asyncio.TimeoutError, TimeoutError, asyncio.CancelledError, Exception):
+            break
+        try:
+            data = json.loads(raw)
+        except Exception:
+            break
         if data.get("id") == req_id or (
             data.get("op") == "service_response" and data.get("service") == service
         ):
@@ -141,10 +153,11 @@ async def ws_publish(ws, topic: str, msg_type: str, msg: dict) -> None:
 
 
 async def ws_recv(ws, timeout: float = 2.0) -> dict:
+    """Lit un message WebSocket avec timeout — retourne {} si timeout ou erreur."""
     try:
-        raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
+        raw = await asyncio.wait_for(ws.recv(), timeout=max(0.05, timeout))
         return json.loads(raw)
-    except (asyncio.TimeoutError, Exception):
+    except (asyncio.TimeoutError, TimeoutError, asyncio.CancelledError, Exception):
         return {}
 
 
@@ -152,8 +165,8 @@ async def drain(ws, n: int = 10, timeout: float = 0.3) -> None:
     """Vider le buffer de réception."""
     for _ in range(n):
         try:
-            await asyncio.wait_for(ws.recv(), timeout=timeout)
-        except (asyncio.TimeoutError, Exception):
+            await asyncio.wait_for(ws.recv(), timeout=max(0.05, timeout))
+        except (asyncio.TimeoutError, TimeoutError, asyncio.CancelledError, Exception):
             break
 
 
@@ -329,39 +342,109 @@ async def phase_teleop(ws, n_trials: int = 10) -> dict:
 # Phase 3 — Navigation S1 (coords) vs S3 (POI)
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def wait_nav_done(ws, timeout: float = NAV_TIMEOUT) -> tuple[int, float]:
-    """Attend nav_status 603 (arrivé) ou 604 (erreur). Retourne (code, durée_s)."""
+async def wait_nav_done(
+    ws,
+    timeout: float = NAV_TIMEOUT,
+    goal_xy: tuple[float, float] | None = None,
+    arrive_radius_m: float = 0.8,
+) -> tuple[int, float]:
+    """Attend nav_status 603/604 ou détecte l'arrivée via vitesse+proximité cible.
+
+    Utilise la connexion partagée `ws` (déjà souscrite aux topics nav dans phase_nav).
+    ws_recv utilise asyncio.wait_for — CancelledError et TimeoutError sont capturées.
+    """
     t0 = time.time()
     deadline = t0 + timeout
     saw_navigating = False
-    while time.time() < deadline:
-        msg = await ws_recv(ws, timeout=min(1.5, deadline - time.time()))
+    pose_x: float | None = None
+    pose_y: float | None = None
+    last_vx = last_vy = 0.0
+    stopped_since: float | None = None
+    last_msg_time = time.time()
+    silence_start: float | None = None
+
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            break
+        msg = await ws_recv(ws, timeout=min(1.5, max(0.05, remaining)))
         topic = msg.get("topic", "")
         data = msg.get("msg", {})
+
+        if topic:
+            last_msg_time = time.time()
+            silence_start = None
+        else:
+            if silence_start is None:
+                silence_start = time.time()
+            elif (time.time() - silence_start) >= 5.0:
+                break
 
         if topic == "/navi_status":
             try:
                 code = int(str(data.get("data", "-1")).strip())
             except ValueError:
-                continue
-            if code == 602:
-                saw_navigating = True
-            if code in (603, 604):
-                # Ignorer un 603 « stale » (reste d'une nav précédente) sans phase 602
-                if code == 603 and not saw_navigating:
-                    continue
-                return code, time.time() - t0
+                pass
+            else:
+                if code == 602:
+                    saw_navigating = True
+                    stopped_since = None
+                if code in (603, 604):
+                    if code == 603 and not saw_navigating:
+                        pass
+                    else:
+                        return code, time.time() - t0
 
         elif topic == "/robot_status":
             nav = data.get("nav_status", -1)
+            vel = data.get("velocity") or [0.0, 0.0]
+            if isinstance(vel, (list, tuple)) and len(vel) >= 2:
+                last_vx, last_vy = float(vel[0]), float(vel[1])
+            if abs(last_vx) > 0.05 or abs(last_vy) > 0.05:
+                saw_navigating = True
+                stopped_since = None
+            elif saw_navigating and stopped_since is None:
+                stopped_since = time.time()
             if nav == 602:
                 saw_navigating = True
+                stopped_since = None
             if nav in (603, 604):
                 if nav == 603 and not saw_navigating:
-                    continue
-                return nav, time.time() - t0
+                    pass
+                else:
+                    return nav, time.time() - t0
 
-    return -1, time.time() - t0  # -1 = timeout
+        elif topic == "/robot_pose":
+            new_x = data.get("x")
+            new_y = data.get("y")
+            if new_x is not None and new_y is not None and pose_x is not None and pose_y is not None:
+                dx = abs(new_x - pose_x)
+                dy = abs(new_y - pose_y)
+                if dx > 0.02 or dy > 0.02:
+                    saw_navigating = True
+                    stopped_since = None
+                elif saw_navigating and stopped_since is None and dx < 0.005 and dy < 0.005:
+                    stopped_since = time.time()
+            pose_x = new_x
+            pose_y = new_y
+
+        if goal_xy is not None and saw_navigating and pose_x is not None and pose_y is not None:
+            dist = math.sqrt((pose_x - goal_xy[0]) ** 2 + (pose_y - goal_xy[1]) ** 2)
+            if (
+                stopped_since is not None
+                and (time.time() - stopped_since) >= 1.0
+                and dist < arrive_radius_m
+            ):
+                return 603, time.time() - t0
+            if (time.time() - last_msg_time) >= 4.0 and dist < arrive_radius_m:
+                return 603, time.time() - t0
+
+    if saw_navigating and goal_xy is not None and pose_x is not None and pose_y is not None:
+        dist = math.sqrt((pose_x - goal_xy[0]) ** 2 + (pose_y - goal_xy[1]) ** 2)
+        if dist < arrive_radius_m:
+            return 603, time.time() - t0
+
+    return -1, time.time() - t0
 
 
 async def cancel_nav_full(ws) -> None:
@@ -399,7 +482,7 @@ async def nav_reset_to_away(ws, away_coords: tuple, away_name: str) -> None:
     print(f"    [reset→{away_name}] ...", end=" ", flush=True)
     await drain(ws, n=20, timeout=0.15)
     await _nav_send_goal(ws, *away_coords)
-    code, elapsed = await wait_nav_done(ws, timeout=60.0)
+    code, elapsed = await wait_nav_done(ws, timeout=90.0, goal_xy=(away_coords[0], away_coords[1]))
     print(f"{'OK' if code == 603 else '?'} ({elapsed:.1f}s)")
     await cancel_nav_full(ws)
 
@@ -408,14 +491,20 @@ async def nav_s1_trial(ws, x: float, y: float, theta: float, idx: int) -> dict:
     print(f"    S1 essai {idx}: /navi_goal ({x:.2f}, {y:.2f}, θ={theta:.2f}) ...", end=" ", flush=True)
     await drain(ws, n=20, timeout=0.15)
     await _nav_send_goal(ws, x, y, theta)
-    code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT)
+    code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT, goal_xy=(x, y))
     success = code == 603
     print(f"{'✓' if success else '✗'}  nav_status={code} ({elapsed:.1f}s)")
     return {"trial": idx, "strategy": "S1", "success": success,
             "nav_status_final": code, "elapsed_s": round(elapsed, 1)}
 
 
-async def nav_s3_trial(ws, poi_name: str, poi_id: str, idx: int) -> dict:
+async def nav_s3_trial(
+    ws,
+    poi_name: str,
+    poi_id: str,
+    idx: int,
+    goal_xy: tuple[float, float] | None = None,
+) -> dict:
     print(f"    S3 essai {idx}: /tag_manager/navi '{poi_name}' ...", end=" ", flush=True)
 
     # Ne PAS utiliser ws_call : il monopolise ws.recv() et jette les messages
@@ -430,13 +519,13 @@ async def nav_s3_trial(ws, poi_name: str, poi_id: str, idx: int) -> dict:
     await drain(ws, n=20, timeout=0.15)
     # Tentative 1 : nom lisible ("CNC ROUTEUR")
     await _fire("/tag_manager/navi", {"name": poi_name, "tag_name": poi_name})
-    code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT)
+    code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT, goal_xy=goal_xy)
 
     if code == -1:
         # Tentative 2 : ID interne du marqueur ("m1")
         await cancel_nav_full(ws)
         await _fire("/tag_manager/navi", {"name": poi_id, "tag_name": poi_id})
-        code2, elapsed2 = await wait_nav_done(ws, timeout=30.0)
+        code2, elapsed2 = await wait_nav_done(ws, timeout=30.0, goal_xy=goal_xy)
         elapsed += elapsed2
         if code2 != -1:
             code = code2
@@ -444,7 +533,7 @@ async def nav_s3_trial(ws, poi_name: str, poi_id: str, idx: int) -> dict:
             # Tentative 3 : fallback /poi
             await cancel_nav_full(ws)
             await _fire("/poi", {"name": "navi", "point_name": poi_name, "command": "go"})
-            code3, elapsed3 = await wait_nav_done(ws, timeout=30.0)
+            code3, elapsed3 = await wait_nav_done(ws, timeout=30.0, goal_xy=goal_xy)
             elapsed += elapsed3
             code = code3
 
@@ -501,13 +590,16 @@ async def phase_nav(ws, n_trials: int = 5) -> dict:
     if away_coords:
         print(f"  POI reset  : '{away_name}'  coords : ({away_coords[0]:.2f}, {away_coords[1]:.2f})")
 
-    # Activer mode automatique + subscribe nav_status
+    # Activer mode automatique + subscribe nav_status + pose (pour détection arrivée)
     print("  Activation mode auto (/change_location_mode mode=1)...")
     await ws_call(ws, "/change_location_mode", {"mode": 1}, timeout=5.0)
     await ws_subscribe(ws, "/navi_status", throttle_ms=300)
-    await ws_subscribe(ws, "/robot_status", throttle_ms=500)
+    await ws_subscribe(ws, "/robot_status", throttle_ms=300)
+    await ws_subscribe(ws, "/robot_pose", throttle_ms=300)
     await drain(ws)
     await asyncio.sleep(1.5)
+
+    poi_goal_xy = (s1_coords[0], s1_coords[1])
 
     # ── S1 ──
     print(f"\n  — Stratégie S1 : coordonnées /navi_goal —")
@@ -526,7 +618,7 @@ async def phase_nav(ws, n_trials: int = 5) -> dict:
     for i in range(n_trials):
         if away_coords:
             await nav_reset_to_away(ws, away_coords, away_name)
-        r = await nav_s3_trial(ws, poi_name, poi_id or poi_name, idx=i + 1)
+        r = await nav_s3_trial(ws, poi_name, poi_id or poi_name, idx=i + 1, goal_xy=poi_goal_xy)
         s3_results.append(r)
         await cancel_nav_full(ws)
         await asyncio.sleep(NAV_INTER_TRIAL)
@@ -755,43 +847,57 @@ def _tour_is_running(base: str) -> bool:
 async def _wait_for_localization(
     base: str,
     min_pct: float = 60.0,
-    auto_wait: float = 45.0,
+    auto_wait: float = 60.0,
     *,
     try_relocalize: bool = True,
 ) -> bool:
-    """Poll /api/robot/status until localized or auto_wait seconds pass.
+    """Poll /api/robot/status jusqu'à ce que loc >= min_pct ET nav_status != 600.
 
-    Returns True when localization_percent >= min_pct.
-    Prints progress every 5 s during the auto-wait window.
+    nav_status=600 signifie "châssis non prêt à naviguer" côté firmware.
+    Un loc% élevé ne suffit pas : il faut que /global_locate ait été appelé
+    pour que le châssis passe de 600 → 601 (prêt).
+    Cette situation se produit systématiquement après un redémarrage du backend.
     """
-    relaunch_done = False
+    relocalize_done = False
     deadline = time.time() + auto_wait
     while time.time() < deadline:
         st = _http_get(f"{base}/api/robot/status", timeout=8.0)
         loc = float(st.get("localization_percent") or 0.0)
+        nav = int(st.get("nav_status") or 0)
         connected = bool(st.get("connected"))
-        _agent_debug_log(
-            "collect_paper_data.py:_wait_for_localization",
-            "robot status poll",
-            {
-                "loc_pct": loc,
-                "connected": connected,
-                "nav_status": st.get("nav_status"),
-                "remaining_s": int(deadline - time.time()),
-            },
-            hypothesis_id="H2",
-        )
-        if loc >= min_pct:
-            print(f"  [OK] Localisation : {loc:.0f}% (seuil {min_pct:.0f}%)")
-            return True
-        if try_relocalize and not relaunch_done and loc < min_pct and connected:
-            relaunch_done = True
-            _try_relocalize(base)
-            deadline = time.time() + auto_wait
+
+        # nav_status 600 = châssis non localisé (firmware), même si AMCL loc% est ok.
+        # 601 = prêt, 602 = en navigation, 603 = arrivé, 605 = en charge
+        nav_ready = nav not in (600, 0)
+
         remaining = int(deadline - time.time())
-        print(f"  [attente] Localisation {loc:.0f}% < {min_pct:.0f}% — encore {remaining}s ...", end="\r")
-        await asyncio.sleep(5.0)
-    print()  # newline après les \r
+        print(
+            f"  [attente] loc={loc:.0f}% nav={nav} {'OK' if nav_ready and loc>=min_pct else '...'}"
+            f" — encore {remaining}s",
+            end="\r",
+        )
+
+        if loc >= min_pct and nav_ready:
+            print(f"  [OK] Localisation {loc:.0f}%  nav_status={nav} (prêt)          ")
+            return True
+
+        # loc ok mais nav=600 → le /global_locate n'a pas été appelé.
+        # Appeler /api/robot/relocalize (qui appelle ensure_global_localization côté serveur).
+        if try_relocalize and not relocalize_done and connected:
+            if loc >= min_pct and nav == 600:
+                print(f"\n  [INFO] loc={loc:.0f}% ok mais nav_status=600 — relocalisation API...")
+                _try_relocalize(base)
+                relocalize_done = True
+                deadline = time.time() + auto_wait  # reset le timer
+            elif loc < min_pct and not relocalize_done:
+                print(f"\n  [INFO] loc={loc:.0f}% insuffisante — relocalisation API...")
+                _try_relocalize(base)
+                relocalize_done = True
+                deadline = time.time() + auto_wait
+
+        await asyncio.sleep(3.0)
+
+    print()
     return False
 
 
@@ -1007,7 +1113,9 @@ def print_paper_summary(m: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def run_async(args) -> dict:
+    global _ROSBRIDGE_URL
     url = f"ws://{args.host}:{args.port}"
+    _ROSBRIDGE_URL = url
     phases = set(args.phase) if args.phase else {"rosapi", "teleop", "nav", "tts"}
 
     metrics: dict = {

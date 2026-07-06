@@ -30,6 +30,11 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,calc}
 
+% Keep floats within sections and improve two-column float placement
+\usepackage[section]{placeins}
+\usepackage{stfloats}
+\usepackage{float}
+
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue!50!black}
 
 %% Tighten vertical space for 8-page limit
@@ -47,7 +52,7 @@
 \begin{document}
 
 \title{A Non-Destructive Reverse-Engineering Methodology for Closed Android-\ros{} Service Robots:\\
-Validation on the \cybel{} Case Study with Open \rosbridge{} Integration and an Edge Conversational Stack}
+Validation on the \cybel{} Case Study with Reconstructed \rosbridge{} Protocol and an Edge Interaction Layer}
 
 \author{
 \IEEEauthorblockN{Claudia LUSAMOTE KIMFUTA}
@@ -67,7 +72,7 @@ Commercial service robots often ship as closed Android-\ros{} systems: no public
 This paper's primary contribution is a \emph{reproducible, non-destructive reverse-engineering methodology} for such closed platforms, built around four testable hypotheses (H1--H4) about where the true protocol surface lives and how to verify it without vendor cooperation.
 We validate the methodology end-to-end on a single case study, \cybel{}, an open edge platform reconstructed from the CIOT TY1251D-03195 reception robot, a dual-processor system combining a \ros{} navigation chassis and an Android~7.1 head, without manufacturer documentation or support.
 The seven-phase pipeline combines network mapping, \rosbridge{}/\rosapi{} introspection, static APK analysis (JADX)~\cite{cybel_architecture}, passive MQTT observation, and field validation of \textbf{H4}: a successful \rosbridge{} transport acknowledgment does not guarantee motor execution.
-We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}), autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and an edge conversational layer (local knowledge engine, Android TTS bridge, guided-tour orchestration) offered as an open alternative to the vendor welcome application.
+We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}), autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and a deterministic edge interaction layer (keyword-based knowledge engine, Android TTS bridge, guided-tour orchestration) offered as an open, offline-capable alternative to the vendor welcome application.
 Runtime testing confirmed that named-POI navigation via the full \cybel{} pipeline (\texttt{/tag\_manager/navi} with \texttt{/poi} fallback, localization and auto-mode prerequisites) matches Deployment Tool reliability on map \texttt{laboV2}, whereas coordinate-only \texttt{/navi\_goal} alone showed recurrent field failures (``speaks but does not move'').
 We report a feature-level comparison against the vendor application and quantitative reverse-engineering effort metrics (APKs analyzed, topics/services discovered, elapsed time), in addition to field indicators (${<}100$\,ms local API latency, ${\sim}90\%$ \rosbridge{} session reliability).
 We discuss which parts of the methodology generalize to other closed Android-\ros{} robots and which remain vendor-specific.
@@ -82,7 +87,7 @@ Service robotics, reverse engineering, \ros{}, \rosbridge{}, embedded Android, h
 \section{Introduction}
 %==============================================================================
 
-Mobile service robots ship as closed Android--\ros{} stacks: no public SDK, no message schemas, mandatory vendor cloud blocking research customisation and locking owners to a single supplier for the hardware's lifetime.
+Mobile service robots ship as closed Android--\ros{} stacks with no public SDK, no message schemas, and mandatory vendor cloud services that block research customization and lock owners to a single supplier for the hardware's lifetime.
 
 \textbf{Problem.} Three structural obstacles compound reverse engineering: (i)~the chassis and Android head are independent computing environments bridged by an undocumented transport, so no single vantage point (network capture, APK alone) reveals the full command surface; (ii)~locked shells and brute-force lockout make white-box access unavailable; (iii)~a message \emph{accepted} at the software layer may not be \emph{executed} by the actuators, invalidating naive protocol fuzzing.
 Prior work addresses Android APK analysis~\cite{enck2014taintdroid} or network protocol RE~\cite{comparetti2009prospex} separately; neither targets the chassis/Android/cloud triad of service robots.
@@ -148,6 +153,7 @@ That line of work targets \emph{data exfiltration} inside a single app; our sett
 \subsection{ROSbridge and robotics middleware interoperability}
 \rosbridge{} was introduced to let non-\ros{} clients (web browsers, mobile apps) interact with a \ros{} graph over a JSON/WebSocket transport~\cite{crick2012rosbridge,rosbridge_suite}, and is normally deployed \emph{by} the system integrator who controls the \ros{} graph.
 Our situation is the inverse: \rosbridge{} is deployed by the vendor and we approach it as an \emph{unknown} client would, without access to the underlying node graph or message definitions, which is closer in spirit to black-box protocol reverse engineering~\cite{comparetti2009prospex} than to conventional \rosbridge{} integration.
+ROS security research~\cite{dieber2017security} documents vulnerabilities arising from the same pub/sub openness we exploit constructively in Section~\ref{sec:re}.
 
 \subsection{Vendor lock-in and platform openness}
 The tension between proprietary and open platform strategies in commercial hardware/software products has long been studied in the innovation-management literature~\cite{west2003open}; service robotics reproduces this tension at the level of a single physical product rather than an industry platform.
@@ -174,16 +180,16 @@ This paper's contribution is the missing piece: a methodology to \emph{establish
 
 The CIOT TY1251D-03195 combines:
 \begin{itemize}
-\item \textbf{Chassis:} Linux + \ros{} (Noetic/Melodic), SLAM, \texttt{move\_base}, LiDAR/RGBD, \rosbridge{}, MQTT broker.
+\item \textbf{Chassis:} Linux + \ros{}~\cite{quigley2009ros} (Noetic/Melodic), SLAM, \texttt{move\_base}, LiDAR/RGBD, \rosbridge{}, MQTT broker.
 \item \textbf{Head:} Android~7.1 (RK3399, 2\,GB RAM) - 15.6'' touchscreen, cameras, speakers, vendor apps.
 \end{itemize}
 
-\cybel{} never obtains shell access on the chassis (SSH locked; brute-force triggers lockout) a deliberate choice explained by principle P4 in Section~\ref{sec:re}, not a limitation discovered after the fact.
+\cybel{} never obtains shell access on the chassis (SSH locked; brute-force triggers lockout) --- a deliberate choice explained by principle P4 in Section~\ref{sec:re}, not a limitation discovered after the fact.
 Usable channels: WebSocket \rosbridge{} on port~9090 and MQTT on 1883 (observation only).
 
 \subsection{Triple network segment}
 
-Mapping revealed three distinct segments (Fig.~\ref{fig:network}), which is itself a first reverse-engineering result: nothing in the vendor documentation (there is none) indicates that the head and the chassis sit on different subnets.
+Mapping revealed three distinct segments (Fig.~\ref{fig:network}) --- a first reverse-engineering result in its own right: no vendor documentation exists, and nothing in the Android application code indicates that the head and the chassis sit on different subnets.
 
 \begin{figure}[!t]
 \centering
@@ -234,14 +240,14 @@ Mapping revealed three distinct segments (Fig.~\ref{fig:network}), which is itse
 \item \textbf{Lab Wi-Fi:} head \texttt{172.16.0.x} (DHCP); PC uses ADB for deployment.
 \end{itemize}
 
-Vendor packages identified via ADB: \texttt{com.ciot.welcomepatrol} (welcome UI), \texttt{com.ciot.sentrymove} (Deployment Tool), shared library \texttt{selfchassislibrary} treated as \emph{de facto} protocol specification after JADX audit the empirical basis for hypothesis H1.
+Vendor packages identified via ADB: \texttt{com.ciot.welcomepatrol} (welcome UI), \texttt{com.ciot.sentrymove} (Deployment Tool), shared library \texttt{selfchassislibrary} treated as \emph{de facto} protocol specification after JADX audit --- the empirical basis for hypothesis H1.
 
 %==============================================================================
 \section{Reverse Engineering Methodology}
 \label{sec:re}
 %==============================================================================
 
-This section is the core of the paper: it presents the methodology as a set of falsifiable hypotheses tested through a seven-phase pipeline, and explains \emph{why} each difficulty encountered is structural to closed Android--\ros{} robots rather than incidental to this particular unit.
+The methodology is structured as a set of falsifiable hypotheses tested through a seven-phase pipeline; Section~\ref{sec:re-difficulties} explains why each difficulty encountered is structural to closed Android--\ros{} robots rather than incidental to this particular unit.
 
 \subsection{Guiding principles}
 
@@ -249,7 +255,7 @@ This section is the core of the paper: it presents the methodology as a set of f
 \item Observe before publishing (passive MQTT/\rosbridge{} first) minimizes risk of damaging an undocumented, unowned-source system before its behavior is understood.
 \item Verify real effects, not transport acknowledgments rule \textbf{H4}: after a teleop publish, \texttt{/robot\_pose} must change before the command is considered validated.
 \item Triangulate independent sources of evidence: network traces, \rosapi{} introspection, decompiled APK, and field logs. A hypothesis is only accepted when at least two independent sources agree.
-\item Remain non-destructive: no firmware flash, no chassis root, no persistent modification of vendor partitions. This is both an ethical commitment (Section~\ref{sec:discussion}) and a practical one: destructive access on a single loaned/owned unit is not reproducible if it bricks the robot.
+\item Remain non-destructive: no firmware flash, no chassis root, no persistent modification of vendor partitions. This is both an ethical commitment (Section~\ref{sec:discussion}) and a practical one: destructive access on a single loaned or owned unit is not reproducible if it bricks the robot.
 \item Mock-first development: every SDK feature is built and unit-tested against a \texttt{MockRobot} before being exercised against \texttt{RealRobot}, decoupling software defects from hardware/protocol uncertainty.
 \end{enumerate}
 
@@ -322,8 +328,6 @@ The following difficulties are structural properties of closed Android--\ros{} s
 
 \textbf{Why H4 (transport $\neq$ execution) had to be formulated.} \rosbridge{} is a generic message router; it acknowledges anything that parses as a valid \ros{} message on an advertised topic, regardless of whether any node downstream actually consumes it meaningfully. On this chassis, a manual-mode safety gate (\texttt{control\_state==30}, Section~\ref{sec:proto}) silently drops teleop commands published before the gate is set, while \rosbridge{} still reports success. Any closed \ros{} robot with a safety or mode-gating layer between the message bus and actuation will reproduce this failure mode.
 
-\textbf{Why \rosbridge{} responds without motion.} Same mechanism as above, applied specifically to the WebSocket path: the JSON-RPC style response in \rosbridge{}'s protocol confirms message delivery to the \ros{} graph, not physical execution, because \rosbridge{} has no visibility past the topic it published to.
-
 \textbf{Why MQTT was a plausible but false lead (H2).} The chassis exposes an MQTT broker on port~1883, and MQTT is a common command-and-telemetry bus in commercial IoT/robotics stacks, making it a reasonable first hypothesis. JADX audit later showed the vendor uses MQTT purely as a one-way telemetry export (for fleet dashboards), with all control logic hard-wired to \rosbridge{}; without that audit, this would have appeared as an intermittent, unexplained non-responsiveness rather than a structurally closed channel.
 
 \textbf{Why multiple IPs appear for what looks like one robot.} The Android head and the \ros{} chassis are two independent Linux network stacks bridged by an internal Ethernet link (Fig.~\ref{fig:network}), and the head additionally joins the lab Wi-Fi for deployment. A robot marketed and documented as a single product is, at the network layer, at least two hosts; conflating the head's DHCP address with the chassis's static address is the single most common operator error we observed and is why we document all three segments explicitly rather than a single "robot IP."
@@ -337,16 +341,16 @@ The following difficulties are structural properties of closed Android--\ros{} s
 
 \subsection{Transport and client}
 
-\rosbridge{} v2 over WebSocket TCP~9090~\cite{crick2012rosbridge,rosbridge_suite}; JSON operations \texttt{subscribe}, \texttt{publish}, \texttt{advertise}, \texttt{call\_service}.
+\rosbridge{} v2 over WebSocket on TCP port~9090~\cite{crick2012rosbridge,rosbridge_suite}; JSON operations \texttt{subscribe}, \texttt{publish}, \texttt{advertise}, \texttt{call\_service}.
 Our \texttt{RosbridgeClient} (transport module of the \cybel{} SDK) uses three connection retries (20\,s timeout), 20\,s ping keepalive, and automatic reconnect.
 
 \subsection{Teleoperation}
 
-Manufacturer-confirmed topic:
+APK-confirmed topic (H1):
 \begin{center}
 \texttt{/cmd\_vel\_mux/input/teleop} \quad (\texttt{geometry\_msgs/Twist})
 \end{center}
-Sequence: \texttt{advertise} then periodic \texttt{publish} (${\sim}10$\,Hz).
+The command sequence is: \texttt{advertise} followed by periodic \texttt{publish} at ${\sim}10$\,Hz.
 Sentrymove ramps linear velocity $\pm 0.025$/100\,ms with $\omega_z \times 0.8$ scaling.
 
 \textbf{Gap E1:} early \cybel{} builds blocked teleop unless manual mode was active (\texttt{control\_state==30}); Sentrymove does not require this step because it always sets the mode implicitly on session start a vendor convention discoverable only via APK audit (H1), not via wire traffic alone.
@@ -409,7 +413,7 @@ This section presents \cybel{} strictly as the reference implementation used to 
 
 \textbf{Application:} FastAPI backend on PC (port~8000, \texttt{~/cybel}); Starlette \texttt{cybel\_lite.py} on Termux (port~8001, \texttt{~/cybel-test}) for autonomous POI kiosk.
 
-\textbf{Domain:} a \texttt{RobotBackend} protocol with \texttt{MockRobot}/\texttt{RealRobot} implementations 110 unit tests pass without the physical robot (principle P5).
+\textbf{Domain:} a \texttt{RobotBackend} protocol with \texttt{MockRobot}/\texttt{RealRobot} implementations; 110 unit tests pass without the physical robot (principle P5).
 
 \subsection{Edge deployment pattern}
 
@@ -419,7 +423,7 @@ The visitor session requires no PC after deployment (standalone Termux deploymen
 \subsection{Conversational layer}
 \label{sec:conv}
 
-The vendor \texttt{welcomepatrol} app couples Iflytek TTS via opaque IPC and a proprietary cloud knowledge API. \cybel{} offers an \emph{open, edge-only alternative}, whose scope we state precisely because the title places emphasis on it: the layer below is a validated set of primitives (speak, navigate, answer-from-local-knowledge) rather than a full dialogue system, and LLM-based reasoning over these primitives is future work (Section~\ref{sec:discussion}).
+The vendor \texttt{welcomepatrol} app couples Iflytek TTS via opaque IPC and a proprietary cloud knowledge API. \cybel{} offers an \emph{open, edge-only alternative}: the interaction layer below is a deterministic, keyword-based set of validated primitives (speak, navigate, answer-from-local-knowledge) rather than a full dialogue system, and LLM-based reasoning over these primitives is future work (Section~\ref{sec:discussion}).
 
 \begin{enumerate}[leftmargin=1.2em]
 \item \textbf{Input:} kiosk touch, operator text, or browser Web Speech API (PC only).
@@ -472,7 +476,7 @@ The speech module tries \ros{}, HTTP, ADB-from-PC, then local Termux broadcast a
 
 \subsubsection{Coordinate-only strategy (S1)}
 Publishing \texttt{/navi\_goal} with coordinates from a JSON knowledge base often failed in the field: robot spoke but \texttt{nav\_status} remained 601 (planner never entered 602), wrong destinations due to map drift, slow relocalization.
-Representative trace (session \texttt{tour\_20260623\_142601}): goal published, no 601$\rightarrow$602 transition.
+Representative trace (session \texttt{tour\_20260623\_142601}): goal published, \texttt{nav\_status} remained at 601 with no transition to 602 (navigation never engaged).
 
 \subsubsection{POI-reuse strategy (S3), testing H3}
 The vendor Deployment Tool (Sentrymove) navigates reliably via named POIs on map \texttt{laboV2}.
@@ -488,11 +492,12 @@ Field validation: guided tour of 10 configured stops on \texttt{laboV2} (9 effec
 
 \subsubsection{Navigation outcomes (S1 vs.\ S3)}
 
-Table~\ref{tab:navcompare} summarizes qualitative field outcomes aligned with the project's A/B kiosque comparison (\texttt{CybelVisitorKiosk} port~8000 vs.\ \texttt{CybelVisitorKioskTest} port~8001).
-Quantitative trials should be collected with \texttt{scripts/collect\_paper\_data.py --phase nav} (prerequisites enforced, stale-\texttt{nav\_status} guard).
+Table~\ref{tab:navcompare} summarizes qualitative field outcomes aligned with the project's A/B kiosk comparison (\texttt{CybelVisitorKiosk} port~8000 vs.\ \texttt{CybelVisitorKioskTest} port~8001); a controlled quantitative comparison (success rate, median time-to-602) is identified as near-term future work in Section~\ref{sec:discussion}.
+% TODO (pre-submission): replace Table~\ref{tab:navcompare} with quantitative S1/S3 results
+% (>=10 trials per strategy, full prerequisites: auto mode + localization >=60% + POI synced from Deployment Tool).
 
 \begin{table}[!t]
-\caption{Navigation strategies on laboV2 (qualitative field outcomes, June--July 2026)}
+\caption{Navigation strategies on laboV2 (qualitative field outcomes, June--July 2026; quantitative comparison pending)}
 \label{tab:navcompare}
 \centering
 \scriptsize
@@ -614,7 +619,8 @@ This work was conducted at HESTIM Engineering \& Business School under supervisi
 We thank the HESTIM robotics lab for robot access and field testing support.
 
 %==============================================================================
-\nocite{quigley2009ros,thrun2005probrob,bartneck2020hri,cybel2026}
+\nocite{cybel2026}
+\clearpage
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
