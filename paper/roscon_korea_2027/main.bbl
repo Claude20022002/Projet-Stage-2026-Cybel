@@ -65,11 +65,13 @@ B.~Kehoe, S.~Patil, P.~Abbeel, and K.~Goldberg, ``A survey of research on cloud
 
 \bibitem{ahn2022saycan}
 M.~Ahn \emph{et~al.}, ``Do as {I} can, not as {I} say: Grounding language in
-  robotic affordances,'' \emph{arXiv preprint arXiv:2204.01691}, 2022.
+  robotic affordances,'' in \emph{6th Conference on Robot Learning (CoRL)},
+  2022.
 
 \bibitem{driess2023paleme}
 D.~Driess \emph{et~al.}, ``{PaLM-E}: An embodied multimodal language model,''
-  \emph{arXiv preprint arXiv:2303.03378}, 2023.
+  in \emph{Proceedings of the 40th International Conference on Machine Learning
+  (ICML)}, 2023.
 
 \bibitem{cybel_tts}
 C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: {TTS} channel investigation

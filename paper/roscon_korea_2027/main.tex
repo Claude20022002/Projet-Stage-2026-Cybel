@@ -87,7 +87,7 @@ Service robotics, reverse engineering, \ros{}, \rosbridge{}, embedded Android, h
 \section{Introduction}
 %==============================================================================
 
-Mobile service robots ship as closed Android--\ros{} stacks with no public SDK, no message schemas, and mandatory vendor cloud services that block research customization and lock owners to a single supplier for the hardware's lifetime.
+Mobile service robots ship as closed Android-\ros{} stacks with no public SDK, no message schemas, and mandatory vendor cloud services that block research customization and lock owners to a single supplier for the hardware's lifetime.
 
 \textbf{Problem.} Three structural obstacles compound reverse engineering: (i)~the chassis and Android head are independent computing environments bridged by an undocumented transport, so no single vantage point (network capture, APK alone) reveals the full command surface; (ii)~locked shells and brute-force lockout make white-box access unavailable; (iii)~a message \emph{accepted} at the software layer may not be \emph{executed} by the actuators, invalidating naive protocol fuzzing.
 Prior work addresses Android APK analysis~\cite{enck2014taintdroid} or network protocol RE~\cite{comparetti2009prospex} separately; neither targets the chassis/Android/cloud triad of service robots.
@@ -106,11 +106,11 @@ Section~\ref{sec:re} shows H1 and H4 \emph{confirmed}; H2 \emph{rejected}; H3 \e
 
 \textbf{Contributions.}
 \begin{enumerate}[label=\textbf{C\arabic*.},leftmargin=1.4em]
-\item A seven-phase, non-destructive RE \emph{methodology} for closed Android--\ros{} robots, built on triangulation (network trace $\times$ \rosapi{} $\times$ APK $\times$ field telemetry) and four falsifiable hypotheses.
+\item A seven-phase, non-destructive RE \emph{methodology} for closed Android-\ros{} robots, built on triangulation (network trace $\times$ \rosapi{} $\times$ APK $\times$ field telemetry) and four falsifiable hypotheses.
 \item Protocol reconstruction for the CIOT TY1251D-03195: teleop, navigation, and telemetry via \rosbridge{} (Section~\ref{sec:proto}).
 \item \cybel{}: edge-first SDK with \texttt{MockRobot}/\texttt{RealRobot} backends, PC/Termux servers, autonomous kiosk (Section~\ref{sec:arch}).
 \item TTS channel discovery via a minimal Android broadcast bridge, after \ros{}, HTTP, and MQTT were falsified (Section~\ref{sec:arch}).
-\item Feature comparison, RE effort metrics, and generalization analysis for other closed platforms (Sections~\ref{sec:eval}--\ref{sec:discussion}).
+\item Feature comparison, RE effort metrics, and generalization analysis for other closed platforms (Sections~\ref{sec:eval}-\ref{sec:discussion}).
 \end{enumerate}
 
 LLM-based conversational reasoning is architected (Section~\ref{sec:conv}) but not yet evaluated; artifacts are open~\cite{cybel2026}.
@@ -324,7 +324,7 @@ Distinct field sessions on physical robot & 8 \\
 \subsection{Difficulties and why they occur}
 \label{sec:re-difficulties}
 
-The following difficulties are structural properties of closed Android--\ros{} service robots, not idiosyncrasies of this unit; we make the mechanism explicit for each so the observation transfers to other robots.
+The following difficulties are structural properties of closed Android-\ros{} service robots, not idiosyncrasies of this unit; we make the mechanism explicit for each so the observation transfers to other robots.
 
 \textbf{Why H4 (transport $\neq$ execution) had to be formulated.} \rosbridge{} is a generic message router; it acknowledges anything that parses as a valid \ros{} message on an advertised topic, regardless of whether any node downstream actually consumes it meaningfully. On this chassis, a manual-mode safety gate (\texttt{control\_state==30}, Section~\ref{sec:proto}) silently drops teleop commands published before the gate is set, while \rosbridge{} still reports success. Any closed \ros{} robot with a safety or mode-gating layer between the message bus and actuation will reproduce this failure mode.
 
@@ -497,7 +497,7 @@ Table~\ref{tab:navcompare} summarizes qualitative field outcomes aligned with th
 % (>=10 trials per strategy, full prerequisites: auto mode + localization >=60% + POI synced from Deployment Tool).
 
 \begin{table}[!t]
-\caption{Navigation strategies on laboV2 (qualitative field outcomes, June--July 2026; quantitative comparison pending)}
+\caption{Navigation strategies on laboV2 (qualitative field outcomes, June-July 2026; quantitative comparison pending)}
 \label{tab:navcompare}
 \centering
 \scriptsize
@@ -606,8 +606,8 @@ Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraint
 \section{Conclusion}
 %==============================================================================
 
-We presented a non-destructive reverse-engineering methodology for closed Android--\ros{} service robots, structured around four falsifiable hypotheses (H1--H4), and validated it end-to-end on the CIOT TY1251D-03195 via \cybel{}, an open edge platform with reconstructed \rosbridge{} protocol, a mock/real SDK, an Android TTS bridge, and a local conversational layer. Hypotheses H1 (APK-as-spec), H3 (POI reuse via full pipeline), and H4 (transport $\neq$ execution) were confirmed; H2 (MQTT command channel) was rejected with a mechanistic explanation.
-The main claim of the paper is methodological: the seven-phase, triangulation-based pipeline and the transport-versus-execution discipline (H4) generalize to other closed Android--\ros{} robots, while the specific protocol details recovered for \cybel{} are this vendor's instantiation of that method.
+We presented a non-destructive reverse-engineering methodology for closed Android-\ros{} service robots, structured around four falsifiable hypotheses (H1--H4), and validated it end-to-end on the CIOT TY1251D-03195 via \cybel{}, an open edge platform with reconstructed \rosbridge{} protocol, a mock/real SDK, an Android TTS bridge, and a local conversational layer. Hypotheses H1 (APK-as-spec), H3 (POI reuse via full pipeline), and H4 (transport $\neq$ execution) were confirmed; H2 (MQTT command channel) was rejected with a mechanistic explanation.
+The main claim of the paper is methodological: the seven-phase, triangulation-based pipeline and the transport-versus-execution discipline (H4) generalize to other closed Android-\ros{} robots, while the specific protocol details recovered for \cybel{} are this vendor's instantiation of that method.
 
 Future work: a controlled comparison against the vendor application beyond the feature table of Table~\ref{tab:compare}; LLM/RAG reasoning behind the knowledge-query API; on-device ASR; presence-triggered kiosk wake-up; and publication of the exploration scripts as reproducible artifacts for other closed Android--\ros{} robots, to test H1--H4 on a second vendor.
 

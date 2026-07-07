@@ -253,6 +253,12 @@ INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\generic\pgf\frontendlayer
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\generic\pgf\frontendlayer\tikz\libraries\tikzlibraryfit.code.tex
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\generic\pgf\frontendlayer\tikz\libraries\tikzlibrarycalc.code.tex
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\generic\pgf\frontendlayer\tikz\libraries\tikzlibrarycalc.code.tex
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\placeins\placeins.sty
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\placeins\placeins.sty
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\sttools\stfloats.sty
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\sttools\stfloats.sty
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\float\float.sty
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\float\float.sty
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\l3backend\l3backend-pdftex.def
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\tex\latex\l3backend\l3backend-pdftex.def
 INPUT .\main.aux
@@ -377,8 +383,6 @@ INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmri8t.
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmri8r.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmrc8t.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmrc8t.tfm
-INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8t.tfm
-INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8t.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmr8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmr8r.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmrc8t.vf
@@ -386,6 +390,8 @@ INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmr8r.
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmr8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmrc8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmr8r.tfm
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8t.tfm
+INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8t.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmb8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmb8r.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmr8t.vf
@@ -395,13 +401,10 @@ INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\courier\pcrr8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8r.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8t.tfm
-INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmbc8t.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmb8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmb8r.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\courier\pcrr8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\courier\pcrr8r.tfm
-INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmbc8t.vf
-INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmb8r.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmbc8t.tfm
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\times\ptmbc8t.vf
 INPUT C:\Users\clusa\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\times\ptmb8r.tfm

@@ -11,10 +11,12 @@
 \citation{jadx}
 \citation{crick2012rosbridge,rosbridge_suite}
 \citation{comparetti2009prospex}
+\citation{dieber2017security}
 \citation{west2003open}
 \citation{kehoe2015cloud}
 \citation{ahn2022saycan}
 \citation{driess2023paleme}
+\citation{quigley2009ros}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Overall process: from the closed vendor robot to the open conversational stack. The reverse-engineering methodology (Section~\ref {sec:re}) is the paper's central contribution; \textsc  {rosbridge}{} reconstruction, \textsc  {Cybel}{}, and the conversational layer are its validation artifacts.}}{2}{figure.1}\protected@file@percent }
 \newlabel{fig:pipeline}{{1}{2}{Overall process: from the closed vendor robot to the open conversational stack. The reverse-engineering methodology (Section~\ref {sec:re}) is the paper's central contribution; \rosbridge {} reconstruction, \cybel {}, and the conversational layer are its validation artifacts}{figure.1}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{section.2}\protected@file@percent }
@@ -28,20 +30,20 @@
 \@writefile{toc}{\contentsline {section}{\numberline {III}Robot Platform and Network Topology}{2}{section.3}\protected@file@percent }
 \newlabel{sec:platform}{{III}{2}{Robot Platform and Network Topology}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Dual-processor hardware}{2}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Triple network segment}{2}{subsection.3.2}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Network topology on CIOT TY1251D-03195. \\ \textsc  {Cybel}{} on Termux reaches \textsc  {rosbridge}{} at \texttt  {192.168.20.22} (internal eth0, preferred path). A dev PC can also reach the chassis directly via the robot's hotspot (\texttt  {10.42.0.1:9090}). The head's DHCP address (\texttt  {172.16.0.x}) must not be confused with the chassis IP.}}{3}{figure.2}\protected@file@percent }
 \newlabel{fig:network}{{2}{3}{Network topology on CIOT TY1251D-03195. \\ \cybel {} on Termux reaches \rosbridge {} at \texttt {192.168.20.22} (internal eth0, preferred path). A dev PC can also reach the chassis directly via the robot's hotspot (\texttt {10.42.0.1:9090}). The head's DHCP address (\texttt {172.16.0.x}) must not be confused with the chassis IP}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Triple network segment}{3}{subsection.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {IV}Reverse Engineering Methodology}{3}{section.4}\protected@file@percent }
 \newlabel{sec:re}{{IV}{3}{Reverse Engineering Methodology}{section.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Guiding principles}{3}{subsection.4.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Hypotheses and their resolution}{3}{subsection.4.2}\protected@file@percent }
 \newlabel{sec:hypotheses}{{\mbox  {IV-B}}{3}{Hypotheses and their resolution}{subsection.4.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Seven-phase pipeline}{3}{subsection.4.3}\protected@file@percent }
 \citation{crick2012rosbridge,rosbridge_suite}
 \@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Reverse-engineering phases and deliverables}}{4}{table.1}\protected@file@percent }
 \newlabel{tab:re-phases}{{I}{4}{Reverse-engineering phases and deliverables}{table.1}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Reverse-engineering effort (case study)}}{4}{table.2}\protected@file@percent }
 \newlabel{tab:re-effort}{{II}{4}{Reverse-engineering effort (case study)}{table.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Seven-phase pipeline}{4}{subsection.4.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Reverse-engineering effort}{4}{subsection.4.4}\protected@file@percent }
 \newlabel{sec:re-effort}{{\mbox  {IV-D}}{4}{Reverse-engineering effort}{subsection.4.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-E}}Difficulties and why they occur}{4}{subsection.4.5}\protected@file@percent }
@@ -50,44 +52,47 @@
 \newlabel{sec:proto}{{V}{4}{\rosbridge {} Protocol Reconstruction}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Transport and client}{4}{subsection.5.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Teleoperation}{4}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Autonomous navigation}{4}{subsection.5.3}\protected@file@percent }
 \citation{cybel_tts}
 \citation{ahn2022saycan,driess2023paleme}
 \@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Navigation modes and prerequisites}}{5}{table.3}\protected@file@percent }
 \newlabel{tab:nav}{{III}{5}{Navigation modes and prerequisites}{table.3}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Logical architecture (edge-first, no vendor cloud).}}{5}{figure.3}\protected@file@percent }
 \newlabel{fig:layers}{{3}{5}{Logical architecture (edge-first, no vendor cloud)}{figure.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Autonomous navigation}{5}{subsection.5.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Telemetry throttling}{5}{subsection.5.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {VI}\textsc  {Cybel}{} Architecture: Validation Platform}{5}{section.6}\protected@file@percent }
 \newlabel{sec:arch}{{VI}{5}{\cybel {} Architecture: Validation Platform}{section.6}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Three-layer stack}{5}{subsection.6.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}Edge deployment pattern}{5}{subsection.6.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Conversational layer}{5}{subsection.6.3}\protected@file@percent }
-\newlabel{sec:conv}{{\mbox  {VI-C}}{5}{Conversational layer}{subsection.6.3}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces TTS investigation summary}}{5}{table.4}\protected@file@percent }
 \newlabel{tab:tts}{{IV}{5}{TTS investigation summary}{table.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Conversational layer}{5}{subsection.6.3}\protected@file@percent }
+\newlabel{sec:conv}{{\mbox  {VI-C}}{5}{Conversational layer}{subsection.6.3}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {VI-C}1}TTS channel discovery}{5}{subsubsection.6.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {VII}Experimental Evaluation}{5}{section.7}\protected@file@percent }
 \newlabel{sec:eval}{{VII}{5}{Experimental Evaluation}{section.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}Hybrid navigation case study}{5}{subsection.7.1}\protected@file@percent }
 \newlabel{sec:hybrid}{{\mbox  {VII-A}}{5}{Hybrid navigation case study}{subsection.7.1}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {VII-A}1}Coordinate-only strategy (S1)}{5}{subsubsection.7.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {VII-A}2}POI-reuse strategy (S3), testing H3}{5}{subsubsection.7.1.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Navigation strategies on laboV2 (qualitative field outcomes, June--July 2026)}}{6}{table.5}\protected@file@percent }
-\newlabel{tab:navcompare}{{V}{6}{Navigation strategies on laboV2 (qualitative field outcomes, June--July 2026)}{table.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Navigation strategies on laboV2 (qualitative field outcomes, June-July 2026; quantitative comparison pending)}}{6}{table.5}\protected@file@percent }
+\newlabel{tab:navcompare}{{V}{6}{Navigation strategies on laboV2 (qualitative field outcomes, June-July 2026; quantitative comparison pending)}{table.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {VII-A}2}POI-reuse strategy (S3), testing H3}{6}{subsubsection.7.1.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {VII-A}3}Navigation outcomes (S1 vs.\ S3)}{6}{subsubsection.7.1.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}Reverse-engineering and field metrics}{6}{subsection.7.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Comparison with the vendor application}{6}{subsection.7.3}\protected@file@percent }
-\newlabel{sec:comparison}{{\mbox  {VII-C}}{6}{Comparison with the vendor application}{subsection.7.3}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Observed performance indicators (June 2026, lab robot)}}{6}{table.6}\protected@file@percent }
 \newlabel{tab:metrics}{{VI}{6}{Observed performance indicators (June 2026, lab robot)}{table.6}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {VII}{\ignorespaces Feature comparison: vendor application vs.\ \textsc  {Cybel}{}}}{6}{table.7}\protected@file@percent }
 \newlabel{tab:compare}{{VII}{6}{Feature comparison: vendor application vs.\ \cybel {}}{table.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Comparison with the vendor application}{6}{subsection.7.3}\protected@file@percent }
+\newlabel{sec:comparison}{{\mbox  {VII-C}}{6}{Comparison with the vendor application}{subsection.7.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {VIII}Discussion}{6}{section.8}\protected@file@percent }
 \newlabel{sec:discussion}{{VIII}{6}{Discussion}{section.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-A}}Lessons for closed-robot integration}{6}{subsection.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-B}}Generalization: what transfers to other robots}{6}{subsection.8.2}\protected@file@percent }
-\citation{quigley2009ros,thrun2005probrob,bartneck2020hri,cybel2026}
+\citation{cybel2026}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-B}}Generalization: what transfers to other robots}{7}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-C}}Ethical considerations}{7}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-D}}Limitations}{7}{subsection.8.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IX}Conclusion}{7}{section.9}\protected@file@percent }
 \bibstyle{IEEEtran}
 \bibdata{references}
 \bibcite{cybel_architecture}{1}
@@ -105,8 +110,5 @@
 \bibcite{quigley2009ros}{13}
 \bibcite{thrun2005probrob}{14}
 \bibcite{bartneck2020hri}{15}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-C}}Ethical considerations}{7}{subsection.8.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-D}}Limitations}{7}{subsection.8.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {IX}Conclusion}{7}{section.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{References}{7}{section*.2}\protected@file@percent }
-\gdef \@abspage@last{7}
+\@writefile{toc}{\contentsline {section}{References}{8}{section*.2}\protected@file@percent }
+\gdef \@abspage@last{8}
