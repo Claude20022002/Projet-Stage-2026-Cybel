@@ -53,6 +53,11 @@ C.~Crick, G.~Jay, S.~Osentoski, B.~Pitzer, and O.~C. Jenkins, ``Rosbridge:
 {Open Source Robotics Foundation}, ``rosbridge\_suite,''
   \url{http://wiki.ros.org/rosbridge_suite}, rOS Wiki, accessed 2026.
 
+\bibitem{dieber2017security}
+B.~Dieber, S.~Kacianka, S.~Rass, and P.~Schartner, ``Application-level security
+  for {ROS}-based applications,'' in \emph{Proceedings of the IEEE/RSJ
+  International Conference on Intelligent Robots and Systems (IROS)}, 2017.
+
 \bibitem{west2003open}
 J.~West, ``How open is open enough? melding proprietary and open source
   platform strategies,'' \emph{Research Policy}, vol.~32, no.~7, pp.
@@ -73,23 +78,13 @@ D.~Driess \emph{et~al.}, ``{PaLM-E}: An embodied multimodal language model,''
   in \emph{Proceedings of the 40th International Conference on Machine Learning
   (ICML)}, 2023.
 
-\bibitem{cybel_tts}
-C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: {TTS} channel investigation
-  log,'' 2026, internal technical documentation, HESTIM robotics lab.
-
 \bibitem{quigley2009ros}
 M.~Quigley, K.~Conley, B.~Gerkey, J.~Faust, T.~Foote, J.~Leibs, R.~Wheeler, and
   A.~Y. Ng, ``{ROS}: an open-source {R}obot {O}perating {S}ystem,'' in
   \emph{ICRA Workshop on Open Source Software}, 2009.
 
-\bibitem{thrun2005probrob}
-S.~Thrun, W.~Burgard, and D.~Fox, \emph{Probabilistic Robotics}.\hskip 1em plus
-  0.5em minus 0.4em\relax MIT Press, 2005.
-
-\bibitem{bartneck2020hri}
-C.~Bartneck, T.~Belpaeme, F.~Eyssel, T.~Kanda, M.~Keijsers, and
-  S.~{\v{S}}abanovi{\'c}, \emph{Human-Robot Interaction: An
-  Introduction}.\hskip 1em plus 0.5em minus 0.4em\relax Cambridge University
-  Press, 2020.
+\bibitem{cybel_tts}
+C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: {TTS} channel investigation
+  log,'' 2026, internal technical documentation, HESTIM robotics lab.
 
 \end{thebibliography}
