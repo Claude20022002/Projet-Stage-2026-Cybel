@@ -1788,6 +1788,105 @@ async def robot_people(_: Request) -> JSONResponse:
     return JSONResponse({"people": get_detected_people()})
 
 
+async def visitors_list(_: Request) -> JSONResponse:
+    return JSONResponse([visitor_public(v) for v in load_visitors()])
+
+
+async def visitors_current(_: Request) -> JSONResponse:
+    if _current_identified_visitor is None or (time.time() - _current_identified_at) > VISITOR_IDENTITY_TTL_SECONDS:
+        return JSONResponse({"visitor": None})
+    return JSONResponse({"visitor": _current_identified_visitor})
+
+
+async def visitors_identify(request: Request) -> JSONResponse:
+    """Reçoit un embedding facial calculé par CybelFaceBridge (tablette) et le compare
+    aux visiteurs enrôlés. Ne reçoit et n'expose jamais d'image — uniquement un vecteur."""
+    global _current_identified_visitor, _current_identified_at
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "message": "JSON invalide"}, status_code=400)
+
+    embedding = body.get("embedding")
+    visitor_utils = _get_visitor_utils()
+    if not visitor_utils.validate_embedding(embedding):
+        return JSONResponse({"ok": False, "message": "Embedding invalide"}, status_code=400)
+
+    visitors = load_visitors()
+    candidates = [(v.get("id"), v.get("embedding") or []) for v in visitors]
+    threshold = float(
+        load_kiosk_config().get(
+            "face_recognition_threshold", DEFAULT_FACE_RECOGNITION_THRESHOLD
+        )
+    )
+    visitor_id, score = visitor_utils.find_best_match(embedding, candidates, threshold)
+    if visitor_id is None:
+        return JSONResponse({"ok": False, "confidence": score, "message": "Visiteur inconnu"})
+
+    matched = next(v for v in visitors if v.get("id") == visitor_id)
+    matched["last_identified_at"] = datetime.now(timezone.utc).isoformat()
+    save_visitors(visitors)
+
+    public = visitor_public(matched)
+    _current_identified_visitor = public
+    _current_identified_at = time.time()
+    await _broadcast_to_telemetry({"type": "visitor", "visitor": public, "confidence": score})
+    return JSONResponse({"ok": True, "visitor": public, "confidence": score})
+
+
+async def visitors_enroll(request: Request) -> JSONResponse:
+    """Enrôlement déclenché par le personnel (voir scripts/termux/enroll_visitor.sh) —
+    jamais de capture automatique/silencieuse d'un visiteur non consentant."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+
+    name = str(body.get("name", "")).strip()
+    civility = str(body.get("civility", ""))
+    embedding = body.get("embedding")
+    consent = bool(body.get("consent"))
+
+    if not consent:
+        return JSONResponse(
+            {"ok": False, "error": "Le consentement du visiteur est requis"}, status_code=400
+        )
+    if not name:
+        return JSONResponse({"ok": False, "error": "Nom requis"}, status_code=400)
+    visitor_utils = _get_visitor_utils()
+    if not visitor_utils.validate_embedding(embedding):
+        return JSONResponse({"ok": False, "error": "Embedding invalide"}, status_code=400)
+
+    visitor = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "civility": civility,
+        "consent": consent,
+        "enrolled_at": datetime.now(timezone.utc).isoformat(),
+        "last_identified_at": None,
+        "embedding": embedding,
+    }
+    visitors = load_visitors()
+    visitors.append(visitor)
+    save_visitors(visitors)
+    return JSONResponse(visitor_public(visitor))
+
+
+async def visitors_delete(request: Request) -> JSONResponse:
+    global _current_identified_visitor
+    visitor_id = request.path_params.get("visitor_id")
+    visitors = load_visitors()
+    remaining = [v for v in visitors if v.get("id") != visitor_id]
+    if len(remaining) == len(visitors):
+        return JSONResponse(
+            {"ok": False, "error": f"Visiteur '{visitor_id}' introuvable"}, status_code=404
+        )
+    save_visitors(remaining)
+    if _current_identified_visitor and _current_identified_visitor.get("id") == visitor_id:
+        _current_identified_visitor = None
+    return JSONResponse({"ok": True})
+
+
 async def speech_status(_: Request) -> JSONResponse:
     return JSONResponse(
         {
