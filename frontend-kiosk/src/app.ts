@@ -197,6 +197,9 @@ function startTelemetry(): void {
       detectedPeople = people;
       handlePresenceWelcome();
     },
+    onVisitorIdentified: (visitor) => {
+      identifiedVisitor = { visitor, at: Date.now() };
+    },
   });
 }
 
