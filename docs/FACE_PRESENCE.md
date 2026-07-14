@@ -7,8 +7,8 @@
 
 ## Objectif
 
-1. **Phase 1 — Présence** (en cours) : détecter qu'un visiteur s'approche du robot et réveiller le kiosque (veille → accueil + TTS).
-2. **Phase 2 — Reconnaissance faciale** (à venir) : identifier un visiteur enregistré et personnaliser l'accueil.
+1. **Phase 1 — Présence** (implémentée) : détecter qu'un visiteur s'approche du robot et réveiller le kiosque (veille → accueil + TTS).
+2. **Phase 2 — Reconnaissance faciale** (scaffolding implémenté, validation terrain restante) : identifier un visiteur enregistré et personnaliser l'accueil.
 
 ---
 
@@ -64,34 +64,83 @@ Placez-vous devant le robot : le tableau `people` doit contenir au moins une ent
 
 ---
 
-## Phase 2 — Reconnaissance faciale (planifiée)
+## Phase 2 — Reconnaissance faciale (scaffolding implémenté)
+
+> **État réel (juillet 2026)** : le pipeline complet est codé (app Android, backend PC,
+> backend embarqué, kiosque) et le **matching backend est vérifié** (tests unitaires +
+> test manuel via HTTP réel, voir plus bas). Le **pipeline caméra/détection/embedding
+> sur tablette n'a pas pu être validé** faute d'accès à la tablette physique et de
+> modèle `.tflite` réel — voir « Reste à valider sur le terrain ».
 
 ### Contraintes
 
-- WebView Android 7.1 : pas de ML dans le JS du kiosque.
+- WebView Android 7.1 : pas de ML dans le JS du kiosque → nécessite une app Android
+  native dédiée (`CybelFaceBridge`), séparée du kiosque WebView.
 - L'APK constructeur utilise **Iflytek local** (`WelcomeManager.onFindFace`) — non exposé via ROS.
 
-### Approche retenue
+### Architecture retenue
 
-| Composant | Rôle |
-|-----------|------|
-| App Android **`CybelFaceBridge`** (à créer) | Capture caméra tablette, détection/identification locale |
-| `data/visitors.json` | Annuaire visiteurs (nom, embedding ou référence photo) |
-| `POST /api/visitors/identify` | Reçoit le résultat du bridge, renvoie `{ name, confidence }` |
-| Kiosque | « Bonjour M./Mme X » si `face_recognition_enabled` |
+| Composant | Rôle | État |
+|-----------|------|------|
+| App Android **`CybelFaceBridge`** (`android/CybelFaceBridge/`) | Capture caméra frontale tablette (Camera2 headless, sans preview), détection (`android.media.FaceDetector`) + embedding (TensorFlow Lite) | Code complet, build testé de bout en bout ; **runtime caméra/détection non testé sur device réel** |
+| `sdk/visitor_utils.py` | Similarité cosinus + seuil, sans pydantic (partagé backend PC / Termux lite) | ✅ Testé (`tests/unit/test_visitor_utils.py`) |
+| `data/visitors.json` | Annuaire visiteurs (nom, embedding, consentement) — jamais d'image stockée | ✅ |
+| `POST /api/visitors/identify` | Reçoit l'embedding calculé par le bridge, renvoie `{ ok, visitor, confidence }` | ✅ Testé (unitaire + HTTP réel) |
+| `POST /api/visitors/enroll` | Enrôlement (refuse sans `consent: true`) | ✅ Testé |
+| `scripts/termux/enroll_visitor.sh` | Déclenche l'enrôlement côté personnel (`am broadcast` → `EnrollReceiver`) | ✅ Code écrit, non exécuté sur device |
+| Kiosque (`frontend-kiosk`) | « Bonjour M./Mme X » si `face_recognition_enabled` et identité fraîche (`type: "visitor"` sur `/ws/telemetry`) | ✅ Compile, non testé visuellement |
 
-### Fichiers préparés
+Le téléphone fait tout le calcul ML ; seul un **vecteur d'embedding** (jamais une image)
+transite vers le backend, qui fait le matching et applique le seuil
+`face_recognition_threshold` (réglable via `PUT /api/kiosk/config`, pas besoin de
+rebuilder l'APK pour ajuster la sensibilité).
 
-- `data/visitors.json` — annuaire vide (schéma v1)
+### Pourquoi aucun modèle `.tflite` n'est fourni
 
-### Jalons
+Les modèles de reconnaissance faciale pré-entraînés qui circulent publiquement ont
+souvent une provenance de licence/dataset floue (plusieurs tracent leur lignée
+jusqu'à MS-Celeb-1M, retiré par Microsoft en 2019 pour des raisons de consentement).
+Le choix du modèle reste donc une décision volontaire à prendre en connaissance de
+cause — voir [`android/CybelFaceBridge/README.md`](../android/CybelFaceBridge/README.md).
+`build.sh` refuse de builder tant qu'aucun modèle n'est placé dans `assets/`.
 
-| Jalon | Durée estimée |
-|-------|----------------|
-| Valider présence terrain (phase 1) | 1 j |
-| Spike caméra tablette + détection visage | 2–3 j |
-| Enregistrement visiteur test | 1 j |
-| Intégration kiosque + TTS personnalisé | 2 j |
+### Comment tester
+
+**Ce qui se teste dès maintenant, sans tablette ni robot** (logique de matching) :
+
+```powershell
+pytest tests/unit/test_visitor_utils.py tests/unit/test_visitors_router.py -q
+
+# ou en conditions réelles (backend PC démarré, ROBOT_MOCK peu importe) :
+python scripts/dev.py
+curl -X POST http://localhost:8000/api/visitors/enroll `
+  -H "Content-Type: application/json" `
+  -d '{"name":"Test","embedding":[1.0,0.0,0.0],"consent":true}'
+curl -X POST http://localhost:8000/api/visitors/identify `
+  -H "Content-Type: application/json" `
+  -d '{"embedding":[1.0,0.0,0.0],"confidence":0.9}'
+# -> {"ok":true,"visitor":{"name":"Test",...},"confidence":1.0}
+```
+
+**Ce qui nécessite la tablette physique** (non fait) :
+
+1. Fournir un vrai modèle `.tflite` dans `android/CybelFaceBridge/assets/`.
+2. `cd android/CybelFaceBridge && ./build.sh` puis `adb install -r out/CybelFaceBridge.apk`.
+3. `adb shell pm grant com.cybel.facebridge android.permission.CAMERA` (pas de dialogue
+   runtime possible — app headless sans Activity).
+4. `adb logcat -s CybelFaceService:* CybelCameraPipeline:* CybelFaceEmbedder:*` pour
+   observer la détection/embedding en direct.
+5. `scripts/termux/enroll_visitor.sh "Nom Test" "M."` puis se placer devant la caméra.
+6. Vérifier `GET /api/visitors/current` et l'accueil personnalisé sur le kiosque.
+
+### Reste à valider sur le terrain
+
+- Conversion NV21→RGB565 manuelle sur les vraies données du capteur RK3399.
+- Heuristique de cadrage du visage (`FaceDetector` ne donne pas de rectangle, seulement
+  `eyesDistance()`/`getMidPoint()`) — probablement à ajuster visuellement.
+- Bitness tablette (32 vs 64 bits) — `arm64-v8a` et `armeabi-v7a` vendorés par précaution.
+- `face_recognition_threshold` (défaut 0.82) — démarrer conservateur, ajuster après
+  observation de scores réels.
 
 ---
 
@@ -99,6 +148,7 @@ Placez-vous devant le robot : le tableau `people` doit contenir au moins une ent
 
 ```powershell
 pytest tests/unit/test_people_utils.py -q
+pytest tests/unit/test_visitor_utils.py tests/unit/test_visitors_router.py -q
 ```
 
 ---
@@ -106,5 +156,6 @@ pytest tests/unit/test_people_utils.py -q
 ## Liens
 
 - [FACE_PRESENCE.md](FACE_PRESENCE.md) — détection de présence (branche en cours)
+- [../android/CybelFaceBridge/README.md](../android/CybelFaceBridge/README.md) — app Android, provisioning, limites connues
 - [labo/POI_LABOV2.md](labo/POI_LABOV2.md) — référence POI carte laboV2
 - [AUDIT_APK_CONSTRUCTEUR.md](cybel-conception/AUDIT_APK_CONSTRUCTEUR.md) — `onFindFace`

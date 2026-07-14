@@ -25,7 +25,7 @@ Légende : ✅ Fait · ⚠️ Partiel · ❌ Non fait · 🔜 Planifié
 | Retour base | Opérateur uniquement | Auto batterie basse | ⚠️ |
 | Assistance humaine | Bouton kiosque | Réception | ⚠️ |
 | Animations | CSS pulse/bob | Riches | ⚠️ |
-| Reconnaissance faciale | — | `WelcomeManager` | ❌ |
+| Reconnaissance faciale | `CybelFaceBridge` + `/api/visitors/*` | `WelcomeManager` | ⚠️ (backend testé, validation terrain restante) |
 | Météo / vidéo | — | Fragments dédiés | ❌ |
 
 ## Backend / robot

@@ -60,3 +60,19 @@ def test_kiosk_config_put(tmp_path: Path, monkeypatch) -> None:
     assert data["ok"] is True
     assert data["config"]["organization_name_fr"] == "Après"
     assert data["config"]["welcome_message_fr"] == "Bonjour test"
+
+
+def test_kiosk_config_put_updates_face_recognition_threshold(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / "kiosk_config.json"
+    config_path.write_text("{}", encoding="utf-8")
+    import routers.kiosk as kiosk_router
+
+    monkeypatch.setattr(kiosk_router, "_KIOSK_CONFIG_PATH", config_path)
+    response = client.put(
+        "/api/kiosk/config",
+        json={"face_recognition_enabled": True, "face_recognition_threshold": 0.9},
+    )
+    assert response.status_code == 200
+    data = response.json()["config"]
+    assert data["face_recognition_enabled"] is True
+    assert data["face_recognition_threshold"] == pytest.approx(0.9)
