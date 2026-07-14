@@ -3,6 +3,7 @@ package com.cybel.facebridge;
 import android.util.Log;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -78,7 +79,7 @@ final class BackendClient {
         }
     }
 
-    private static JSONArray toJsonArray(float[] values) {
+    private static JSONArray toJsonArray(float[] values) throws JSONException {
         JSONArray array = new JSONArray();
         for (float v : values) {
             array.put(v);

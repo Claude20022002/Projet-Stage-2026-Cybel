@@ -86,8 +86,10 @@ adb shell pm grant com.cybel.facebridge android.permission.CAMERA
 adb shell am startservice -n com.cybel.facebridge/.FaceRecognitionService
 ```
 
-`libs/tensorflow-lite-2.14.0.jar` et `jniLibs/{arm64-v8a,armeabi-v7a}/libtensorflowlite_jni.so`
-sont déjà vendorés (extraits de l'AAR officiel Maven Central, licence Apache 2.0 —
+`libs/tensorflow-lite-2.14.0.jar` (fusion des classes de `org.tensorflow:tensorflow-lite:2.14.0`
+et `org.tensorflow:tensorflow-lite-api:2.14.0` — ce dernier fournit `InterpreterApi`/`Tensor`,
+absents du premier jar seul) et `jniLibs/{arm64-v8a,armeabi-v7a}/libtensorflowlite_jni.so`
+sont déjà vendorés (extraits des AAR officiels Maven Central, licence Apache 2.0 —
 voir `libs/TENSORFLOW_LITE_LICENSE.txt`). Seul le modèle d'embedding manque.
 
 ## Limites connues / à valider sur le terrain

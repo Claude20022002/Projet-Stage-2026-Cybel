@@ -5,6 +5,12 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# javac.exe (natif Windows) ne résout pas correctement un chemin POSIX (/c/Users/...)
+# mélangé à un chemin lettre-de-lecteur dans un même argument -cp (séparateur ';').
+# cygpath -m normalise vers "C:/Users/..." — format accepté par les outils Windows.
+if command -v cygpath >/dev/null 2>&1; then
+  DIR="$(cygpath -m "$DIR")"
+fi
 OUT="$DIR/out"
 
 if [ ! -f "$DIR/assets/face_embedding.tflite" ]; then
@@ -48,8 +54,10 @@ echo "== 1/8 Linking resources + manifest + assets =="
   --java "$OUT/gen"
 
 echo "== 2/8 Compiling Java sources =="
+# Séparateur ';' (Windows javac.exe) — un classpath ':' entrerait en collision avec
+# la lettre de lecteur (C:\...) une fois qu'on a plus d'une entrée de classpath.
 javac -source 8 -target 8 \
-  -cp "$ANDROID_JAR:$TFLITE_JAR" \
+  -cp "$ANDROID_JAR;$TFLITE_JAR" \
   -d "$OUT/obj" \
   "$OUT/gen/com/cybel/facebridge/R.java" \
   "$DIR"/src/com/cybel/facebridge/*.java
