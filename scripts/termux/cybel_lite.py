@@ -1441,8 +1441,6 @@ def load_visitors() -> list[dict]:
 
 
 def save_visitors(visitors: list[dict]) -> None:
-    from datetime import datetime, timezone
-
     VISITORS_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 1,
