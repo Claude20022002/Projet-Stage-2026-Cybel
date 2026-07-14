@@ -165,6 +165,7 @@ CYBEL n'accède **jamais** au shell du châssis : uniquement **rosbridge** (JSON
 | **ChargeService** | `services/charge_service.py` | Retour pile automatique (batterie faible) |
 | **PersistenceService** | `services/persistence_service.py` | Wrapper `data/*.json` (POI, tour, config, historique) |
 | **PoiBootstrap** | `services/poi_bootstrap.py` | Sync POI ROS au démarrage visite (PC) |
+| **VisitorService** | `services/visitor_service.py` | Matching embeddings visiteurs (reconnaissance faciale) |
 | **WebSocket manager** | `websocket/manager.py` | Broadcast clients `{type, ...payload}` |
 | **Routers** | `routers/*.py` | Endpoints REST par domaine (voir §5.3) |
 
@@ -181,6 +182,7 @@ CYBEL n'accède **jamais** au shell du châssis : uniquement **rosbridge** (JSON
 | `lab_tour.py` | Modèle parcours + `TourEngine` séquentiel |
 | `tour_navigation.py` | Prérequis nav, ghost nav, arrivée par proximité |
 | `poi_sync.py` / `marker_utils.py` | Sync POI Deployment Tool → `points.json` |
+| `visitor_utils.py` | Similarité cosinus + seuil pour reconnaissance faciale (sans pydantic) |
 | `persistence.py` | Lecture/écriture JSON typée (Pydantic `Point`) |
 | `mqtt_client.py` | Client paho-mqtt passif |
 | `models.py` | Modèles de domaine Pydantic |
@@ -225,6 +227,7 @@ Backend **sans FastAPI/pydantic** (Termux ne compile pas `pydantic-core` sur cer
 | **CybelVisitorKiosk** | `com.cybel.visitorkiosk` | WebView plein écran → `:8000/kiosk/`, démarre Termux backend |
 | **CybelVisitorKioskTest** | `com.cybel.visitorkiosk.test` | Variante POI laboV2 → `:8001`, label « CYBEL Accueil » |
 | **CybelTTSBridge** | `com.cybel.ttsbridge` | Receiver `SPEAK` → moteur Google TTS natif |
+| **CybelFaceBridge** | `com.cybel.facebridge` | Headless (aucune Activity) : Camera2 → détection → embedding TFLite → `POST /api/visitors/identify`. Scaffolding complet, non validé sur device réel — voir [FACE_PRESENCE.md](FACE_PRESENCE.md) |
 
 ### 3.7 Données (`data/`)
 
@@ -235,6 +238,7 @@ Backend **sans FastAPI/pydantic** (Termux ne compile pas `pydantic-core` sur cer
 | `kiosk_config.json` / `.poi.json` | Branding, veille, présence, destinations favorites |
 | `hestim_knowledge_base.json` | FAQ visiteur |
 | `navigation_events.json` | Historique navigations |
+| `visitors.json` | Annuaire visiteurs enrôlés (nom, embedding, consentement — jamais d'image) |
 
 ---
 
@@ -349,6 +353,7 @@ Préfixe commun : `/api`
 | Map | `GET /map/current` | RealRobot | Opérateur |
 | Charge | `POST /charge/go-home` | RealRobot | Opérateur, kiosque |
 | Diagnostics | `GET /diagnostics/snapshot` | Agrégation | Opérateur |
+| Visitors | `POST /visitors/identify`, `POST /visitors/enroll`, `GET /visitors` | VisitorService | CybelFaceBridge, opérateur |
 
 ### 5.4 WebSocket télémétrie
 
@@ -639,6 +644,26 @@ uvicorn cybel_lite :8001
     ↓ écrit cybel_kiosk_test_url.txt
 APK WebView → http://wlan0:8001/kiosk/
 ```
+
+### 7.10 Reconnaissance faciale (feature/face-presence, phase 2 — scaffolding non validé terrain)
+
+```
+Caméra tablette (front) → CybelFaceBridge (Camera2 headless, sans preview)
+    ↓ YUV_420_888 → NV21 → RGB565
+    ↓ android.media.FaceDetector (crop visage)
+    ↓ TFLite Interpreter → embedding (vecteur, jamais l'image)
+    ↓ POST /api/visitors/identify {embedding, confidence}
+VisitorService (backend PC ou cybel_lite)
+    ↓ cosine_similarity vs data/visitors.json (seuil face_recognition_threshold)
+    ↓ si match : WebSocket {type: "visitor", visitor, confidence}
+frontend-kiosk (personalizedGreeting())
+    → « Bonjour M./Mme X » à la place du message d'accueil générique
+```
+
+Enrôlement (opérateur uniquement, jamais automatique) :
+`scripts/termux/enroll_visitor.sh "Nom" "M."` → `am broadcast` →
+`EnrollReceiver` → fenêtre de 15 s → même pipeline d'embedding →
+`POST /api/visitors/enroll` (refusé sans `consent: true`).
 
 ---
 

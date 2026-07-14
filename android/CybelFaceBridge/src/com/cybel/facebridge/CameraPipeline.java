@@ -48,6 +48,7 @@ final class CameraPipeline {
     private CameraDevice cameraDevice;
     private CameraCaptureSession captureSession;
     private ImageReader imageReader;
+    private String openCameraId;
     private volatile boolean busy;
     private volatile boolean stopped;
     private long lastProcessedAtMs;
@@ -86,11 +87,12 @@ final class CameraPipeline {
             return;
         }
         try {
-            String cameraId = findFrontCameraId();
+            String cameraId = findBestCameraId();
             if (cameraId == null) {
-                Log.e(TAG, "Aucune caméra frontale disponible — abandon");
+                Log.e(TAG, "Aucune caméra disponible — abandon");
                 return;
             }
+            openCameraId = cameraId;
             imageReader = ImageReader.newInstance(TARGET_WIDTH, TARGET_HEIGHT, ImageFormat.YUV_420_888, 2);
             imageReader.setOnImageAvailableListener(this::onImageAvailable, cameraHandler);
             cameraManager.openCamera(cameraId, stateCallback, cameraHandler);
@@ -100,15 +102,57 @@ final class CameraPipeline {
         }
     }
 
-    private String findFrontCameraId() throws CameraAccessException {
-        for (String id : cameraManager.getCameraIdList()) {
+    /**
+     * Préfère une caméra FRONT si disponible (téléphone/tablette générique), mais se
+     * rabat sur la première caméra trouvée sinon : certains robots de réception
+     * n'exposent qu'une seule caméra via Camera2, physiquement tournée vers le
+     * visiteur mais classée "BACK" par Android (constaté sur le châssis CIOT
+     * TY1251D-03195 — RK3399, module RK29_ICS_CameraHal, une seule caméra déclarée).
+     */
+    private String findBestCameraId() throws CameraAccessException {
+        String[] ids = cameraManager.getCameraIdList();
+        String fallback = null;
+        for (String id : ids) {
             CameraCharacteristics chars = cameraManager.getCameraCharacteristics(id);
             Integer facing = chars.get(CameraCharacteristics.LENS_FACING);
             if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                 return id;
             }
+            if (fallback == null) {
+                fallback = id;
+            }
         }
-        return null;
+        if (fallback != null) {
+            Log.w(TAG, "Aucune caméra FRONT — utilisation de la caméra " + fallback
+                    + " (facing non-FRONT, matériel à caméra unique probable)");
+        }
+        return fallback;
+    }
+
+    /**
+     * Certains capteurs (constaté : RK29_ICS_CameraHal, une seule plage 25-30 fps
+     * annoncée) rejettent une CONTROL_AE_TARGET_FPS_RANGE arbitraire — on choisit donc
+     * la plage la plus basse réellement supportée plutôt que d'en imposer une, pour
+     * éviter un setRepeatingRequest en échec sur ce matériel.
+     */
+    private Range<Integer> findLowestSupportedFpsRange() {
+        try {
+            CameraCharacteristics chars = cameraManager.getCameraCharacteristics(openCameraId);
+            Range<Integer>[] ranges = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            if (ranges == null || ranges.length == 0) {
+                return null;
+            }
+            Range<Integer> lowest = ranges[0];
+            for (Range<Integer> range : ranges) {
+                if (range.getUpper() < lowest.getUpper()) {
+                    lowest = range;
+                }
+            }
+            return lowest;
+        } catch (CameraAccessException e) {
+            Log.w(TAG, "Lecture plages FPS échouée — pas de contrainte AE appliquée", e);
+            return null;
+        }
     }
 
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
@@ -139,7 +183,12 @@ final class CameraPipeline {
             final CaptureRequest.Builder builder =
                     cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             builder.addTarget(imageReader.getSurface());
-            builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new Range<>(2, 5));
+            Range<Integer> lowestFpsRange = findLowestSupportedFpsRange();
+            if (lowestFpsRange != null) {
+                builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, lowestFpsRange);
+            }
+            // Sinon : aucune tentative de réduire le FPS matériel — le throttle logiciel
+            // dans onImageAvailable() borne déjà le coût CPU/batterie indépendamment.
 
             cameraDevice.createCaptureSession(
                     Collections.singletonList(imageReader.getSurface()),

@@ -1,5 +1,37 @@
 # Changelog CYBEL
 
+## [0.3.4] — 2026-07-14
+
+### Reconnaissance faciale — scaffolding (branche `feature/face-presence`, phase 2)
+
+- **App Android `CybelFaceBridge`** (nouvelle, `android/CybelFaceBridge/`) : headless
+  (aucune Activity/icône), Camera2 sans preview → `android.media.FaceDetector` →
+  embedding TensorFlow Lite → `POST /api/visitors/identify` (vecteur uniquement,
+  jamais d'image envoyée)
+- **Backend** : `sdk/visitor_utils.py` (cosine similarity, sans pydantic),
+  `backend/routers/visitors.py` + `services/visitor_service.py`
+  (`identify`/`enroll`/liste/suppression), persistance `data/visitors.json`
+  (`sdk/persistence.py`)
+- **Backend embarqué** : routes miroir dans `scripts/termux/cybel_lite.py` +
+  diffusion WebSocket `{type: "visitor"}`
+- **Kiosque** : accueil personnalisé (« Bonjour M./Mme X ») dans
+  `frontend-kiosk`, se greffant sur le déclencheur de présence Phase 1
+- **Config** : `face_recognition_threshold` (défaut 0.82, réglable via
+  `PUT /api/kiosk/config` sans rebuild APK) ; correctif cohérence
+  `backend/routers/kiosk.py` vs `cybel_lite.py` (clés `presence_*`/
+  `face_recognition_*` manquantes côté PC)
+- **Enrôlement** : `scripts/termux/enroll_visitor.sh`, déclenché par le
+  personnel uniquement (jamais de capture automatique d'un visiteur non
+  consentant)
+- **Tests** : `test_visitor_utils.py`, `test_visitors_router.py` (+ extension
+  `test_persistence.py`, `test_kiosk_config.py`) — matching backend vérifié
+  par tests unitaires et par un test manuel HTTP réel
+- **Non validé** : pipeline caméra/détection/embedding sur tablette physique
+  (pas d'accès terrain depuis l'environnement de dev) — aucun modèle
+  `.tflite` n'est fourni (provenance de licence/dataset des modèles publics
+  souvent floue) ; voir [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md) et
+  [android/CybelFaceBridge/README.md](android/CybelFaceBridge/README.md)
+
 ## [0.3.3] — 2026-06-27
 
 ### POI laboV2 — alignement Deployment Tool
