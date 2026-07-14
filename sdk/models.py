@@ -169,8 +169,44 @@ class SpeechStatus(BaseModel):
     mock: bool = False
 
 
+class VisitorPublic(BaseModel):
+    id: str
+    name: str
+    civility: Literal["M.", "Mme", ""] = ""
+    consent: bool = False
+    enrolled_at: str = ""
+    last_identified_at: str | None = None
+
+
+class Visitor(VisitorPublic):
+    embedding: list[float] = Field(default_factory=list)
+
+
+class VisitorIdentifyRequest(BaseModel):
+    embedding: list[float] = Field(..., min_length=2)
+    confidence: float = Field(0.0, ge=0.0, le=1.0)
+    detected_at: str | None = None
+
+
+class VisitorIdentifyResult(BaseModel):
+    ok: bool
+    visitor: VisitorPublic | None = None
+    confidence: float = 0.0
+    message: str = ""
+
+
+class VisitorEnrollRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    civility: Literal["M.", "Mme", ""] = ""
+    embedding: list[float] = Field(..., min_length=2)
+    consent: bool = Field(...)
+
+
 class TelemetryMessage(BaseModel):
-    type: Literal["status", "pose", "event", "map", "points", "lidar", "people", "speech"]
+    type: Literal[
+        "status", "pose", "event", "map", "points", "lidar", "people", "speech", "visitor"
+    ]
     status: RobotStatus | None = None
     pose: Pose | None = None
     event: str | None = None
+    visitor: VisitorPublic | None = None

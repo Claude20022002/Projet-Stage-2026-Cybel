@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
-from routers import charge, diagnostics, history, knowledge, kiosk, map, mqtt, navigation, patrol, reception, robot, settings as settings_router, speech, tour
+from routers import charge, diagnostics, history, knowledge, kiosk, map, mqtt, navigation, patrol, reception, robot, settings as settings_router, speech, tour, visitors
 from services.charge_service import charge_service
 from services.mqtt_bridge_service import mqtt_bridge_service
 from services.robot_service import robot_service
@@ -85,6 +85,7 @@ app.include_router(knowledge.router)
 app.include_router(tour.router)
 app.include_router(patrol.router)
 app.include_router(diagnostics.router)
+app.include_router(visitors.router)
 
 
 KIOSK_DIST = ROOT / "frontend-kiosk" / "dist"
