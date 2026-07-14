@@ -49,6 +49,7 @@ final class CameraPipeline {
     private CameraCaptureSession captureSession;
     private ImageReader imageReader;
     private String openCameraId;
+    private CameraCharacteristics openCameraCharacteristics;
     private volatile boolean busy;
     private volatile boolean stopped;
     private long lastProcessedAtMs;
@@ -68,6 +69,18 @@ final class CameraPipeline {
 
     void stop() {
         stopped = true;
+        cameraHandler.removeCallbacks(reopenRunnable);
+        closeCameraQuietly();
+    }
+
+    /**
+     * Ferme session/device/reader s'ils existent encore. Appelé avant CHAQUE tentative
+     * d'ouverture : sans ça, un échec de createCaptureSession/setRepeatingRequest laissait
+     * le CameraDevice ouvert, et la tentative suivante se bloquait elle-même en conflit
+     * avec sa propre instance précédente (constaté sur le châssis réel : CAMERA_IN_USE,
+     * "Conflicts with: ... client package com.cybel.facebridge" — soi-même).
+     */
+    private void closeCameraQuietly() {
         if (captureSession != null) {
             captureSession.close();
             captureSession = null;
@@ -86,6 +99,7 @@ final class CameraPipeline {
         if (stopped) {
             return;
         }
+        closeCameraQuietly();
         try {
             String cameraId = findBestCameraId();
             if (cameraId == null) {
@@ -112,20 +126,24 @@ final class CameraPipeline {
     private String findBestCameraId() throws CameraAccessException {
         String[] ids = cameraManager.getCameraIdList();
         String fallback = null;
+        CameraCharacteristics fallbackChars = null;
         for (String id : ids) {
             CameraCharacteristics chars = cameraManager.getCameraCharacteristics(id);
             Integer facing = chars.get(CameraCharacteristics.LENS_FACING);
             if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                openCameraCharacteristics = chars;
                 return id;
             }
             if (fallback == null) {
                 fallback = id;
+                fallbackChars = chars;
             }
         }
         if (fallback != null) {
             Log.w(TAG, "Aucune caméra FRONT — utilisation de la caméra " + fallback
                     + " (facing non-FRONT, matériel à caméra unique probable)");
         }
+        openCameraCharacteristics = fallbackChars;
         return fallback;
     }
 
@@ -133,26 +151,29 @@ final class CameraPipeline {
      * Certains capteurs (constaté : RK29_ICS_CameraHal, une seule plage 25-30 fps
      * annoncée) rejettent une CONTROL_AE_TARGET_FPS_RANGE arbitraire — on choisit donc
      * la plage la plus basse réellement supportée plutôt que d'en imposer une, pour
-     * éviter un setRepeatingRequest en échec sur ce matériel.
+     * éviter un setRepeatingRequest en échec sur ce matériel. Réutilise les
+     * CameraCharacteristics mises en cache par findBestCameraId() plutôt que d'appeler
+     * getCameraCharacteristics() une seconde fois pendant que la caméra est déjà
+     * ouverte : sur ce matériel (HAL LEGACY), cet appel tente une reconnexion interne
+     * via l'API Camera1 qui entre en conflit avec notre propre connexion Camera2 déjà
+     * active (constaté : CAMERA_IN_USE contre soi-même).
      */
     private Range<Integer> findLowestSupportedFpsRange() {
-        try {
-            CameraCharacteristics chars = cameraManager.getCameraCharacteristics(openCameraId);
-            Range<Integer>[] ranges = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
-            if (ranges == null || ranges.length == 0) {
-                return null;
-            }
-            Range<Integer> lowest = ranges[0];
-            for (Range<Integer> range : ranges) {
-                if (range.getUpper() < lowest.getUpper()) {
-                    lowest = range;
-                }
-            }
-            return lowest;
-        } catch (CameraAccessException e) {
-            Log.w(TAG, "Lecture plages FPS échouée — pas de contrainte AE appliquée", e);
+        if (openCameraCharacteristics == null) {
             return null;
         }
+        Range<Integer>[] ranges =
+                openCameraCharacteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+        if (ranges == null || ranges.length == 0) {
+            return null;
+        }
+        Range<Integer> lowest = ranges[0];
+        for (Range<Integer> range : ranges) {
+            if (range.getUpper() < lowest.getUpper()) {
+                lowest = range;
+            }
+        }
+        return lowest;
     }
 
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
@@ -255,10 +276,21 @@ final class CameraPipeline {
         });
     }
 
+    private final Runnable reopenRunnable = this::openCamera;
+
+    /**
+     * Sans dédoublonnage, plusieurs échecs rapprochés empilaient plusieurs
+     * callbacks postDelayed : l'un d'eux finissait par retarder la fermeture
+     * d'une connexion caméra qui, entre-temps, avait fini par s'ouvrir avec
+     * succès — la détruisant puis échouant contre elle-même en boucle
+     * (constaté sur le châssis réel : CAMERA_IN_USE toutes les 5s malgré une
+     * session active et fonctionnelle entre-temps).
+     */
     private void scheduleReopen() {
         if (stopped) {
             return;
         }
-        cameraHandler.postDelayed(this::openCamera, REOPEN_DELAY_MS);
+        cameraHandler.removeCallbacks(reopenRunnable);
+        cameraHandler.postDelayed(reopenRunnable, REOPEN_DELAY_MS);
     }
 }

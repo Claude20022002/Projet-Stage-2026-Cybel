@@ -13,6 +13,8 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -108,10 +110,13 @@ public class FaceRecognitionService extends Service {
             enrollment = null;
         }
 
+        Log.d(TAG, "Frame reçue " + width + "x" + height + " — conversion + détection...");
         Bitmap frame = ImageConversions.nv21ToRgb565(nv21, width, height);
+        saveDebugFrame(frame); // DIAGNOSTIC TERRAIN — à retirer une fois la caméra validée
         FaceDetector.Face[] faces = new FaceDetector.Face[1];
         int found = faceDetector.findFaces(frame, faces);
         if (found <= 0) {
+            Log.d(TAG, "Aucun visage sur cette frame");
             return;
         }
         // Logué même sans modèle d'embedding chargé : seul moyen d'observer que la
@@ -136,6 +141,22 @@ public class FaceRecognitionService extends Service {
         }
 
         backendClient.identify(embedding, confidence);
+    }
+
+    /** DIAGNOSTIC TERRAIN — écrase le même fichier à chaque frame, pour inspection via adb pull. */
+    private void saveDebugFrame(Bitmap bmp) {
+        try {
+            File dir = getExternalFilesDir(null);
+            if (dir == null) {
+                return;
+            }
+            File out = new File(dir, "debug_frame.png");
+            try (FileOutputStream stream = new FileOutputStream(out)) {
+                bmp.compress(Bitmap.CompressFormat.PNG, 90, stream);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "saveDebugFrame échoué", e);
+        }
     }
 
     private void postNotification(String title, String text) {
