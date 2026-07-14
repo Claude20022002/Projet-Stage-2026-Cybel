@@ -44,9 +44,9 @@ def test_list_entries(engine: KnowledgeEngine) -> None:
 
 def test_point_name_resolution(engine: KnowledgeEngine) -> None:
     match = engine.match(
-        "lg-10",
+        "cnc routeur",
         lang="fr",
-        point_names=["LG-10", "Accueil"],
+        point_names=["CNC ROUTEUR", "ACCUEIL"],
     )
     assert match is not None
-    assert match.point_name == "LG-10"
+    assert match.point_name == "CNC ROUTEUR"

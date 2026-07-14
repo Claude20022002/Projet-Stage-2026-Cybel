@@ -21,7 +21,7 @@ def test_merge_robot_points_preserves_kiosk_flag(tmp_path: Path) -> None:
         [
             Point(
                 id="1",
-                name="Accueil",
+                name="ACCUEIL",
                 type="common",
                 x=1.0,
                 y=2.0,
@@ -34,7 +34,7 @@ def test_merge_robot_points_preserves_kiosk_flag(tmp_path: Path) -> None:
         [
             Point(
                 id="m1",
-                name="Accueil",
+                name="ACCUEIL",
                 type="common",
                 x=3.0,
                 y=4.0,
