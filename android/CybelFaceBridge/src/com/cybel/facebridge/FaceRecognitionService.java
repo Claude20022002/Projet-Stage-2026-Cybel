@@ -71,9 +71,13 @@ public class FaceRecognitionService extends Service {
 
         try {
             faceEmbedder = new FaceEmbedder(this);
-        } catch (Exception e) {
+        } catch (Throwable t) {
+            // Throwable et non Exception : un .tflite absent/corrompu ou une lib native
+            // incompatible (constaté : UnsatisfiedLinkError, un Error, pas une Exception)
+            // ne doit jamais faire planter tout le service — la détection de visage
+            // (sans identification) doit continuer à fonctionner malgré tout.
             Log.e(TAG, "Modèle d'embedding indisponible (assets/face_embedding.tflite) — "
-                    + "voir README.md. Reconnaissance désactivée.", e);
+                    + "voir README.md. Reconnaissance désactivée, détection seule active.", t);
         }
 
         cameraPipeline = new CameraPipeline(this, cameraHandler, workExecutor, this::onFrame);
@@ -104,14 +108,17 @@ public class FaceRecognitionService extends Service {
             enrollment = null;
         }
 
-        if (faceEmbedder == null) {
-            return;
-        }
-
         Bitmap frame = ImageConversions.nv21ToRgb565(nv21, width, height);
         FaceDetector.Face[] faces = new FaceDetector.Face[1];
         int found = faceDetector.findFaces(frame, faces);
         if (found <= 0) {
+            return;
+        }
+        // Logué même sans modèle d'embedding chargé : seul moyen d'observer que la
+        // conversion NV21->RGB565 + détection fonctionnent sur ce matériel (pas d'UI).
+        Log.i(TAG, "Visage détecté, confiance=" + faces[0].confidence());
+
+        if (faceEmbedder == null) {
             return;
         }
 

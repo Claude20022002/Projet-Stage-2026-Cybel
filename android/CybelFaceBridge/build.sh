@@ -37,7 +37,7 @@ D8="$BUILD_TOOLS/d8.bat"
 ZIPALIGN="$BUILD_TOOLS/zipalign.exe"
 APKSIGNER="$BUILD_TOOLS/apksigner.bat"
 
-TFLITE_JAR="$DIR/libs/tensorflow-lite-2.14.0.jar"
+TFLITE_JAR="$DIR/libs/tensorflow-lite-2.9.0.jar"
 if [ ! -f "$TFLITE_JAR" ]; then
   echo "ERREUR: $TFLITE_JAR manquant (vendoring TensorFlow Lite incomplet — voir README.md)"
   exit 1

@@ -86,11 +86,20 @@ adb shell pm grant com.cybel.facebridge android.permission.CAMERA
 adb shell am startservice -n com.cybel.facebridge/.FaceRecognitionService
 ```
 
-`libs/tensorflow-lite-2.14.0.jar` (fusion des classes de `org.tensorflow:tensorflow-lite:2.14.0`
-et `org.tensorflow:tensorflow-lite-api:2.14.0` — ce dernier fournit `InterpreterApi`/`Tensor`,
+`libs/tensorflow-lite-2.9.0.jar` (fusion des classes de `org.tensorflow:tensorflow-lite:2.9.0`
+et `org.tensorflow:tensorflow-lite-api:2.9.0` — ce dernier fournit `InterpreterApi`/`Tensor`,
 absents du premier jar seul) et `jniLibs/{arm64-v8a,armeabi-v7a}/libtensorflowlite_jni.so`
 sont déjà vendorés (extraits des AAR officiels Maven Central, licence Apache 2.0 —
 voir `libs/TENSORFLOW_LITE_LICENSE.txt`). Seul le modèle d'embedding manque.
+
+> **Version 2.9.0, pas la dernière** : testé sur le châssis CIOT TY1251D-03195
+> (Android 7.1.2/API 25) — les versions TFLite plus récentes (2.14.0 confirmé)
+> référencent le symbole libc `strtod_l@LIBC_O`, introduit dans Bionic à partir
+> d'API 26 (Android 8) : `UnsatisfiedLinkError: cannot locate symbol "strtod_l"`
+> au chargement sur ce matériel. 2.9.0 ne dépend que de `strtod` (non versionné),
+> compatible API 25. Si vous changez de version, vérifiez d'abord avec
+> `readelf --dyn-syms libtensorflowlite_jni.so | grep strtod` qu'aucun symbole
+> `@LIBC_O` (ou supérieur) n'apparaît.
 
 ## Limites connues / à valider sur le terrain
 
