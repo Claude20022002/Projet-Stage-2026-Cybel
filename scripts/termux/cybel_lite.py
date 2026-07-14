@@ -9,6 +9,8 @@ import os
 import subprocess
 import sys
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import uvicorn
@@ -1430,6 +1432,37 @@ def find_point(point_name: str) -> dict | None:
     return next((p for p in load_points() if p.get("name") == point_name), None)
 
 
+def load_visitors() -> list[dict]:
+    if not VISITORS_PATH.is_file():
+        return []
+    with open(VISITORS_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    return list(data.get("visitors", []))
+
+
+def save_visitors(visitors: list[dict]) -> None:
+    from datetime import datetime, timezone
+
+    VISITORS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "visitors": visitors,
+    }
+    with open(VISITORS_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def find_visitor(visitor_id: str) -> dict | None:
+    return next((v for v in load_visitors() if v.get("id") == visitor_id), None)
+
+
+def visitor_public(visitor: dict) -> dict:
+    """Retire l'embedding — ne jamais exposer les données biométriques au client."""
+    return {k: v for k, v in visitor.items() if k != "embedding"}
+
+
 def kiosk_destinations() -> list[dict]:
     tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
     tour_names = {
@@ -1459,6 +1492,7 @@ def load_kiosk_config() -> dict:
         "presence_cooldown_seconds": 90,
         "presence_speak_welcome": True,
         "face_recognition_enabled": False,
+        "face_recognition_threshold": DEFAULT_FACE_RECOGNITION_THRESHOLD,
     }
     if not KIOSK_CONFIG_PATH.is_file():
         return default
@@ -1490,6 +1524,12 @@ async def kiosk_config_put(request: Request) -> JSONResponse:
         "standby_timeout_seconds",
         "featured_destinations",
         "reception_actions",
+        "presence_welcome_enabled",
+        "presence_max_distance_m",
+        "presence_cooldown_seconds",
+        "presence_speak_welcome",
+        "face_recognition_enabled",
+        "face_recognition_threshold",
     }
     current = load_kiosk_config()
     for key, value in body.items():
