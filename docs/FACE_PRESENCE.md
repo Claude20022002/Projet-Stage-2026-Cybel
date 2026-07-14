@@ -66,11 +66,14 @@ Placez-vous devant le robot : le tableau `people` doit contenir au moins une ent
 
 ## Phase 2 — Reconnaissance faciale (scaffolding implémenté)
 
-> **État réel (juillet 2026)** : le pipeline complet est codé (app Android, backend PC,
-> backend embarqué, kiosque) et le **matching backend est vérifié** (tests unitaires +
-> test manuel via HTTP réel, voir plus bas). Le **pipeline caméra/détection/embedding
-> sur tablette n'a pas pu être validé** faute d'accès à la tablette physique et de
-> modèle `.tflite` réel — voir « Reste à valider sur le terrain ».
+> **État réel (2026-07-14)** : le pipeline complet est codé (app Android, backend PC,
+> backend embarqué, kiosque). Le **matching backend est vérifié** (tests unitaires +
+> HTTP réel) et surtout, **le pipeline caméra → conversion → détection de visage a été
+> validé en direct sur le châssis CIOT TY1251D-03195** (tablette branchée en USB/ADB) :
+> détection de visage confirmée (confiance ~0.51) à 2-3 m de distance. Cinq bugs réels
+> ont été trouvés et corrigés à cette occasion (voir tableau ci-dessous et
+> [`android/CybelFaceBridge/README.md`](../android/CybelFaceBridge/README.md)).
+> Seule l'**identification** (avec un vrai modèle `.tflite`) reste non testée.
 
 ### Contraintes
 
@@ -82,7 +85,7 @@ Placez-vous devant le robot : le tableau `people` doit contenir au moins une ent
 
 | Composant | Rôle | État |
 |-----------|------|------|
-| App Android **`CybelFaceBridge`** (`android/CybelFaceBridge/`) | Capture caméra frontale tablette (Camera2 headless, sans preview), détection (`android.media.FaceDetector`) + embedding (TensorFlow Lite) | Code complet, build testé de bout en bout ; **runtime caméra/détection non testé sur device réel** |
+| App Android **`CybelFaceBridge`** (`android/CybelFaceBridge/`) | Capture caméra tablette (Camera2 headless, sans preview), détection (`android.media.FaceDetector`) + embedding (TensorFlow Lite) | ✅ **Validé sur le châssis réel** : caméra, conversion image, détection de visage tous confirmés fonctionnels |
 | `sdk/visitor_utils.py` | Similarité cosinus + seuil, sans pydantic (partagé backend PC / Termux lite) | ✅ Testé (`tests/unit/test_visitor_utils.py`) |
 | `data/visitors.json` | Annuaire visiteurs (nom, embedding, consentement) — jamais d'image stockée | ✅ |
 | `POST /api/visitors/identify` | Reçoit l'embedding calculé par le bridge, renvoie `{ ok, visitor, confidence }` | ✅ Testé (unitaire + HTTP réel) |
@@ -122,25 +125,37 @@ curl -X POST http://localhost:8000/api/visitors/identify `
 # -> {"ok":true,"visitor":{"name":"Test",...},"confidence":1.0}
 ```
 
-**Ce qui nécessite la tablette physique** (non fait) :
+**Ce qui a été fait sur la tablette physique (2026-07-14)** :
 
-1. Fournir un vrai modèle `.tflite` dans `android/CybelFaceBridge/assets/`.
-2. `cd android/CybelFaceBridge && ./build.sh` puis `adb install -r out/CybelFaceBridge.apk`.
-3. `adb shell pm grant com.cybel.facebridge android.permission.CAMERA` (pas de dialogue
+1. `adb shell pm grant com.cybel.facebridge android.permission.CAMERA` (pas de dialogue
    runtime possible — app headless sans Activity).
-4. `adb logcat -s CybelFaceService:* CybelCameraPipeline:* CybelFaceEmbedder:*` pour
-   observer la détection/embedding en direct.
-5. `scripts/termux/enroll_visitor.sh "Nom Test" "M."` puis se placer devant la caméra.
-6. Vérifier `GET /api/visitors/current` et l'accueil personnalisé sur le kiosque.
+2. `adb logcat -s CybelFaceService:* CybelCameraPipeline:*` pour observer la caméra en direct.
+3. Build+install avec un modèle `.tflite` factice (données aléatoires) — suffisant pour
+   valider caméra/détection, pas l'identification elle-même.
+4. Capture d'une frame réelle (`getExternalFilesDir` + `adb pull`) pour inspection
+   visuelle directe — a permis de découvrir que le module caméra dédié (au sommet de
+   la tête du robot, distinct des deux "yeux" IR) ne cadre un visage qu'à ~2-3 m,
+   pas en dessous d'1 m.
+5. Détection de visage confirmée (`android.media.FaceDetector`, confiance ~0.51,
+   répétée sur plusieurs frames) à bonne distance, visiteur de face.
 
-### Reste à valider sur le terrain
+**Reste à faire** : `scripts/termux/enroll_visitor.sh` + `GET /api/visitors/current` +
+accueil personnalisé kiosque n'ont pas encore été exercés sur device (nécessitent un
+vrai modèle `.tflite` pour produire des embeddings exploitables).
 
-- Conversion NV21→RGB565 manuelle sur les vraies données du capteur RK3399.
-- Heuristique de cadrage du visage (`FaceDetector` ne donne pas de rectangle, seulement
-  `eyesDistance()`/`getMidPoint()`) — probablement à ajuster visuellement.
-- Bitness tablette (32 vs 64 bits) — `arm64-v8a` et `armeabi-v7a` vendorés par précaution.
-- `face_recognition_threshold` (défaut 0.82) — démarrer conservateur, ajuster après
-  observation de scores réels.
+### Bugs trouvés et corrigés grâce au test terrain
+
+Invisibles depuis l'environnement de développement — seul le matériel réel les a révélés :
+
+| Bug | Cause | Correctif |
+|-----|-------|-----------|
+| Aucune caméra trouvée | Le code cherchait uniquement `LENS_FACING_FRONT` ; ce robot n'expose qu'une caméra, classée `BACK` | Repli sur la caméra disponible si aucune `FRONT` |
+| Risque d'échec `setRepeatingRequest` | Plage FPS `(2,5)` codée en dur, incompatible avec les 25-30 fps annoncés par ce capteur | Plage lue dynamiquement sur les caractéristiques caméra |
+| Crash total du service au démarrage | TensorFlow Lite 2.14.0 référence un symbole libc (`strtod_l@LIBC_O`) introduit à l'API 26 ; absent sur Android 7.1/API 25 | Passage à TensorFlow Lite 2.9.0 (sans cette dépendance) |
+| Ce crash n'était pas rattrapé | `UnsatisfiedLinkError` hérite de `Error`, pas `Exception` — le `catch` ne le voyait pas | `catch (Throwable t)` autour du chargement du modèle |
+| `CAMERA_IN_USE` en boucle toutes les 5s malgré une caméra fonctionnelle | Deux causes cumulées : `getCameraCharacteristics()` rappelé pendant que la caméra est déjà ouverte entre en conflit avec elle-même sur ce HAL LEGACY ; et les tentatives de réouverture programmées s'empilaient sans s'annuler | Caractéristiques mises en cache (pas de second appel) + callback de réouverture unique (`removeCallbacks` avant `postDelayed`) |
+
+Détail complet : [`android/CybelFaceBridge/README.md`](../android/CybelFaceBridge/README.md).
 
 ---
 

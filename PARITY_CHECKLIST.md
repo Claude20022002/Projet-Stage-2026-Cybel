@@ -20,7 +20,7 @@
 - [x] Démarrage auto backend (app Accueil v1.3)
 - [x] Scénarios prédéfinis complets (accueil, salle, attente visiteur)
 - [x] Retour à la base (kiosque)
-- [ ] Reconnaissance faciale (backend `/api/visitors/*` + app `CybelFaceBridge` implémentés et testés côté matching ; caméra/détection/embedding non validés sur tablette réelle — voir [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md))
+- [ ] Reconnaissance faciale (backend `/api/visitors/*` + app `CybelFaceBridge` : matching testé, et caméra/détection de visage validées sur le châssis CIOT réel le 2026-07-14 ; seule l'identification avec un vrai modèle `.tflite` reste à faire — voir [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md))
 - [x] Détection de présence ROS → accueil kiosque (branche `feature/face-presence`, phase 1)
 - [ ] Météo / média
 

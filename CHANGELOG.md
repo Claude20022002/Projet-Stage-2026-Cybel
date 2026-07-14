@@ -26,11 +26,24 @@
 - **Tests** : `test_visitor_utils.py`, `test_visitors_router.py` (+ extension
   `test_persistence.py`, `test_kiosk_config.py`) — matching backend vérifié
   par tests unitaires et par un test manuel HTTP réel
-- **Non validé** : pipeline caméra/détection/embedding sur tablette physique
-  (pas d'accès terrain depuis l'environnement de dev) — aucun modèle
-  `.tflite` n'est fourni (provenance de licence/dataset des modèles publics
-  souvent floue) ; voir [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md) et
-  [android/CybelFaceBridge/README.md](android/CybelFaceBridge/README.md)
+- **Non validé initialement** : pipeline caméra/détection/embedding sur
+  tablette physique (pas d'accès terrain depuis l'environnement de dev) —
+  aucun modèle `.tflite` n'est fourni (provenance de licence/dataset des
+  modèles publics souvent floue)
+
+### Validation terrain caméra/détection (même jour, châssis CIOT réel)
+
+Tablette branchée en USB/ADB, cinq bugs réels trouvés et corrigés (invisibles
+sans le matériel) : sélection caméra (une seule caméra `BACK`, pas `FRONT`),
+plage FPS codée en dur incompatible, crash TensorFlow Lite 2.14.0
+(`UnsatisfiedLinkError: strtod_l`, symbole API26+ absent sur Android
+7.1/API25 → passage à TFLite 2.9.0), crash non rattrapé (`Throwable` vs
+`Exception`), boucle `CAMERA_IN_USE` (fuite de callbacks de réouverture).
+**Caméra, conversion NV21→RGB565 et détection de visage confirmées
+fonctionnelles** (confiance ~0.51, visiteur à 2-3 m). Identification réelle
+toujours non testée (nécessite un vrai modèle `.tflite`). Détail :
+[docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md) et
+[android/CybelFaceBridge/README.md](android/CybelFaceBridge/README.md).
 
 ## [0.3.3] — 2026-06-27
 

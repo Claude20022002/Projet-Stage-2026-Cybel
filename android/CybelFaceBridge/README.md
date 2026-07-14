@@ -101,20 +101,31 @@ voir `libs/TENSORFLOW_LITE_LICENSE.txt`). Seul le modèle d'embedding manque.
 > `readelf --dyn-syms libtensorflowlite_jni.so | grep strtod` qu'aucun symbole
 > `@LIBC_O` (ou supérieur) n'apparaît.
 
-## Limites connues / à valider sur le terrain
+## Validation terrain (2026-07-14, châssis CIOT TY1251D-03195 réel)
 
-Rien de ce qui suit n'a pu être testé depuis l'environnement de développement
-(pas d'accès à la tablette/robot physique) :
+Testé en direct sur le robot (tablette RK3399 branchée en USB/ADB) avec un
+modèle `.tflite` factice (données aléatoires, juste pour exercer le pipeline
+caméra/détection — pas la reconnaissance elle-même). Plusieurs bugs réels ont
+été trouvés et corrigés à cette occasion, invisibles sans le matériel :
 
-- Conversion NV21→RGB565 manuelle (`ImageConversions`) — à valider contre le
-  vrai layout YUV du capteur RK3399.
-- Heuristique de cadrage du visage (`cropFaceRegion`, basée sur
-  `eyesDistance()`/`getMidPoint()` — `FaceDetector` ne fournit pas de rectangle)
-  — probablement à ajuster visuellement.
-- Bitness de la tablette (32 vs 64 bits) — `armeabi-v7a` est vendoré en
-  complément d'`arm64-v8a` par précaution, mais à confirmer.
-- FPS réellement honoré par le HAL caméra, comportement batterie/thermique sur
-  plusieurs heures.
-- `face_recognition_threshold` (défaut 0.82) — démarrer conservateur (préférer
-  ne pas reconnaître plutôt que saluer la mauvaise personne par son nom), puis
-  ajuster après observation de scores réels sur le terrain.
+| Constat | Bug trouvé | Statut |
+|---------|-----------|--------|
+| Une seule caméra physique, classée `BACK` par Android (pas `FRONT`) | `findBestCameraId()` ne cherchait que `FRONT` → échec silencieux garanti | ✅ Corrigé (repli sur la caméra disponible) |
+| Ce capteur n'annonce qu'une plage 25-30 fps | `CONTROL_AE_TARGET_FPS_RANGE` codé en dur à (2,5) → risque d'échec `setRepeatingRequest` | ✅ Corrigé (plage lue dynamiquement) |
+| TensorFlow Lite 2.14.0 crash au chargement (`UnsatisfiedLinkError: strtod_l`) | Symbole Bionic API26+, absent sur Android 7.1/API25 | ✅ Corrigé (passage à TFLite 2.9.0, voir note ci-dessus) |
+| Ce crash tuait tout le service au lieu d'être ignoré | `catch (Exception e)` ne rattrape pas `UnsatisfiedLinkError` (un `Error`, pas une `Exception`) | ✅ Corrigé (`catch (Throwable t)`) |
+| `getCameraCharacteristics()` pendant que la caméra est ouverte entre en conflit avec elle-même sur ce HAL LEGACY | Provoquait un `CAMERA_IN_USE` en boucle toutes les 5s | ✅ Corrigé (caractéristiques mises en cache, plus de second appel) |
+| Plusieurs `scheduleReopen()` rapprochés s'empilaient sans s'annuler | Une connexion caméra fonctionnelle finissait détruite par une tentative en retard | ✅ Corrigé (callback unique, `removeCallbacks` avant `postDelayed`) |
+| Conversion NV21→RGB565 (`ImageConversions`) | — | ✅ **Validée visuellement** : image nette, bien colorée, correctement orientée (capture réelle inspectée) |
+| Détection de visage (`android.media.FaceDetector`) | — | ✅ **Validée** : détection répétée, confiance ~0.51, quand le visiteur est bien de face à 2-3 m |
+| Cadrage caméra | Le module face (petit objectif + émetteur IR, au sommet de la tête du robot, distinct des deux "yeux" IR) est orienté de façon à ne cadrer un visage qu'à distance ~2-3 m ; à moins d'1 m il ne capte que le plafond/haut du mur | ⚠️ Contrainte terrain à communiquer à l'UX (afficher une invite "reculez-vous" ?) |
+
+**Ce qui reste réellement non testé** (nécessite un vrai modèle `.tflite`) :
+- Qualité des embeddings / précision de la reconnaissance (le test a validé la
+  détection, pas l'identification — un modèle random ne produit rien
+  d'exploitable).
+- Heuristique de cadrage du visage avant embedding (`cropFaceRegion`,
+  `eyesDistance()`/`getMidPoint()`) — non exercée par ce test.
+- Comportement batterie/thermique sur plusieurs heures.
+- `face_recognition_threshold` (défaut 0.82) — à calibrer avec de vrais scores
+  de similarité une fois un modèle réel en place.
