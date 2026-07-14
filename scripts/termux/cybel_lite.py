@@ -8,6 +8,7 @@ import math
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import uvicorn
@@ -24,6 +25,7 @@ ACTIONS_PATH = CYBEL_HOME / "scripts" / "termux" / "actions.json"
 FAQ_PATH = CYBEL_HOME / "data" / "hestim_knowledge_base.json"
 TOUR_PATH = CYBEL_HOME / "data" / "lab_tour.json"
 POINTS_PATH = CYBEL_HOME / "data" / "points.json"
+VISITORS_PATH = CYBEL_HOME / "data" / "visitors.json"
 KIOSK_CONFIG_PATH = CYBEL_HOME / "data" / "kiosk_config.json"
 KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
 LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
@@ -155,6 +157,11 @@ _telemetry_sockets: set[WebSocket] = set()
 PEOPLE_TOPIC = "/detected_people_array"
 _detected_people: list[dict] = []
 _people_utils_module = None
+_visitor_utils_module = None
+_current_identified_visitor: dict | None = None
+_current_identified_at: float = 0.0
+VISITOR_IDENTITY_TTL_SECONDS = 120.0
+DEFAULT_FACE_RECOGNITION_THRESHOLD = 0.82
 
 
 def _get_people_utils():
@@ -162,6 +169,13 @@ def _get_people_utils():
     if _people_utils_module is None:
         _people_utils_module = _load_sdk_module_from_file("people_utils")
     return _people_utils_module
+
+
+def _get_visitor_utils():
+    global _visitor_utils_module
+    if _visitor_utils_module is None:
+        _visitor_utils_module = _load_sdk_module_from_file("visitor_utils")
+    return _visitor_utils_module
 
 
 def get_detected_people() -> list[dict]:

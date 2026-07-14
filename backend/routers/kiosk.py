@@ -22,6 +22,12 @@ _DEFAULT_CONFIG = {
     "standby_timeout_seconds": 90,
     "featured_destinations": [],
     "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode"],
+    "presence_welcome_enabled": True,
+    "presence_max_distance_m": 3.0,
+    "presence_cooldown_seconds": 90,
+    "presence_speak_welcome": True,
+    "face_recognition_enabled": False,
+    "face_recognition_threshold": 0.82,
 }
 
 
@@ -34,6 +40,12 @@ class KioskConfigUpdate(BaseModel):
     standby_timeout_seconds: int | None = Field(default=None, ge=0, le=600)
     featured_destinations: list[str] | None = None
     reception_actions: list[str] | None = None
+    presence_welcome_enabled: bool | None = None
+    presence_max_distance_m: float | None = Field(default=None, ge=0.0, le=20.0)
+    presence_cooldown_seconds: int | None = Field(default=None, ge=0, le=3600)
+    presence_speak_welcome: bool | None = None
+    face_recognition_enabled: bool | None = None
+    face_recognition_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 def _load_config() -> dict:
