@@ -1,10 +1,11 @@
-import type { DetectedPerson, RobotStatus, SpeechStatus, TourStatus } from "./types";
+import type { DetectedPerson, RobotStatus, SpeechStatus, TourStatus, VisitorPublic } from "./types";
 
 export type TelemetryHandlers = {
   onRobotStatus?: (status: RobotStatus) => void;
   onSpeech?: (speech: SpeechStatus) => void;
   onTourStatus?: (status: TourStatus) => void;
   onPeople?: (people: DetectedPerson[]) => void;
+  onVisitorIdentified?: (visitor: VisitorPublic, confidence: number) => void;
   onConnected?: (connected: boolean) => void;
 };
 
@@ -51,6 +52,8 @@ export function connectKioskTelemetry(next: TelemetryHandlers): void {
       handlers.onTourStatus?.(data as unknown as TourStatus);
     } else if (type === "people" && Array.isArray(data.people)) {
       handlers.onPeople?.(data.people as DetectedPerson[]);
+    } else if (type === "visitor" && data.visitor) {
+      handlers.onVisitorIdentified?.(data.visitor as VisitorPublic, Number(data.confidence ?? 0));
     }
   };
 }

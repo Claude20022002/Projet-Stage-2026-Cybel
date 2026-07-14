@@ -40,6 +40,15 @@ export interface DetectedPerson {
   distance: number;
 }
 
+export interface VisitorPublic {
+  id: string;
+  name: string;
+  civility: "M." | "Mme" | "";
+  consent: boolean;
+  enrolled_at: string;
+  last_identified_at: string | null;
+}
+
 export interface KioskConfig {
   organization_name_fr: string;
   organization_name_en: string;
@@ -57,6 +66,7 @@ export interface KioskConfig {
   presence_cooldown_seconds?: number;
   presence_speak_welcome?: boolean;
   face_recognition_enabled?: boolean;
+  face_recognition_threshold?: number;
 }
 
 export interface ReceptionAction {

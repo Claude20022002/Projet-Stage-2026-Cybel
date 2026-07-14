@@ -21,6 +21,7 @@ import type {
   SpeechStatus,
   TourScreen,
   TourStatus,
+  VisitorPublic,
 } from "./types";
 
 let lang: Lang = "fr";
@@ -45,6 +46,8 @@ let sawNavigating = false;
 let lastInteractionAt = Date.now();
 let detectedPeople: DetectedPerson[] = [];
 let lastPresenceWelcomeAt = 0;
+let identifiedVisitor: { visitor: VisitorPublic; at: number } | null = null;
+const VISITOR_GREETING_TTL_MS = 120_000;
 
 function tr() {
   return t[lang];
@@ -131,6 +134,14 @@ function syncScreenFromRobotStatus(): void {
   }
 }
 
+function personalizedGreeting(): string | null {
+  if (!config?.face_recognition_enabled || !identifiedVisitor) return null;
+  if (Date.now() - identifiedVisitor.at > VISITOR_GREETING_TTL_MS) return null;
+  const { name, civility } = identifiedVisitor.visitor;
+  if (lang === "en") return `Welcome back, ${name}!`;
+  return `Bonjour ${civility ? civility + " " : ""}${name} !`;
+}
+
 function handlePresenceWelcome(): void {
   if (!config?.presence_welcome_enabled) return;
   if (busy || activeFlow) return;
@@ -147,9 +158,10 @@ function handlePresenceWelcome(): void {
     render();
   }
   const welcome =
-    lang === "fr"
+    personalizedGreeting() ??
+    (lang === "fr"
       ? config.welcome_message_fr || tr().presenceWelcome
-      : config.welcome_message_en || tr().presenceWelcome;
+      : config.welcome_message_en || tr().presenceWelcome);
   if (config.presence_speak_welcome !== false) {
     void api.say(welcome).catch(() => undefined);
   }

@@ -1918,6 +1918,19 @@ async def _people_listener_loop() -> None:
             await asyncio.sleep(2.0)
 
 
+async def _broadcast_to_telemetry(message: dict) -> None:
+    """Diffuse un événement ponctuel (pas rejoué en boucle, contrairement à status/people)."""
+    payload = json.dumps(message)
+    dead: list[WebSocket] = []
+    for ws in list(_telemetry_sockets):
+        try:
+            await ws.send_text(payload)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _telemetry_sockets.discard(ws)
+
+
 async def telemetry_ws(websocket: WebSocket) -> None:
     await websocket.accept()
     _telemetry_sockets.add(websocket)
@@ -1937,6 +1950,13 @@ async def telemetry_ws(websocket: WebSocket) -> None:
         await websocket.send_text(
             json.dumps({"type": "people", "people": get_detected_people()})
         )
+        if (
+            _current_identified_visitor is not None
+            and (time.time() - _current_identified_at) <= VISITOR_IDENTITY_TTL_SECONDS
+        ):
+            await websocket.send_text(
+                json.dumps({"type": "visitor", "visitor": _current_identified_visitor})
+            )
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
@@ -1991,6 +2011,11 @@ def build_app() -> Starlette:
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
         Route("/api/robot/people", robot_people, methods=["GET"]),
+        Route("/api/visitors", visitors_list, methods=["GET"]),
+        Route("/api/visitors/current", visitors_current, methods=["GET"]),
+        Route("/api/visitors/identify", visitors_identify, methods=["POST"]),
+        Route("/api/visitors/enroll", visitors_enroll, methods=["POST"]),
+        Route("/api/visitors/{visitor_id}", visitors_delete, methods=["DELETE"]),
         Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
         Route("/api/navigation/cancel", navigation_cancel, methods=["POST"]),
         Route("/api/charge/go-home", charge_go_home, methods=["POST"]),
