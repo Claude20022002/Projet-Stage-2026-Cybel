@@ -49,6 +49,27 @@ export interface VisitorPublic {
   last_identified_at: string | null;
 }
 
+export type VoiceKind =
+  | "action"
+  | "navigation"
+  | "faq"
+  | "faq+navigation"
+  | "unknown"
+  | "empty";
+
+export interface VoiceResult {
+  ok: boolean;
+  understood: boolean;
+  kind: VoiceKind;
+  transcript: string;
+  reply: string;
+  action?: string | null;
+  point?: string | null;
+  error?: string | null;
+}
+
+export type VoiceState = "idle" | "listening" | "processing" | "answer";
+
 export interface KioskConfig {
   organization_name_fr: string;
   organization_name_en: string;

@@ -7,6 +7,7 @@ import type {
   RobotStatus,
   SpeechStatus,
   TourStatus,
+  VoiceResult,
 } from "./types";
 
 const API_BASE = "";

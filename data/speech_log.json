@@ -7,8 +7,24 @@
       "method": "mock",
       "error": "",
       "at": "2026-07-15T21:38:09.047111+00:00"
+    },
+    {
+      "id": "8c9af799-6b30-4da7-885c-8fc6b4eda536",
+      "text": "Bienvenue pour la visite guidée. Nous allons commencer.",
+      "ok": true,
+      "method": "mock",
+      "error": "",
+      "at": "2026-07-15T21:38:32.457138+00:00"
+    },
+    {
+      "id": "62678aa6-bc21-42b1-8de3-ea0128d92de5",
+      "text": "Vous êtes à l'entrée du laboratoire HESTIM. C'est le point d'accueil de la visite sur la carte laboV2.",
+      "ok": true,
+      "method": "mock",
+      "error": "",
+      "at": "2026-07-15T21:38:32.776396+00:00"
     }
   ],
   "version": 1,
-  "updated_at": "2026-07-15T21:38:09.047130+00:00"
+  "updated_at": "2026-07-15T21:38:32.776415+00:00"
 }
