@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -2042,14 +2043,14 @@ def build_app() -> Starlette:
         routes.append(
             Mount("/kiosk", app=StaticFiles(directory=str(KIOSK_DIST), html=True), name="kiosk")
         )
-    app = Starlette(routes=routes)
 
-    @app.on_event("startup")
-    async def _start_telemetry() -> None:
+    @asynccontextmanager
+    async def _lifespan(_: Starlette):
         asyncio.create_task(_telemetry_broadcast_loop())
         asyncio.create_task(_people_listener_loop())
+        yield
 
-    return app
+    return Starlette(routes=routes, lifespan=_lifespan)
 
 
 app = build_app()
