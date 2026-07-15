@@ -1,5 +1,31 @@
 # Changelog CYBEL
 
+## [0.3.5] — 2026-07-15
+
+### Auto-réparation Termux offline (incident tablette)
+
+- **Incident** : bootstrap Termux réextrait sans le paquet `python` → backend
+  kiosque mort au démarrage (notification « bash not found », puis
+  `ModuleNotFoundError: uvicorn`) ; pas d'internet sur le réseau du robot pour
+  réinstaller. Diagnostic et réparation via ADB/USB.
+- **Bundle offline vendoré** : `scripts/termux/offline_bootstrap/` (.deb Termux
+  aarch64 : python 3.14.6, python-pip + 8 dépendances ; wheels PyPI purs
+  Python : uvicorn 0.51.0, starlette 1.3.1, websockets 16.1 ; `SHA256SUMS`
+  vérifiées contre les dépôts d'origine)
+- **`install_offline_bootstrap.sh`** (nouveau) : réparation idempotente sans
+  réseau — intégrité du bundle, `dpkg -i` si python absent,
+  `pip install --no-index` pour les modules
+- **Préflight** dans `ensure_cybel_backend.sh` / `ensure_cybel_backend_test.sh` :
+  teste `import uvicorn, starlette, websockets` à chaque lancement et déclenche
+  la réparation automatiquement
+- **Migration starlette ≥ 1.x** : `cybel_lite.py` passe de
+  `@app.on_event("startup")` (API supprimée) au paramètre `lifespan` ;
+  `requirements-lite.txt` aligné sur les versions du bundle
+- **Validé sur le châssis réel** : suppression volontaire de `starlette` →
+  relance kiosque → réparation auto en ~10 s → backend healthy (8000 + 8001)
+- Doc : [docs/TERMUX_DEPLOY.md §6.1](docs/TERMUX_DEPLOY.md) et
+  [scripts/termux/offline_bootstrap/README.md](scripts/termux/offline_bootstrap/README.md)
+
 ## [0.3.4] — 2026-07-14
 
 ### Reconnaissance faciale — scaffolding (branche `feature/face-presence`, phase 2)
