@@ -161,6 +161,8 @@ PEOPLE_TOPIC = "/detected_people_array"
 _detected_people: list[dict] = []
 _people_utils_module = None
 _visitor_utils_module = None
+_voice_commands_module = None
+_knowledge_engine = None
 _current_identified_visitor: dict | None = None
 _current_identified_at: float = 0.0
 VISITOR_IDENTITY_TTL_SECONDS = 120.0
@@ -179,6 +181,28 @@ def _get_visitor_utils():
     if _visitor_utils_module is None:
         _visitor_utils_module = _load_sdk_module_from_file("visitor_utils")
     return _visitor_utils_module
+
+
+def _get_voice_commands():
+    global _voice_commands_module
+    if _voice_commands_module is None:
+        _voice_commands_module = _load_sdk_module_from_file("voice_commands")
+    return _voice_commands_module
+
+
+def _get_knowledge_engine():
+    """KnowledgeEngine (FAQ HESTIM + lab) — modules sdk purs, chargés via le shim.
+
+    knowledge_engine ne dépend que de json_store et voice_commands (tous deux sans
+    pydantic depuis le refactor), donc importable tel quel sur Termux.
+    """
+    global _knowledge_engine
+    if _knowledge_engine is None:
+        # voice_commands doit être chargé d'abord (import interne de knowledge_engine).
+        _get_voice_commands()
+        module = _load_sdk_module_from_file("knowledge_engine")
+        _knowledge_engine = module.KnowledgeEngine(CYBEL_HOME / "data")
+    return _knowledge_engine
 
 
 def get_detected_people() -> list[dict]:
@@ -1780,6 +1804,130 @@ async def go_destination(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "point": point_name, "events": events})
 
 
+async def _voice_navigate(point_name: str, lang: str) -> dict:
+    """Prépare la navigation (localisation, mode auto), annonce et lance le trajet.
+    Même chaîne que go_destination, réutilisée par les commandes vocales."""
+    point = find_point(point_name)
+    if not point:
+        return {"ok": False, "error": f"Destination « {point_name} » inconnue"}
+    ready, reason, _ = await prepare_for_tour()
+    if not ready:
+        return {"ok": False, "error": reason}
+    if not await ensure_auto_navigation():
+        return {"ok": False, "error": "Impossible d'activer le mode navigation automatique"}
+    welcome = (
+        f"I will take you to {point_name}. Please follow me."
+        if lang == "en"
+        else f"Je vous accompagne vers {point_name}. Suivez-moi."
+    )
+    speak_local(welcome)
+    try:
+        await navigate_to_point(point_name)
+    except Exception as exc:
+        return {"ok": False, "error": f"Navigation vers « {point_name} » impossible : {exc}"}
+    return {"ok": True, "point": point_name, "reply": welcome}
+
+
+async def handle_voice_command(text: str, lang: str) -> dict:
+    """NLU minimal : commande vocale → action / navigation POI / réponse FAQ.
+
+    Réutilise le moteur partagé (sdk.voice_commands, sdk.knowledge_engine) et les
+    exécuteurs déjà présents dans ce backend (execute_action, navigate_to_point,
+    speak_local). Renvoie un dict structuré (le champ `start_tour` signale au routeur
+    d'enchaîner sur tour_start, qui a besoin de l'objet Request)."""
+    voice = _get_voice_commands()
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return {"ok": False, "understood": False, "kind": "empty",
+                "transcript": text, "reply": ""}
+
+    # 1) Commande d'action (« visite guidée », « arrête », « accueil »…)
+    action_id = voice.match_voice_command(cleaned)
+    if action_id:
+        if action_id == "guided_tour":
+            return {"ok": True, "understood": True, "kind": "action",
+                    "action": action_id, "transcript": cleaned,
+                    "reply": "Je démarre la visite guidée." if lang == "fr"
+                             else "Starting the guided tour.", "start_tour": True}
+        result = await execute_action(action_id, lang)
+        if result.get("error") == "use_tour_start":
+            return {"ok": True, "understood": True, "kind": "action",
+                    "action": action_id, "transcript": cleaned,
+                    "reply": "Je démarre la visite guidée." if lang == "fr"
+                             else "Starting the guided tour.", "start_tour": True}
+        reply = "; ".join(result.get("events", [])) or result.get("error", "")
+        return {"ok": bool(result.get("ok")), "understood": True, "kind": "action",
+                "action": action_id, "transcript": cleaned,
+                "reply": reply, "events": result.get("events", []),
+                "error": result.get("error")}
+
+    # 2) Navigation vers un POI nommé (« va à la porte labo »)
+    point_names = [str(p.get("name", "")) for p in load_points() if p.get("name")]
+    point_name = voice.match_point_navigation(cleaned, point_names)
+    if point_name:
+        nav = await _voice_navigate(point_name, lang)
+        return {"ok": bool(nav.get("ok")), "understood": True, "kind": "navigation",
+                "point": point_name, "transcript": cleaned,
+                "reply": nav.get("reply") or nav.get("error", ""),
+                "error": nav.get("error")}
+
+    # 3) Question FAQ / connaissances (« qu'est-ce que HESTIM »)
+    try:
+        engine = _get_knowledge_engine()
+        match = engine.match(cleaned, lang=lang, point_names=point_names)
+    except Exception:
+        match = None
+    if match and getattr(match, "answer", ""):
+        answer = str(match.answer)
+        speak_local(answer)
+        response = {"ok": True, "understood": True, "kind": "faq",
+                    "transcript": cleaned, "reply": answer}
+        # Si l'entrée pointe vers un lieu, on peut aussi y naviguer.
+        target = getattr(match, "point_name", None)
+        if target:
+            nav = await _voice_navigate(str(target), lang)
+            if nav.get("ok"):
+                response["point"] = target
+                response["kind"] = "faq+navigation"
+        return response
+
+    # 4) Non compris
+    reply = ("Je n'ai pas compris votre demande. Vous pouvez me demander une "
+             "destination, la visite guidée, ou une question sur HESTIM."
+             if lang == "fr" else
+             "I didn't understand. You can ask for a destination, the guided "
+             "tour, or a question about HESTIM.")
+    speak_local(reply)
+    return {"ok": False, "understood": False, "kind": "unknown",
+            "transcript": cleaned, "reply": reply}
+
+
+async def voice_command(request: Request) -> JSONResponse:
+    """POST /api/voice — reçoit un transcript (STT côté app native) et l'exécute."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    text = str(body.get("text", "")).strip()
+    lang = str(body.get("lang", "fr"))
+    if not text:
+        return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
+
+    result = await handle_voice_command(text, lang)
+    # Diffuse l'échange au kiosque (bulle transcript + réponse, TTS déjà déclenché).
+    await _broadcast_to_telemetry({
+        "type": "voice",
+        "transcript": result.get("transcript", text),
+        "reply": result.get("reply", ""),
+        "kind": result.get("kind", "unknown"),
+        "ok": bool(result.get("ok")),
+    })
+    # La visite guidée a besoin de l'objet Request (tour_start) — enchaînement ici.
+    if result.get("start_tour"):
+        await tour_start(request)
+    return JSONResponse(result)
+
+
 async def robot_status(_: Request) -> JSONResponse:
     snap = await fetch_robot_snapshot()
     return JSONResponse(robot_status_payload(snap))
@@ -2010,6 +2158,8 @@ def build_app() -> Starlette:
         Route("/api/reception/go", go_destination, methods=["POST"]),
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
+        Route("/api/voice", voice_command, methods=["POST"]),
+        Route("/api/reception/voice", voice_command, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
         Route("/api/robot/people", robot_people, methods=["GET"]),
         Route("/api/visitors", visitors_list, methods=["GET"]),
