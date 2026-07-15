@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sdk.json_store import load_json
-from sdk.reception_actions import _normalize_text
+from sdk.voice_commands import normalize_text as _normalize_text
 
 
 @dataclass
