@@ -1,4 +1,18 @@
-import type { DetectedPerson, RobotStatus, SpeechStatus, TourStatus, VisitorPublic } from "./types";
+import type {
+  DetectedPerson,
+  RobotStatus,
+  SpeechStatus,
+  TourStatus,
+  VisitorPublic,
+  VoiceKind,
+} from "./types";
+
+export type VoiceEvent = {
+  transcript: string;
+  reply: string;
+  kind: VoiceKind;
+  ok: boolean;
+};
 
 export type TelemetryHandlers = {
   onRobotStatus?: (status: RobotStatus) => void;
@@ -6,6 +20,7 @@ export type TelemetryHandlers = {
   onTourStatus?: (status: TourStatus) => void;
   onPeople?: (people: DetectedPerson[]) => void;
   onVisitorIdentified?: (visitor: VisitorPublic, confidence: number) => void;
+  onVoice?: (event: VoiceEvent) => void;
   onConnected?: (connected: boolean) => void;
 };
 

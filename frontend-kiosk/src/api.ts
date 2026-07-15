@@ -67,4 +67,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
+  voice: (text: string, lang: Lang) =>
+    request<VoiceResult>("/api/voice", {
+      method: "POST",
+      body: JSON.stringify({ text, lang }),
+    }),
 };
