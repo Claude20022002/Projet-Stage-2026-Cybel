@@ -69,6 +69,13 @@ export function connectKioskTelemetry(next: TelemetryHandlers): void {
       handlers.onPeople?.(data.people as DetectedPerson[]);
     } else if (type === "visitor" && data.visitor) {
       handlers.onVisitorIdentified?.(data.visitor as VisitorPublic, Number(data.confidence ?? 0));
+    } else if (type === "voice") {
+      handlers.onVoice?.({
+        transcript: String(data.transcript ?? ""),
+        reply: String(data.reply ?? ""),
+        kind: (data.kind as VoiceKind) ?? "unknown",
+        ok: Boolean(data.ok),
+      });
     }
   };
 }
