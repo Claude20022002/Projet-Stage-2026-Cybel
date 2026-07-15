@@ -274,6 +274,7 @@ d'erreur visible, `usesCleartextTraffic`, logs console WebView.
 |----------|----------------|----------|
 | SSH timeout | IP DHCP changée | `termux_explore.py` → `ip -4 addr show wlan0` ; mettre à jour `--host` |
 | `pip install` échoue (pydantic-core) | Pas de wheel Android + disque plein | Mode **lite** : `bootstrap_lite.sh` |
+| Notification « bash not found » + backend mort | Bootstrap Termux réextrait **sans** python (voir §6.1) | Auto-réparé au prochain lancement (préflight) ; sinon `install_offline_bootstrap.sh` |
 | Health check KO | Import manquant, port occupé | `tail ~/cybel-uvicorn.log` ; `stop_cybel.sh` puis `start_cybel.sh` |
 | **Écran blanc** (app kiosque) | WebView 7.1 + build Vite moderne | Rebuild avec `@vitejs/plugin-legacy` ; redéployer `dist/` + réinstaller APK |
 | Écran blanc + health 200 (Termux) | Isolation réseau Termux ↔ WebView | Vérifier `cybel_kiosk_url.txt` (IP Wi-Fi) ; tester URL dans navigateur tablette |
@@ -282,6 +283,47 @@ d'erreur visible, `usesCleartextTraffic`, logs console WebView.
 | TTS silencieux | Bridge absent ou pas de root | `CybelTTSBridge` installé ? `su -c id` |
 | Robot non connecté | Mauvais host ROS | `ping 192.168.20.22` — **pas** `10.42.0.1` depuis Termux |
 | Espace disque | Compilation Rust échoue | `free_disk.sh` ; viser ~2 Go libres pour bootstrap complet |
+
+### 6.1 Auto-réparation offline (incident du 2026-07-15)
+
+**Ce qui s'est passé** : au démarrage de la tablette, le bootstrap Termux s'est
+retrouvé réextrait (bash/coreutils réinstallés) **sans le paquet `python`**.
+Chronologie observée :
+
+1. L'app kiosque lance `RUN_COMMAND` avant la fin du bootstrap → notification
+   *« Termux Plugin Execution Command Error — bash not found »* ;
+2. bash revient, mais python et tous les modules pip ont disparu → le backend
+   ne démarre plus (`python: No such file or directory`) ;
+3. le réseau du robot étant isolé (pas de DNS, pas de route internet),
+   `pkg install python` est impossible sur place.
+
+**Correctif permanent** : un bundle de réparation est embarqué dans chaque
+déploiement (`scripts/termux/offline_bootstrap/` — .deb Termux aarch64 +
+wheels PyPI purs Python, empreintes SHA256 vérifiées). Les scripts
+`ensure_cybel_backend*.sh` font désormais un **préflight** à chaque lancement :
+si `import uvicorn, starlette, websockets` échoue, ils exécutent
+`install_offline_bootstrap.sh` (idempotent : vérifie l'intégrité du bundle,
+`dpkg -i` si python manque, `pip install --no-index` pour les modules), puis
+démarrent le backend normalement.
+
+Validé sur le châssis réel : suppression volontaire de `starlette` →
+relance kiosque → réparation automatique en ~10 s → backend healthy.
+
+```bash
+# Réparation manuelle si besoin (Termux ou RUN_COMMAND) :
+bash ~/cybel/scripts/termux/install_offline_bootstrap.sh
+```
+
+> Même panne survenue **pendant** que le port 8000 semble occupé : le message
+> uvicorn `could not bind on any address` peut aussi apparaître quand le test
+> de socket échoue pour une autre raison (contexte SELinux d'un shell `su`
+> ADB, par exemple). Toujours relancer via l'app kiosque ou `RUN_COMMAND`,
+> jamais via `adb shell su` directement.
+
+Au passage, la mise à niveau vers starlette ≥ 1.x (wheels du bundle) a imposé
+la migration de `cybel_lite.py` de `@app.on_event("startup")` (API supprimée)
+vers le paramètre `lifespan` — corrigé dans le repo et sur les deux arbres
+déployés.
 
 ### Scripts de diagnostic
 
@@ -304,6 +346,8 @@ python scripts/termux_explore.py        # inventaire complet
 | `scripts/termux/cybel_lite.py` | **Backend lite** (Starlette) |
 | `scripts/termux/actions.json` | Catalogue actions kiosque |
 | `scripts/termux/requirements-lite.txt` | Dépendances sans pydantic |
+| `scripts/termux/offline_bootstrap/` | Bundle de réparation offline (.deb python + wheels, SHA256) |
+| `scripts/termux/install_offline_bootstrap.sh` | Réparation idempotente sans internet (voir §6.1) |
 | `scripts/termux/bootstrap_lite.sh` | Install deps lite |
 | `scripts/termux/bootstrap.sh` | Install deps complètes (Rust) |
 | `scripts/termux/start_cybel.sh` | Lance uvicorn |
