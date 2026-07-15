@@ -24,3 +24,5 @@ Thumbs.db
 /app_init
 /welcomepatrol
 /sentrymove
+# Modèle Vosk STT (récupéré au build, voir fetch_vosk_model.sh)
+android/CybelVisitorKioskTest/assets/vosk-model-fr/

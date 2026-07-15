@@ -2,6 +2,7 @@ package com.cybel.visitorkiosk.test;
 
 import android.graphics.Bitmap;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -9,6 +10,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -45,6 +47,7 @@ public class MainActivity extends Activity {
     private final Handler retryHandler = new Handler();
     private boolean firstLoad = true;
     private boolean backendReady = false;
+    private VoiceRecognizer voiceRecognizer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +70,16 @@ public class MainActivity extends Activity {
         if (firstLoad) {
             webView.clearCache(true);
         }
+
+        // Pont vocal : la WebView (JS) peut déclencher le STT natif Vosk.
+        voiceRecognizer = new VoiceRecognizer(this);
+        if (hasRecordAudioPermission()) {
+            voiceRecognizer.prepareAsync();
+        } else {
+            Log.w(TAG, "Permission RECORD_AUDIO absente — accordez-la : "
+                    + "adb shell pm grant " + getPackageName() + " android.permission.RECORD_AUDIO");
+        }
+        webView.addJavascriptInterface(new CybelVoiceBridge(), "CybelVoice");
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -350,9 +363,59 @@ public class MainActivity extends Activity {
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 
+    private boolean hasRecordAudioPermission() {
+        return checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Exposé à la WebView sous `window.CybelVoice`. La page kiosque appelle
+     * `CybelVoice.startListening(lang)` ; le résultat STT est renvoyé au JS via
+     * `window.__cybelVoiceResult(transcript, ok)`.
+     */
+    private final class CybelVoiceBridge {
+        @JavascriptInterface
+        public void startListening(final String lang) {
+            if (voiceRecognizer == null || !hasRecordAudioPermission()) {
+                deliverVoiceResult("", false);
+                return;
+            }
+            voiceRecognizer.listen(new VoiceRecognizer.Callback() {
+                @Override
+                public void onResult(String transcript, boolean ok) {
+                    deliverVoiceResult(transcript, ok);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public boolean isAvailable() {
+            return voiceRecognizer != null && voiceRecognizer.isReady()
+                    && hasRecordAudioPermission();
+        }
+    }
+
+    /** Renvoie le transcript au JS sur le thread UI (WebView non thread-safe). */
+    private void deliverVoiceResult(final String transcript, final boolean ok) {
+        final String safe = transcript == null ? "" : transcript
+                .replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                webView.evaluateJavascript(
+                        "window.__cybelVoiceResult && window.__cybelVoiceResult('"
+                                + safe + "', " + ok + ");",
+                        null);
+            }
+        });
+    }
+
     @Override
     protected void onDestroy() {
         retryHandler.removeCallbacksAndMessages(null);
+        if (voiceRecognizer != null) {
+            voiceRecognizer.shutdown();
+        }
         webView.destroy();
         super.onDestroy();
     }
