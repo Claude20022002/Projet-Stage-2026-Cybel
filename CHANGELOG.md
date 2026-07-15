@@ -1,5 +1,32 @@
 # Changelog CYBEL
 
+## [0.3.6] — 2026-07-15
+
+### Chatbot vocal — parler au robot (branche `feature/face-presence`)
+
+- **STT hors-ligne Vosk** intégré à l'app kiosque `CybelVisitorKioskTest` :
+  pont `window.CybelVoice` (`@JavascriptInterface`) + `VoiceRecognizer.java`
+  (modèle `vosk-model-small-fr-0.22`, Apache 2.0, récupéré/vérifié au build via
+  `fetch_vosk_model.sh`) ; runtime vosk-android 0.3.47 + JNA vendorisés
+- **Moteur NLU partagé** : nouveau `sdk/voice_commands.py` (sans pydantic —
+  extraction depuis `reception_actions.py`, rétrocompat totale) ; réutilisé par
+  le backend PC et le backend Termux
+- **Backend robot** : `POST /api/voice` dans `cybel_lite.py`
+  (`handle_voice_command` : action → navigation POI → FAQ), diffusion WebSocket
+  `{type:"voice"}` ; alias `/api/voice` côté backend PC (contrat unique)
+- **UI kiosque** : bouton « Parler au robot » 🎤 + overlay écoute/traitement/
+  réponse (`frontend-kiosk`), `api.voice()`, handler télémétrie `onVoice`
+- **Reconnaissance faciale** : `CybelFaceBridge` cible désormais un port
+  auto-adaptatif (8001 kiosque test puis 8000 prod) au lieu de 8000 codé en dur
+- **Tests** : `test_voice_commands.py` (11 tests) ; suite complète 147 verts ;
+  `/api/voice` vérifié en live (visite guidée, POI, FAQ, non compris) ; APK
+  kiosque test build+signé validé (modèle + libs natives + RECORD_AUDIO)
+- **Non validé** : STT sur le micro réel de la tablette (nécessite le robot)
+- Note : la branche `chatbot-cybel-projet-2026` du collègue (TTS) était déjà
+  entièrement fusionnée dans main — rien à récupérer ; le vrai manque était le
+  STT + le NLU embarqué, désormais comblé
+- Doc : [docs/VOICE_CHATBOT.md](docs/VOICE_CHATBOT.md)
+
 ## [0.3.5] — 2026-07-15
 
 ### Auto-réparation Termux offline (incident tablette)

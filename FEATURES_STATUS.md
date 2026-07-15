@@ -26,6 +26,7 @@ Légende : ✅ Fait · ⚠️ Partiel · ❌ Non fait · 🔜 Planifié
 | Assistance humaine | Bouton kiosque | Réception | ⚠️ |
 | Animations | CSS pulse/bob | Riches | ⚠️ |
 | Reconnaissance faciale | `CybelFaceBridge` + `/api/visitors/*` | `WelcomeManager` | ⚠️ (caméra/détection validées terrain ; identification avec vrai modèle restante) |
+| Chatbot vocal (STT) | Vosk + `/api/voice` + bouton 🎤 | Iflytek ASR | ⚠️ (moteur NLU + UI + APK validés ; STT micro réel à tester) |
 | Météo / vidéo | — | Fragments dédiés | ❌ |
 
 ## Backend / robot
