@@ -1,5 +1,12 @@
 import { pointIcon, t } from "../i18n";
-import type { KioskConfig, KioskDestination, Lang, LabTourInfo, ReceptionAction } from "../types";
+import type {
+  KioskConfig,
+  KioskDestination,
+  Lang,
+  LabTourInfo,
+  ReceptionAction,
+  VoiceState,
+} from "../types";
 
 export function renderStandby(lang: Lang, config: KioskConfig | null): string {
   const labels = t[lang];
@@ -27,7 +34,8 @@ export function renderWelcome(
   tour: LabTourInfo | null,
   featured: KioskDestination[],
   receptionActions: ReceptionAction[],
-  busy: boolean
+  busy: boolean,
+  voiceAvailable = false
 ): string {
   const labels = t[lang];
   const org = config
@@ -51,6 +59,20 @@ export function renderWelcome(
         <h1 class="welcome-hero__title">${welcome}</h1>
         <p class="welcome-hero__subtitle">${labels.chooseMode}</p>
       </section>
+
+      ${
+        voiceAvailable
+          ? `
+        <button id="btn-voice" class="voice-button" type="button" ${busy ? "disabled" : ""}>
+          <span class="voice-button__icon" aria-hidden="true">🎤</span>
+          <span class="voice-button__text">
+            <strong>${labels.voiceButton}</strong>
+            <span>${labels.voiceButtonHint}</span>
+          </span>
+        </button>
+      `
+          : ""
+      }
 
       ${
         featured.length
@@ -140,6 +162,53 @@ export function renderWelcome(
           : ""
       }
     </main>
+  `;
+}
+
+export function renderVoiceOverlay(
+  lang: Lang,
+  state: VoiceState,
+  transcript: string,
+  reply: string
+): string {
+  if (state === "idle") return "";
+  const labels = t[lang];
+
+  let body = "";
+  if (state === "listening") {
+    body = `
+      <div class="voice-overlay__mic voice-overlay__mic--pulse" aria-hidden="true">🎤</div>
+      <p class="voice-overlay__status">${labels.voiceListening}</p>
+      <p class="voice-overlay__hint">${labels.voiceListeningHint}</p>
+    `;
+  } else if (state === "processing") {
+    body = `
+      <div class="voice-overlay__spinner" aria-hidden="true"></div>
+      ${transcript ? `<p class="voice-overlay__transcript">« ${transcript} »</p>` : ""}
+      <p class="voice-overlay__status">${labels.voiceProcessing}</p>
+    `;
+  } else {
+    // answer
+    body = `
+      ${
+        transcript
+          ? `<p class="voice-overlay__you"><span>${labels.voiceYouSaid}</span> « ${transcript} »</p>`
+          : ""
+      }
+      <div class="voice-overlay__bubble">
+        <span class="voice-overlay__bubble-icon" aria-hidden="true">🤖</span>
+        <p>${reply || labels.voiceError}</p>
+      </div>
+      <button id="btn-voice-close" class="voice-overlay__close" type="button">${labels.voiceClose}</button>
+    `;
+  }
+
+  return `
+    <div class="voice-overlay" id="voice-overlay" role="dialog" aria-live="polite">
+      <div class="voice-overlay__card">
+        ${body}
+      </div>
+    </div>
   `;
 }
 

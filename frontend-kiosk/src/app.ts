@@ -6,6 +6,7 @@ import {
   renderDestinations,
   renderStandby,
   renderTraveling,
+  renderVoiceOverlay,
   renderWelcome,
 } from "./screens/home";
 import { connectKioskTelemetry } from "./telemetry";
@@ -22,7 +23,21 @@ import type {
   TourScreen,
   TourStatus,
   VisitorPublic,
+  VoiceState,
 } from "./types";
+
+/** Pont natif exposé par l'app Android hôte (CybelVisitorKioskTest) pour la
+ * reconnaissance vocale — absent dans un navigateur classique. */
+interface CybelVoiceBridge {
+  startListening: (lang: string) => void;
+  isAvailable?: () => boolean;
+}
+declare global {
+  interface Window {
+    CybelVoice?: CybelVoiceBridge;
+    __cybelVoiceResult?: (transcript: string, ok: boolean) => void;
+  }
+}
 
 let lang: Lang = "fr";
 let screen: TourScreen = "welcome";
@@ -48,6 +63,10 @@ let detectedPeople: DetectedPerson[] = [];
 let lastPresenceWelcomeAt = 0;
 let identifiedVisitor: { visitor: VisitorPublic; at: number } | null = null;
 const VISITOR_GREETING_TTL_MS = 120_000;
+let voiceState: VoiceState = "idle";
+let voiceTranscript = "";
+let voiceReply = "";
+let voiceTimer: number | null = null;
 
 function tr() {
   return t[lang];
@@ -200,6 +219,17 @@ function startTelemetry(): void {
     onVisitorIdentified: (visitor) => {
       identifiedVisitor = { visitor, at: Date.now() };
     },
+    onVoice: (event) => {
+      // Diffusion serveur : utile si un autre client (ex. opérateur) parle au robot.
+      // Le flux local (bouton micro) est déjà géré par onVoiceTranscript ; on ne
+      // ré-affiche que si l'overlay n'est pas déjà actif localement.
+      if (voiceState === "idle" && event.transcript) {
+        voiceTranscript = event.transcript;
+        voiceReply = event.reply;
+        voiceState = "answer";
+        render();
+      }
+    },
   });
 }
 
@@ -221,7 +251,7 @@ function renderBody(): string {
     case "standby":
       return renderStandby(lang, config);
     case "welcome":
-      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy);
+      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy, voiceAvailable());
     case "destinations":
       return renderDestinations(lang, destinations, searchQuery, busy);
     case "dest_running":
@@ -248,7 +278,7 @@ function renderBody(): string {
       }
       return renderCompleted(lang, "tour", false, status?.state, status?.error);
     default:
-      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy);
+      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy, voiceAvailable());
   }
 }
 
@@ -269,12 +299,17 @@ function render(): void {
     <div class="kiosk" data-screen="${screen}">
       ${screen === "standby" ? "" : renderStatusBar(lang, robotStatus, speechStatus, busy, kioskVariantLabel())}
       ${renderBody()}
+      ${renderVoiceOverlay(lang, voiceState, voiceTranscript, voiceReply)}
       ${message ? `<div class="kiosk-toast" role="status">${message}</div>` : ""}
     </div>
   `;
 
   bindEvents();
   resetStandbyTimer();
+}
+
+function voiceAvailable(): boolean {
+  return typeof window.CybelVoice?.startListening === "function";
 }
 
 function bindEvents(): void {
@@ -294,6 +329,8 @@ function bindEvents(): void {
   document.getElementById("btn-mode-tour")?.addEventListener("click", () => void startTour());
   document.getElementById("btn-mode-dest")?.addEventListener("click", () => void openDestinations());
   document.getElementById("btn-assistance")?.addEventListener("click", () => void runAssistance());
+  document.getElementById("btn-voice")?.addEventListener("click", () => startVoice());
+  document.getElementById("btn-voice-close")?.addEventListener("click", () => closeVoice());
 
   document.getElementById("btn-back-welcome")?.addEventListener("click", () => {
     touch();
@@ -453,6 +490,90 @@ async function runAssistance(): Promise<void> {
   }
 }
 
+function startVoice(): void {
+  if (busy || voiceState !== "idle") return;
+  if (!voiceAvailable()) {
+    showToast(tr().voiceUnavailable);
+    return;
+  }
+  touch();
+  voiceTranscript = "";
+  voiceReply = "";
+  voiceState = "listening";
+  render();
+  // Garde-fou : si l'app native ne rappelle jamais, on ferme après 12 s.
+  if (voiceTimer !== null) window.clearTimeout(voiceTimer);
+  voiceTimer = window.setTimeout(() => {
+    if (voiceState === "listening") {
+      voiceReply = tr().voiceError;
+      voiceState = "answer";
+      render();
+    }
+  }, 12000);
+  try {
+    window.CybelVoice?.startListening(lang);
+  } catch {
+    voiceReply = tr().voiceUnavailable;
+    voiceState = "answer";
+    render();
+  }
+}
+
+function closeVoice(): void {
+  if (voiceTimer !== null) {
+    window.clearTimeout(voiceTimer);
+    voiceTimer = null;
+  }
+  voiceState = "idle";
+  voiceTranscript = "";
+  voiceReply = "";
+  touch();
+  render();
+}
+
+/** Appelé par l'app native (evaluateJavascript) avec le transcript STT. */
+async function onVoiceTranscript(transcript: string, ok: boolean): Promise<void> {
+  if (voiceTimer !== null) {
+    window.clearTimeout(voiceTimer);
+    voiceTimer = null;
+  }
+  const text = (transcript || "").trim();
+  if (!ok || !text) {
+    voiceReply = tr().voiceError;
+    voiceState = "answer";
+    render();
+    return;
+  }
+  voiceTranscript = text;
+  voiceState = "processing";
+  render();
+  try {
+    const result = await api.voice(text, lang);
+    voiceReply = result.reply || tr().voiceError;
+    voiceState = "answer";
+    // Si la commande a lancé une navigation/visite, on bascule l'écran adéquat.
+    if (result.ok && result.kind === "navigation" && result.point) {
+      activeFlow = "destination";
+      selectedDestination = result.point;
+      sawNavigating = false;
+      screen = "dest_running";
+      robotStatus = await api.getRobotStatus().catch(() => robotStatus);
+      voiceState = "idle";
+    } else if (result.ok && result.action === "guided_tour") {
+      // Le backend a déjà lancé la visite ; on bascule sur l'écran de visite.
+      voiceState = "idle";
+      activeFlow = "tour";
+      screen = "running";
+      status = await api.getTourStatus().catch(() => status);
+    }
+    render();
+  } catch (err) {
+    voiceReply = err instanceof Error ? err.message : tr().voiceError;
+    voiceState = "answer";
+    render();
+  }
+}
+
 async function runReceptionAction(actionId: string): Promise<void> {
   if (busy) return;
   touch();
@@ -498,6 +619,10 @@ async function runReceptionAction(actionId: string): Promise<void> {
 }
 
 export async function initApp(): Promise<void> {
+  // Callback global invoqué par l'app native (CybelVisitorKioskTest) après STT Vosk.
+  window.__cybelVoiceResult = (transcript: string, ok: boolean) => {
+    void onVoiceTranscript(transcript, ok);
+  };
   render();
   startClock();
   startTelemetry();
