@@ -44,9 +44,13 @@ fail(){ ko "$1"; exit 1; }
 # push_root <local_path> <remote_dest_dir>  — copie un fichier/dossier vers l'arbre
 # cybel-test avec les bons droits (via /data/local/tmp puis cp root).
 push_root() {
-  local src="$1" dest="$2" name
+  local src="$1" dest="$2" name src_win
   name="$(basename "$src")"
-  MSYS_NO_PATHCONV=1 adb push "$src" "/data/local/tmp/_dvf_$name" >/dev/null 2>&1 \
+  # MSYS_NO_PATHCONV=1 protège le chemin DEVICE mais bloque aussi la conversion
+  # du chemin LOCAL : adb.exe (binaire Windows) ne comprend pas /c/Users/…,
+  # d'où une conversion explicite via cygpath.
+  src_win="$(cygpath -m "$src" 2>/dev/null || echo "$src")"
+  MSYS_NO_PATHCONV=1 adb push "$src_win" "/data/local/tmp/_dvf_$name" >/dev/null 2>&1 \
     || fail "push $name échoué"
   MSYS_NO_PATHCONV=1 adb shell "rm -rf '$dest/$name' && cp -r /data/local/tmp/_dvf_$name '$dest/$name' && chown -R $TERMUX_OWNER '$dest/$name' && rm -rf /data/local/tmp/_dvf_$name" \
     || fail "cp root de $name échoué"
@@ -71,7 +75,8 @@ MSYS_NO_PATHCONV=1 adb shell "test -d '$CYBEL_TREE'" \
   || fail "$CYBEL_TREE absent — déployez d'abord avec deploy_termux.py --target test"
 ok "arbre cybel-test présent sur la tablette"
 # Détecte le propriétaire (uid:gid) de l'arbre Termux — plus robuste qu'un uid codé en dur.
-TERMUX_OWNER="$(MSYS_NO_PATHCONV=1 adb shell "stat -c '%U:%G' '$CYBEL_TREE'" 2>/dev/null | tr -d '\r' | tr -d '\n')"
+# tr -d ' ' : le stat toybox de cette tablette padde %U/%G avec des espaces.
+TERMUX_OWNER="$(MSYS_NO_PATHCONV=1 adb shell "stat -c '%U:%G' '$CYBEL_TREE'" 2>/dev/null | tr -d ' \r\n')"
 [ -n "$TERMUX_OWNER" ] || fail "impossible de déterminer le propriétaire Termux (accès root ADB ?)"
 ok "propriétaire Termux : $TERMUX_OWNER"
 
@@ -155,9 +160,10 @@ if [ "$DO_APK" -eq 1 ]; then
   ( cd "$REPO/android/CybelVisitorKioskTest" && bash build.sh ) 2>&1 | tail -3
   APK="$REPO/android/CybelVisitorKioskTest/out/CybelVisitorKioskTest.apk"
   [ -f "$APK" ] || fail "APK non produit"
-  MSYS_NO_PATHCONV=1 adb install -r "$APK" >/dev/null 2>&1 || {
+  APK_WIN="$(cygpath -m "$APK" 2>/dev/null || echo "$APK")"
+  MSYS_NO_PATHCONV=1 adb install -r "$APK_WIN" >/dev/null 2>&1 || {
     MSYS_NO_PATHCONV=1 adb uninstall com.cybel.visitorkiosk.test >/dev/null 2>&1
-    MSYS_NO_PATHCONV=1 adb install "$APK" >/dev/null 2>&1 || fail "install APK échouée"
+    MSYS_NO_PATHCONV=1 adb install "$APK_WIN" >/dev/null 2>&1 || fail "install APK échouée"
   }
   ok "APK installé"
   MSYS_NO_PATHCONV=1 adb shell "pm grant com.cybel.visitorkiosk.test android.permission.RECORD_AUDIO" >/dev/null 2>&1
@@ -179,9 +185,10 @@ if [ "$DO_FACE" -eq 1 ]; then
     ( cd "$REPO/android/CybelFaceBridge" && bash build.sh ) 2>&1 | tail -3
     APKF="$REPO/android/CybelFaceBridge/out/CybelFaceBridge.apk"
     [ -f "$APKF" ] || fail "APK FaceBridge non produit"
-    MSYS_NO_PATHCONV=1 adb install -r "$APKF" >/dev/null 2>&1 || {
+    APKF_WIN="$(cygpath -m "$APKF" 2>/dev/null || echo "$APKF")"
+    MSYS_NO_PATHCONV=1 adb install -r "$APKF_WIN" >/dev/null 2>&1 || {
       MSYS_NO_PATHCONV=1 adb uninstall com.cybel.facebridge >/dev/null 2>&1
-      MSYS_NO_PATHCONV=1 adb install "$APKF" >/dev/null 2>&1 || fail "install FaceBridge échouée"
+      MSYS_NO_PATHCONV=1 adb install "$APKF_WIN" >/dev/null 2>&1 || fail "install FaceBridge échouée"
     }
     MSYS_NO_PATHCONV=1 adb shell "pm grant com.cybel.facebridge android.permission.CAMERA" >/dev/null 2>&1
     MSYS_NO_PATHCONV=1 adb shell "am startservice -n com.cybel.facebridge/.FaceRecognitionService" >/dev/null 2>&1
