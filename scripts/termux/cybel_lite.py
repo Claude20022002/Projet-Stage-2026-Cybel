@@ -1877,6 +1877,10 @@ async def handle_voice_command(text: str, lang: str) -> dict:
         match = engine.match(cleaned, lang=lang, point_names=point_names)
     except Exception:
         match = None
+    # Seuil aligné sur backend/services/knowledge_service.py : sous 2.0, un mot
+    # générique (« est ») suffit à matcher n'importe quelle question — faux positifs.
+    if match and getattr(match, "score", 0.0) < 2.0:
+        match = None
     if match and getattr(match, "answer", ""):
         answer = str(match.answer)
         speak_local(answer)

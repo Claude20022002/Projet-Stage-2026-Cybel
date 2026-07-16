@@ -123,16 +123,18 @@ printf '\n'
   || { MSYS_NO_PATHCONV=1 adb shell "tail -20 $TERMUX_HOME/dvf_start.log" 2>/dev/null; fail "backend KO — voir log ci-dessus"; }
 
 # ---- 4. Validation du moteur vocal ------------------------------------------
-step "4. Validation /api/voice (moteur NLU)"
+# Phrases volontairement SANS déplacement (FAQ parlée, stop, non-reconnu) : sur le
+# robot réel, une commande de navigation ferait bouger la base ou bloquerait ~30 s
+# sur les prérequis de localisation. Les cas navigation/visite se testent au micro.
+step "4. Validation /api/voice (moteur NLU — cas sans mouvement)"
 PYTHON_BIN="$(command -v python || command -v py || echo python)"
 "$PYTHON_BIN" - "$PORT_LOCAL" <<'PYEOF'
 import json, sys, urllib.request
 port = sys.argv[1]
 cases = [
-    ("va a l'accueil", ("navigation", "faq")),   # POI ou FAQ selon contenu carte
-    ("lance la visite guidee", ("action",)),      # → guided_tour (substring "visite")
-    ("stop", ("action",)),                         # → stop_all
-    ("quelle est la meteo", ("unknown",)),         # non reconnu
+    ("qu est-ce que HESTIM", ("faq",)),    # FAQ parlée, pas de déplacement
+    ("stop", ("action",)),                  # stop_all — sans danger
+    ("quelle est la meteo", ("unknown",)),  # non reconnu
 ]
 allok = True
 for text, expected_kinds in cases:
@@ -140,15 +142,15 @@ for text, expected_kinds in cases:
     req = urllib.request.Request(f"http://127.0.0.1:{port}/api/voice", body,
                                  {"Content-Type": "application/json"})
     try:
-        r = json.load(urllib.request.urlopen(req, timeout=6))
+        r = json.load(urllib.request.urlopen(req, timeout=30))
         kind, ok_flag = r.get("kind"), r.get("ok")
         good = kind in expected_kinds
         allok = allok and good
-        mark = "\033[32m✓\033[0m" if good else "\033[31m✗\033[0m"
-        print(f"  {mark} {text!r:28} → kind={kind} ok={ok_flag}")
+        mark = "[OK]" if good else "[KO]"
+        print("  %s %-28r -> kind=%s ok=%s" % (mark, text, kind, ok_flag))
     except Exception as e:
         allok = False
-        print(f"  \033[31m✗\033[0m {text!r:28} → erreur: {e}")
+        print("  [KO] %-28r -> erreur: %s" % (text, e))
 sys.exit(0 if allok else 1)
 PYEOF
 [ $? -eq 0 ] && ok "moteur vocal opérationnel" || ko "certains cas vocaux ont échoué (voir ci-dessus)"
