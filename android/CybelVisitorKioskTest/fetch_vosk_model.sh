@@ -7,33 +7,38 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSETS="$DIR/assets"
-MODEL_DIR="$ASSETS/vosk-model-fr"
+# Le modèle est livré en UN SEUL fichier zip (dézippé au premier lancement par
+# VoiceRecognizer) : AssetManager.list() sur un sous-dossier d'assets ne renvoie
+# rien sur cette tablette Android 7.1 avec un APK construit hors Gradle —
+# constaté sur le châssis réel le 2026-07-16 (FileNotFoundException vosk-model-fr).
+# L'ouverture directe d'un fichier asset, elle, fonctionne (prouvé par FaceBridge).
+MODEL_ZIP="$ASSETS/vosk-model-fr.zip"
 ZIP_URL="https://alphacephei.com/vosk/models/vosk-model-small-fr-0.22.zip"
 ZIP_SHA256="cabf6180e177eb9b3a9a9d43a437bd5e549f3a7d09525e5d69a3fed787be12ad"
-TMP_ZIP="$DIR/out/vosk-model-small-fr-0.22.zip"
 
-if [ -f "$MODEL_DIR/conf/model.conf" ]; then
-  echo "Modèle Vosk déjà présent : $MODEL_DIR"
-  exit 0
+if [ -f "$MODEL_ZIP" ]; then
+  ACTUAL="$(sha256sum "$MODEL_ZIP" | cut -d' ' -f1)"
+  if [ "$ACTUAL" == "$ZIP_SHA256" ]; then
+    echo "Modèle Vosk déjà présent : $MODEL_ZIP"
+    exit 0
+  fi
+  echo "Modèle présent mais SHA256 inattendu — re-téléchargement."
+  rm -f "$MODEL_ZIP"
 fi
 
 echo "Téléchargement du modèle Vosk FR (~41 Mo)…"
-mkdir -p "$ASSETS" "$DIR/out"
-curl -fSL -o "$TMP_ZIP" "$ZIP_URL"
+mkdir -p "$ASSETS"
+curl -fSL -o "$MODEL_ZIP" "$ZIP_URL"
 
 echo "Vérification d'intégrité (SHA256)…"
-ACTUAL="$(sha256sum "$TMP_ZIP" | cut -d' ' -f1)"
+ACTUAL="$(sha256sum "$MODEL_ZIP" | cut -d' ' -f1)"
 if [ "$ACTUAL" != "$ZIP_SHA256" ]; then
   echo "ERREUR: SHA256 inattendu ($ACTUAL) — téléchargement corrompu, abandon."
-  rm -f "$TMP_ZIP"
+  rm -f "$MODEL_ZIP"
   exit 1
 fi
 
-echo "Extraction dans assets/vosk-model-fr…"
-rm -rf "$MODEL_DIR"
-unzip -q "$TMP_ZIP" -d "$ASSETS"
-# L'archive contient un dossier vosk-model-small-fr-0.22/ ; on le renomme.
-mv "$ASSETS/vosk-model-small-fr-0.22" "$MODEL_DIR"
-rm -f "$TMP_ZIP"
+# Nettoyage de l'ancien format (dossier extrait dans assets/)
+rm -rf "$ASSETS/vosk-model-fr"
 
-echo "OK — modèle prêt : $MODEL_DIR"
+echo "OK — modèle prêt : $MODEL_ZIP"

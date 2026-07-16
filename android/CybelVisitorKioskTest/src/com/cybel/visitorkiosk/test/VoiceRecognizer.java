@@ -1,7 +1,6 @@
 package com.cybel.visitorkiosk.test;
 
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -15,6 +14,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Reconnaissance vocale hors-ligne via Vosk (STT français embarqué).
@@ -147,48 +148,87 @@ public class VoiceRecognizer {
         }
     }
 
-    /** Copie récursive du modèle depuis assets/ vers filesDir (une seule fois). */
+    /**
+     * Dézippe le modèle depuis assets/vosk-model-fr.zip vers filesDir (une seule fois).
+     *
+     * Le modèle est livré en un seul fichier zip et non en arborescence d'assets :
+     * AssetManager.list() sur un sous-dossier renvoie vide sur cette tablette
+     * (Android 7.1, APK construit hors Gradle — constaté sur le châssis réel),
+     * alors que l'ouverture directe d'un fichier asset fonctionne.
+     */
     private File ensureModelUnpacked() throws IOException {
         File target = new File(context.getFilesDir(), MODEL_ASSET_DIR);
         File marker = new File(target, ".unpacked");
         if (marker.exists()) {
             return target;
         }
-        copyAssetDir(context.getAssets(), MODEL_ASSET_DIR, target);
-        // Marqueur pour ne pas recopier les 41 Mo à chaque démarrage.
+        deleteRecursively(target);
+        if (!target.mkdirs()) {
+            throw new IOException("mkdir échoué : " + target);
+        }
+        String canonicalTarget = target.getCanonicalPath();
+        try (ZipInputStream zip = new ZipInputStream(
+                context.getAssets().open(MODEL_ASSET_DIR + ".zip"))) {
+            ZipEntry entry;
+            byte[] buffer = new byte[8192];
+            while ((entry = zip.getNextEntry()) != null) {
+                // L'archive amont contient un dossier racine (vosk-model-small-fr-0.22/) :
+                // on le retire pour extraire directement dans vosk-model-fr/.
+                String name = stripTopLevelDir(entry.getName());
+                if (name.isEmpty()) {
+                    continue;
+                }
+                File out = new File(target, name);
+                // Protection zip-slip : l'entrée doit rester sous le dossier cible.
+                if (!out.getCanonicalPath().startsWith(canonicalTarget + File.separator)) {
+                    throw new IOException("Entrée zip suspecte : " + entry.getName());
+                }
+                if (entry.isDirectory()) {
+                    out.mkdirs();
+                    continue;
+                }
+                File parent = out.getParentFile();
+                if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                    throw new IOException("mkdir échoué : " + parent);
+                }
+                try (OutputStream os = new FileOutputStream(out)) {
+                    int read;
+                    while ((read = zip.read(buffer)) != -1) {
+                        os.write(buffer, 0, read);
+                    }
+                }
+            }
+        }
+        if (!new File(target, "conf/model.conf").exists()) {
+            throw new IOException("Extraction incomplète : conf/model.conf absent");
+        }
+        // Marqueur pour ne pas re-dézipper les 41 Mo à chaque démarrage.
         try (OutputStream out = new FileOutputStream(marker)) {
             out.write('1');
         }
         return target;
     }
 
-    private static void copyAssetDir(AssetManager assets, String assetPath, File dest) throws IOException {
-        String[] children = assets.list(assetPath);
-        if (children == null || children.length == 0) {
-            // Fichier (pas un dossier) : copie directe.
-            copyAssetFile(assets, assetPath, dest);
-            return;
+    /** "vosk-model-small-fr-0.22/am/final.mdl" -> "am/final.mdl". */
+    private static String stripTopLevelDir(String entryName) {
+        String normalized = entryName.replace('\\', '/');
+        int slash = normalized.indexOf('/');
+        if (slash < 0) {
+            return "";
         }
-        if (!dest.exists() && !dest.mkdirs()) {
-            throw new IOException("mkdir échoué : " + dest);
-        }
-        for (String child : children) {
-            copyAssetDir(assets, assetPath + "/" + child, new File(dest, child));
-        }
+        return normalized.substring(slash + 1);
     }
 
-    private static void copyAssetFile(AssetManager assets, String assetPath, File dest) throws IOException {
-        File parent = dest.getParentFile();
-        if (parent != null && !parent.exists()) {
-            parent.mkdirs();
+    private static void deleteRecursively(File file) {
+        if (file == null || !file.exists()) {
+            return;
         }
-        try (InputStream in = assets.open(assetPath);
-             OutputStream out = new FileOutputStream(dest)) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                deleteRecursively(child);
             }
         }
+        file.delete();
     }
 }
