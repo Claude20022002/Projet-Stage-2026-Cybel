@@ -52,6 +52,7 @@ let lastPeopleCount = 0;
 let pingStartedAt: number | null = null;
 let tourPollTimer: number | null = null;
 let patrolPollTimer: number | null = null;
+let faceStatusSocket: WebSocket | null = null;
 let pingRaf: number | null = null;
 let lastTourPanelKey = "";
 let lastTourBannerKey = "";
