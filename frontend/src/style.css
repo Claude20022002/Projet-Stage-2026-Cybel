@@ -1744,6 +1744,17 @@ body {
     font-size: 0.85rem;
 }
 
+.settings-hint--ok {
+    color: #166534;
+}
+
+.settings-info__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
 @media (max-width: 900px) {
     .app-shell {
         flex-direction: column;

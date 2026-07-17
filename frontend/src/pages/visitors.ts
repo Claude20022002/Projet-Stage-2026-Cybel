@@ -38,7 +38,7 @@ export function renderFaceStatus(status: FaceStatusEvent | null, at: number | nu
 
 function renderVisitorRow(visitor: VisitorPublic): string {
   return `
-    <div class="settings-info" data-visitor-row="${visitor.id}">
+    <div class="settings-info__row" data-visitor-row="${visitor.id}">
       <div>
         <dt>${escapeHtml(visitor.civility ? visitor.civility + " " + visitor.name : visitor.name)}</dt>
         <dd>Enrôlé le ${formatDate(visitor.enrolled_at)} · Dernière reconnaissance : ${formatDate(visitor.last_identified_at)}</dd>
@@ -94,7 +94,7 @@ export function renderVisitorsPage(
         <h2>${icons.hash("icon", 18)} Visiteurs enrôlés (${visitors.length})</h2>
         ${
           visitors.length
-            ? `<dl class="settings-info settings-info--list">${visitors.map(renderVisitorRow).join("")}</dl>`
+            ? `<dl class="settings-info">${visitors.map(renderVisitorRow).join("")}</dl>`
             : `<p class="settings-hint">Aucun visiteur enrôlé.</p>`
         }
       </section>
