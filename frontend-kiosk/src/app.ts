@@ -61,8 +61,10 @@ let toastTimer: number | null = null;
 let sawNavigating = false;
 let lastInteractionAt = Date.now();
 let detectedPeople: DetectedPerson[] = [];
-let lastPresenceWelcomeAt = 0;
-let lastVisitorGreetAt = 0;
+/** Cooldown partagé entre les deux déclencheurs d'accueil (reconnaissance
+ * faciale caméra tablette, présence caméra châssis) — évite un double accueil
+ * si les deux systèmes détectent la même personne à quelques instants d'écart. */
+let lastGreetAt = 0;
 let identifiedVisitor: { visitor: VisitorPublic; at: number } | null = null;
 const VISITOR_GREETING_TTL_MS = 120_000;
 /** Micro état de dialogue : la question en attente d'une réponse oui/non ou
@@ -170,37 +172,86 @@ function personalizedGreeting(): string | null {
   return `Bonjour ${civility ? civility + " " : ""}${name} !`;
 }
 
-/** Salue directement un visiteur identifié par reconnaissance faciale (caméra
- * tablette), indépendamment de la détection de présence châssis (caméra robot,
- * Phase 1) — les deux sont des systèmes séparés ; attendre la seconde revient
- * à ne jamais saluer un visiteur détecté uniquement par la première. */
-function greetIdentifiedVisitor(): void {
-  if (!config?.face_recognition_enabled) return;
+/** Accueille et propose une visite — déclenché soit par la reconnaissance
+ * faciale (caméra tablette, visiteur identifié par son nom), soit par la
+ * détection de présence châssis (caméra robot, visiteur anonyme) : les deux
+ * systèmes sont indépendants et appellent ce même point d'entrée, avec un
+ * cooldown partagé pour ne saluer qu'une fois si les deux se déclenchent
+ * à quelques instants d'écart. */
+function tryGreetAndOfferTour(): void {
+  if (!config) return;
   if (busy || activeFlow) return;
+  if (pendingQuestion) return; // dialogue déjà en cours, ne pas l'interrompre
   if (screen !== "standby" && screen !== "welcome") return;
   const cooldownMs = (config.presence_cooldown_seconds ?? 90) * 1000;
   const now = Date.now();
-  if (now - lastVisitorGreetAt < cooldownMs) return;
-  const greeting = personalizedGreeting();
-  if (!greeting) return;
-  lastVisitorGreetAt = now;
+  if (now - lastGreetAt < cooldownMs) return;
+  const greeting =
+    personalizedGreeting() ??
+    (lang === "fr"
+      ? config.welcome_message_fr || tr().presenceWelcome
+      : config.welcome_message_en || tr().presenceWelcome);
+  lastGreetAt = now;
   if (screen === "standby") {
     screen = "welcome";
   }
+  showToast(personalizedGreeting() ?? tr().presenceDetected);
+  pendingQuestion = "tour_offer";
   // Une seule phrase (pas deux appels api.say() séparés) pour éviter tout
   // risque de la seconde qui coupe/écrase la première dans la queue TTS.
-  const fullMessage = `${greeting} ${tr().tourOfferQuestion}`;
-  if (config.presence_speak_welcome !== false) {
-    void api.say(fullMessage).catch(() => undefined);
-  }
-  showToast(greeting);
-  pendingQuestion = "tour_offer";
-  render();
+  speakAndListen(`${greeting} ${tr().tourOfferQuestion}`);
 }
 
 function matchesAny(text: string, words: string[]): boolean {
   const normalized = text.toLowerCase();
   return words.some((w) => normalized.includes(w));
+}
+
+/** Estimation grossière du temps de parole (débit oral FR modéré, ~2,5 mots/s)
+ * + marge fixe pour le démarrage du moteur TTS natif (broadcast shell, pas
+ * instantané) — sert à ne relancer l'écoute qu'une fois la question terminée,
+ * pour un dialogue enchaîné sans que le micro capte la voix du robot lui-même. */
+function estimateSpeechDurationMs(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const speakMs = (words / 2.5) * 1000;
+  return Math.max(1200, Math.min(8000, speakMs + 600));
+}
+
+/** Prononce une question puis relance automatiquement l'écoute du micro pour
+ * la réponse — enchaîne le dialogue sans que le visiteur ait à retoucher
+ * l'écran entre chaque tour de parole. */
+function speakAndListen(text: string): void {
+  voiceTranscript = "";
+  voiceReply = text;
+  voiceState = "listening";
+  render();
+  if (config?.presence_speak_welcome !== false) {
+    void api.say(text).catch(() => undefined);
+  }
+  if (voiceTimer !== null) window.clearTimeout(voiceTimer);
+  const delay = estimateSpeechDurationMs(text);
+  voiceTimer = window.setTimeout(() => {
+    if (voiceState !== "listening") return; // annulé/fermé entre-temps
+    try {
+      window.CybelVoice?.startListening(lang);
+    } catch {
+      voiceState = "idle";
+      pendingQuestion = null;
+      render();
+      return;
+    }
+    // Garde-fou : si l'app native ne rappelle jamais, on ferme après 12 s
+    // (même filet que startVoice()).
+    if (voiceTimer !== null) window.clearTimeout(voiceTimer);
+    voiceTimer = window.setTimeout(() => {
+      if (voiceState === "listening") {
+        voiceReply = tr().voiceError;
+        voiceState = "answer";
+        pendingQuestion = null;
+        render();
+      }
+    }, 12000);
+  }, delay);
 }
 
 /** Envoie un texte au NLU backend (commande/POI/FAQ) et applique le résultat
@@ -238,20 +289,15 @@ async function routeVoiceText(text: string): Promise<void> {
 }
 
 /** Interprète une réponse dans le mini-dialogue « proposition de visite »
- * déclenché par greetIdentifiedVisitor(). */
+ * déclenché par tryGreetAndOfferTour(). */
 async function handlePendingAnswer(text: string): Promise<void> {
   const question = pendingQuestion;
   pendingQuestion = null;
 
   if (question === "tour_offer") {
     if (matchesAny(text, YES_WORDS)) {
-      const ask = tr().tourTypeQuestion;
-      voiceTranscript = text;
-      voiceReply = ask;
-      voiceState = "answer";
       pendingQuestion = "tour_type";
-      if (config?.presence_speak_welcome !== false) void api.say(ask).catch(() => undefined);
-      render();
+      speakAndListen(tr().tourTypeQuestion);
       return;
     }
     if (matchesAny(text, NO_WORDS)) {
@@ -322,28 +368,10 @@ async function resolveDestinationByVoice(text: string): Promise<string | null> {
 
 function handlePresenceWelcome(): void {
   if (!config?.presence_welcome_enabled) return;
-  if (busy || activeFlow) return;
-  if (screen !== "standby" && screen !== "welcome") return;
   const maxDist = config.presence_max_distance_m ?? 3.0;
   const nearby = detectedPeople.filter((p) => p.distance <= maxDist);
   if (!nearby.length) return;
-  const cooldownMs = (config.presence_cooldown_seconds ?? 90) * 1000;
-  const now = Date.now();
-  if (now - lastPresenceWelcomeAt < cooldownMs) return;
-  lastPresenceWelcomeAt = now;
-  if (screen === "standby") {
-    screen = "welcome";
-    render();
-  }
-  const welcome =
-    personalizedGreeting() ??
-    (lang === "fr"
-      ? config.welcome_message_fr || tr().presenceWelcome
-      : config.welcome_message_en || tr().presenceWelcome);
-  if (config.presence_speak_welcome !== false) {
-    void api.say(welcome).catch(() => undefined);
-  }
-  showToast(tr().presenceDetected);
+  tryGreetAndOfferTour();
 }
 
 function startTelemetry(): void {
@@ -377,7 +405,7 @@ function startTelemetry(): void {
     },
     onVisitorIdentified: (visitor) => {
       identifiedVisitor = { visitor, at: Date.now() };
-      greetIdentifiedVisitor();
+      if (config?.face_recognition_enabled) tryGreetAndOfferTour();
     },
     onVoice: (event) => {
       // Diffusion serveur : utile si un autre client (ex. opérateur) parle au robot.
@@ -698,6 +726,7 @@ function closeVoice(): void {
   voiceState = "idle";
   voiceTranscript = "";
   voiceReply = "";
+  pendingQuestion = null;
   touch();
   render();
 }
