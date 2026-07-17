@@ -227,7 +227,7 @@ Backend **sans FastAPI/pydantic** (Termux ne compile pas `pydantic-core` sur cer
 | **CybelVisitorKiosk** | `com.cybel.visitorkiosk` | WebView plein écran → `:8000/kiosk/`, démarre Termux backend |
 | **CybelVisitorKioskTest** | `com.cybel.visitorkiosk.test` | Variante POI laboV2 → `:8001`, label « CYBEL Accueil » |
 | **CybelTTSBridge** | `com.cybel.ttsbridge` | Receiver `SPEAK` → moteur Google TTS natif |
-| **CybelFaceBridge** | `com.cybel.facebridge` | Headless (aucune Activity) : Camera2 → détection → embedding TFLite → `POST /api/visitors/identify`. Scaffolding complet, non validé sur device réel — voir [FACE_PRESENCE.md](FACE_PRESENCE.md) |
+| **CybelFaceBridge** | `com.cybel.facebridge` | Headless (aucune Activity) : Camera2 → détection → embedding TFLite (FaceNet) → `POST /api/visitors/identify`. Validé de bout en bout sur device réel (enrôlement + identification continue) — voir [FACE_PRESENCE.md](FACE_PRESENCE.md) |
 
 ### 3.7 Données (`data/`)
 
@@ -652,25 +652,35 @@ uvicorn cybel_lite :8001
 APK WebView → http://wlan0:8001/kiosk/
 ```
 
-### 7.10 Reconnaissance faciale (feature/face-presence, phase 2 — scaffolding non validé terrain)
+### 7.10 Reconnaissance faciale (feature/face-presence, phase 2 — validée terrain 2026-07-17)
 
 ```
 Caméra tablette (front) → CybelFaceBridge (Camera2 headless, sans preview)
     ↓ YUV_420_888 → NV21 → RGB565
     ↓ android.media.FaceDetector (crop visage)
-    ↓ TFLite Interpreter → embedding (vecteur, jamais l'image)
+    ↓ TFLite Interpreter → embedding (vecteur, jamais l'image) — FaceNet 160×160
     ↓ POST /api/visitors/identify {embedding, confidence}
 VisitorService (backend PC ou cybel_lite)
     ↓ cosine_similarity vs data/visitors.json (seuil face_recognition_threshold)
+    ↓ diffuse toujours WebSocket {type: "face_status", detected, matched, confidence}
     ↓ si match : WebSocket {type: "visitor", visitor, confidence}
-frontend-kiosk (personalizedGreeting())
-    → « Bonjour M./Mme X » à la place du message d'accueil générique
+frontend-kiosk (tryGreetAndOfferTour(), §7.7)
+    → « Bonjour M./Mme X » + proposition de visite
 ```
 
-Enrôlement (opérateur uniquement, jamais automatique) :
-`scripts/termux/enroll_visitor.sh "Nom" "M."` → `am broadcast` →
-`EnrollReceiver` → fenêtre de 15 s → même pipeline d'embedding →
-`POST /api/visitors/enroll` (refusé sans `consent: true`).
+`face_status` (diffusé à chaque frame où un visage est vu, correspondance ou
+non) alimente le statut de détection en direct de l'onglet **Visiteurs**
+(`frontend/`), sans jamais transmettre d'image.
+
+**Enrôlement — deux voies** :
+
+- **Local** (personnel sur site) : `scripts/termux/enroll_visitor.sh "Nom" "M."`
+  → `am broadcast` → `EnrollReceiver` → fenêtre de 15 s → pipeline d'embedding
+  → `POST /api/visitors/enroll` (refusé sans `consent: true`).
+- **Distant** (opérateur PC, onglet Visiteurs) : `POST /api/visitors/enroll-trigger`
+  → `backend/` relaie via `settings.kiosk_backend_url` → `cybel_lite.py`
+  (même tablette que `CybelFaceBridge`) exécute le `am broadcast` localement —
+  seul moyen d'atteindre l'app headless depuis un poste distant.
 
 ---
 

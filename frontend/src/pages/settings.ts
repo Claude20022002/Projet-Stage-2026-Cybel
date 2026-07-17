@@ -3,6 +3,67 @@ import { icons } from "../icons";
 import { pushEvent } from "../state";
 import type { DiagnosticsSnapshot, RobotSettings } from "../types";
 
+const GITHUB_REPO = "https://github.com/Claude20022002/Projet-Stage-2026-Cybel";
+const GITHUB_DOCS_BRANCH = "main";
+
+interface HelpLink {
+  label: string;
+  path: string;
+  hint: string;
+}
+
+const HELP_LINKS: HelpLink[] = [
+  {
+    label: "Guide contrôleur — POI & visite",
+    path: "docs/labo/GUIDE_CONTROLEUR_POI.md",
+    hint: "Créer/synchroniser les POI, maintenir le parcours guidé",
+  },
+  {
+    label: "Démarrage & dépannage",
+    path: "docs/labo/DEMARRAGE_ET_DEPANNAGE.md",
+    hint: "L'application ne démarre pas, backend en erreur…",
+  },
+  {
+    label: "Guide terrain",
+    path: "docs/labo/TERRAIN.md",
+    hint: "Procédures sur site avec le robot",
+  },
+  {
+    label: "Chatbot vocal",
+    path: "docs/VOICE_CHATBOT.md",
+    hint: "Commandes vocales, mot d'éveil, dialogue de visite",
+  },
+  {
+    label: "Reconnaissance faciale",
+    path: "docs/FACE_PRESENCE.md",
+    hint: "Enrôlement, identification, détection de présence",
+  },
+  {
+    label: "Synchronisation POI Sentrymove",
+    path: "docs/SENTRYMOVE_POI_SYNC.md",
+    hint: "Format des noms, procédure Deployment Tool → kiosque",
+  },
+];
+
+function githubDocUrl(path: string): string {
+  return `${GITHUB_REPO}/blob/${GITHUB_DOCS_BRANCH}/${path}`;
+}
+
+function renderHelpLinks(): string {
+  return `
+    <ul class="help-links">
+      ${HELP_LINKS.map(
+        (link) => `
+        <li>
+          <a href="${githubDocUrl(link.path)}" target="_blank" rel="noopener">${link.label}</a>
+          <span class="settings-hint">${link.hint}</span>
+        </li>
+      `
+      ).join("")}
+    </ul>
+  `;
+}
+
 const SPEED_LABELS = { low: "Lente (0.3 m/s)", medium: "Moyenne (0.5 m/s)", high: "Rapide (0.8 m/s)" };
 const TRAVEL_LABELS = {
   safety: "Sécurité — évitement large",
@@ -123,6 +184,12 @@ export function renderSettingsPage(
       <section class="settings-card" id="settings-diagnostics">
         <h2>${icons.alertTriangle("icon", 18)} Diagnostic</h2>
         ${renderDiagnostics(diagnostics)}
+      </section>
+
+      <section class="settings-card">
+        <h2>${icons.message("icon", 18)} Aide contrôleur</h2>
+        <p class="settings-hint">Documentation du projet sur GitHub — ouvre dans un nouvel onglet.</p>
+        ${renderHelpLinks()}
       </section>
     </div>
   `;

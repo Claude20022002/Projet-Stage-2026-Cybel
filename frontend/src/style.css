@@ -1755,6 +1755,32 @@ body {
     gap: 1rem;
 }
 
+.help-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.help-links li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.help-links a {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.help-links a:hover {
+    text-decoration: underline;
+}
+
 @media (max-width: 900px) {
     .app-shell {
         flex-direction: column;
