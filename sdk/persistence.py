@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from sdk.json_store import append_log_entry, load_json, save_json, utc_now_iso
-from sdk.models import Point, RobotSettings
+from sdk.models import Point, RobotSettings, Visitor
+from sdk.poi_names import is_valid_deployment_poi_name, is_visitor_poi
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class JsonPersistence:
         self.navigation_path = self.data_dir / "navigation_events.json"
         self.speech_path = self.data_dir / "speech_log.json"
         self.settings_path = self.data_dir / "app_settings.json"
+        self.visitors_path = self.data_dir / "visitors.json"
 
     def load_points(self) -> list[Point]:
         document = load_json(self.points_path, {"version": 1, "points": []})
@@ -52,21 +54,32 @@ class JsonPersistence:
         )
 
     def merge_robot_points(self, ros_points: list[Point]) -> list[Point]:
-        """Fusionne marqueurs ROS avec le cache JSON (ROS prioritaire sur les coords)."""
+        """Remplace le cache par les POI ROS de la carte courante (supprime les absents)."""
         saved = {p.name: p for p in self.load_points()}
-        merged: dict[str, Point] = dict(saved)
+        merged: dict[str, Point] = {}
 
         for rp in ros_points:
-            existing = merged.get(rp.name)
-            if existing:
-                merged[rp.name] = rp.model_copy(
-                    update={
-                        "kiosk_visible": existing.kiosk_visible,
-                        "source": "merged",
-                    }
-                )
-            else:
-                merged[rp.name] = rp.model_copy(update={"source": "ros"})
+            if not is_valid_deployment_poi_name(rp.name):
+                continue
+            existing = saved.get(rp.name)
+            visitor = is_visitor_poi(rp.name, str(rp.type))
+            merged[rp.name] = rp.model_copy(
+                update={
+                    "kiosk_visible": (
+                        existing.kiosk_visible if existing else visitor
+                    )
+                    and visitor,
+                    "source": "merged" if existing else "ros",
+                }
+            )
+
+        removed = [name for name in saved if name not in merged]
+        if removed:
+            logger.info(
+                "POI absents de la carte ROS supprimés (%d) : %s",
+                len(removed),
+                ", ".join(removed[:8]),
+            )
 
         result = sorted(merged.values(), key=lambda p: p.name.lower())
         self.save_points(result)
@@ -88,6 +101,41 @@ class JsonPersistence:
 
     def kiosk_destinations(self) -> list[Point]:
         return [p for p in self.load_points() if p.kiosk_visible]
+
+    def load_visitors(self) -> list[Visitor]:
+        document = load_json(self.visitors_path, {"version": 1, "visitors": []})
+        raw_visitors = document.get("visitors") or []
+        visitors: list[Visitor] = []
+        for item in raw_visitors:
+            if isinstance(item, dict):
+                try:
+                    visitors.append(Visitor.model_validate(item))
+                except Exception:
+                    continue
+        return visitors
+
+    def save_visitors(self, visitors: list[Visitor]) -> None:
+        save_json(
+            self.visitors_path,
+            {
+                "version": 1,
+                "updated_at": utc_now_iso(),
+                "visitors": [v.model_dump() for v in visitors],
+            },
+        )
+
+    def upsert_visitor(self, visitor: Visitor) -> None:
+        visitors = {v.id: v for v in self.load_visitors()}
+        visitors[visitor.id] = visitor
+        self.save_visitors(sorted(visitors.values(), key=lambda v: v.name.lower()))
+
+    def remove_visitor(self, visitor_id: str) -> bool:
+        visitors = {v.id: v for v in self.load_visitors()}
+        if visitor_id not in visitors:
+            return False
+        del visitors[visitor_id]
+        self.save_visitors(sorted(visitors.values(), key=lambda v: v.name.lower()))
+        return True
 
     def log_navigation(
         self,

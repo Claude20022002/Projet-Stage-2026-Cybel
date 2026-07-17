@@ -82,15 +82,16 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 export PYTHONPATH="$CYBEL_HOME${PYTHONPATH:+:$PYTHONPATH}"
+PYTHON="${PYTHON:-/data/data/com.termux/files/usr/bin/python}"
 
 cd "$BACKEND_DIR"
 
-if [ -f "$LITE_FLAG" ] || ! python -c "import fastapi" 2>/dev/null; then
+if [ -f "$LITE_FLAG" ] || ! "$PYTHON" -c "import fastapi" 2>/dev/null; then
   echo "Démarrage CYBEL lite sur 0.0.0.0:$PORT (log: $LOG_FILE)"
-  nohup python "$CYBEL_HOME/scripts/termux/cybel_lite.py" >>"$LOG_FILE" 2>&1 &
+  nohup env CYBEL_HOME="$CYBEL_HOME" BACKEND_PORT="$PORT" "$PYTHON" "$CYBEL_HOME/scripts/termux/cybel_lite.py" >>"$LOG_FILE" 2>&1 &
 else
   echo "Démarrage CYBEL complet sur 0.0.0.0:$PORT (log: $LOG_FILE)"
-  nohup python -m uvicorn main:app --host 0.0.0.0 --port "$PORT" >>"$LOG_FILE" 2>&1 &
+  nohup env CYBEL_HOME="$CYBEL_HOME" "$PYTHON" -m uvicorn main:app --host 0.0.0.0 --port "$PORT" >>"$LOG_FILE" 2>&1 &
 fi
 echo $! >"$PID_FILE"
 echo "PID $(cat "$PID_FILE")"

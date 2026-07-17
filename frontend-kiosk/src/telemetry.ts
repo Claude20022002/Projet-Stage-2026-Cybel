@@ -1,9 +1,26 @@
-import type { RobotStatus, SpeechStatus, TourStatus } from "./types";
+import type {
+  DetectedPerson,
+  RobotStatus,
+  SpeechStatus,
+  TourStatus,
+  VisitorPublic,
+  VoiceKind,
+} from "./types";
+
+export type VoiceEvent = {
+  transcript: string;
+  reply: string;
+  kind: VoiceKind;
+  ok: boolean;
+};
 
 export type TelemetryHandlers = {
   onRobotStatus?: (status: RobotStatus) => void;
   onSpeech?: (speech: SpeechStatus) => void;
   onTourStatus?: (status: TourStatus) => void;
+  onPeople?: (people: DetectedPerson[]) => void;
+  onVisitorIdentified?: (visitor: VisitorPublic, confidence: number) => void;
+  onVoice?: (event: VoiceEvent) => void;
   onConnected?: (connected: boolean) => void;
 };
 
@@ -48,6 +65,17 @@ export function connectKioskTelemetry(next: TelemetryHandlers): void {
       });
     } else if (type === "tour") {
       handlers.onTourStatus?.(data as unknown as TourStatus);
+    } else if (type === "people" && Array.isArray(data.people)) {
+      handlers.onPeople?.(data.people as DetectedPerson[]);
+    } else if (type === "visitor" && data.visitor) {
+      handlers.onVisitorIdentified?.(data.visitor as VisitorPublic, Number(data.confidence ?? 0));
+    } else if (type === "voice") {
+      handlers.onVoice?.({
+        transcript: String(data.transcript ?? ""),
+        reply: String(data.reply ?? ""),
+        kind: (data.kind as VoiceKind) ?? "unknown",
+        ok: Boolean(data.ok),
+      });
     }
   };
 }

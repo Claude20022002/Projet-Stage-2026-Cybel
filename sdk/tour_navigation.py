@@ -30,6 +30,13 @@ ON_CHARGER_HINT = (
     "Robot branché sur la borne — détachez-le du socle pour naviguer."
 )
 
+HARD_ESTOP_HINT = (
+    "Arrêt d'urgence physique actif — relâchez le bouton rouge sur le robot, "
+    "puis réessayez."
+)
+
+SOFT_ESTOP_HINT = "E-Stop logiciel actif — relâchez l'arrêt d'urgence avant de naviguer."
+
 
 def parse_charger_flag(raw: object) -> bool:
     """Interprète le champ ``charger`` ROS (0/1, parfois chaîne)."""
@@ -57,12 +64,15 @@ def navigation_precondition_detail(
     localization_percent: float | None = None,
     min_localization: float = DEFAULT_LOCALIZATION_MIN_PERCENT,
     point_name: str | None = None,
+    hard_estop: bool = False,
 ) -> str | None:
     """Raison explicite si une navigation doit être refusée, sinon ``None``."""
     if not connected:
         return "Liaison rosbridge coupée (reconnexion en cours)"
+    if hard_estop:
+        return HARD_ESTOP_HINT
     if soft_estop:
-        return "E-Stop actif — relâchez l'arrêt d'urgence avant de naviguer"
+        return SOFT_ESTOP_HINT
     if nav_mode == "manual":
         return (
             "Mode manuel actif — passez en mode automatique avant de naviguer "
@@ -227,8 +237,14 @@ def assess_tour_readiness(
     navigating_to: str | None = None,
     ghost_nav_recovered: bool = False,
     charger: bool = False,
+    hard_estop: bool = False,
+    soft_estop: bool = False,
 ) -> tuple[bool, str]:
     """Vérifie si le robot peut démarrer une visite."""
+    if hard_estop:
+        return False, HARD_ESTOP_HINT
+    if soft_estop:
+        return False, SOFT_ESTOP_HINT
     if nav_status == 600:
         return False, NAV_STATUS_HINTS[600]
     if is_charging_navigation_block(nav_status, charger=charger):

@@ -13,6 +13,7 @@ from sdk.lab_tour import (
     TourEngine,
     TourStop,
     default_tour_path,
+    filter_tour_by_poi,
     load_lab_tour,
     load_tour_data,
     save_tour_data,
@@ -92,9 +93,12 @@ class TourService:
         self,
         tour_path: Path | None = None,
         tracer=None,
+        available_poi: set[str] | None = None,
     ) -> TourEngine:
         path = tour_path or self._tour_path
         tour = load_lab_tour(path)
+        if available_poi is not None:
+            tour = filter_tour_by_poi(tour, available_poi)
 
         async def speak(text: str) -> None:
             result = await robot_service.speak(text)
@@ -106,7 +110,64 @@ class TourService:
             snap_before = _robot_snapshot()
             if tracer:
                 tracer.robot_snapshot("nav_before", snap_before, stop=stop)
-            if stop.has_coordinates():
+            if stop.target_point:
+                if tracer:
+                    tracer.nav_command(
+                        stop,
+                        index=index,
+                        robot=snap_before,
+                        nav_status=snap_before.get("nav_status"),
+                        nav_status_label=str(snap_before.get("nav_status_label", "")),
+                        detail=f"service /tag_manager/navi → {stop.target_point}",
+                    )
+                success = await robot_service.navigate_to_point(stop.target_point)
+                if not success:
+                    if tracer:
+                        tracer.nav_result(
+                            stop,
+                            index=index,
+                            robot=_robot_snapshot(),
+                            success=False,
+                            error=f"Point '{stop.target_point}' introuvable",
+                        )
+                    raise RuntimeError(
+                        f"Point '{stop.target_point}' introuvable sur la carte"
+                    )
+                arrived = (
+                    await _wait_navigation_traced(tracer, stop, index)
+                    if tracer
+                    else await robot_service.wait_for_navigation_arrival()
+                )
+                if not arrived:
+                    status = robot_service.get_status()
+                    err = navigation_wait_failure_message(
+                        status.nav_status,
+                        destination=stop.target_point or "",
+                        never_started=status.nav_status == 601,
+                    )
+                    err = f"{err} {navigation_recovery_hint(status.nav_status)}"
+                    if tracer:
+                        tracer.nav_result(
+                            stop,
+                            index=index,
+                            robot=_robot_snapshot(),
+                            success=False,
+                            nav_status=status.nav_status,
+                            nav_status_label=status.nav_status_label,
+                            error=err,
+                        )
+                    raise RuntimeError(err)
+                if tracer:
+                    status = robot_service.get_status()
+                    tracer.nav_result(
+                        stop,
+                        index=index,
+                        robot=_robot_snapshot(),
+                        success=True,
+                        nav_status=status.nav_status,
+                        nav_status_label=status.nav_status_label,
+                    )
+            elif stop.has_coordinates():
                 if tracer:
                     tracer.nav_command(
                         stop,
@@ -146,63 +207,6 @@ class TourService:
                     err = navigation_wait_failure_message(
                         status.nav_status,
                         destination=dest,
-                        never_started=status.nav_status == 601,
-                    )
-                    err = f"{err} {navigation_recovery_hint(status.nav_status)}"
-                    if tracer:
-                        tracer.nav_result(
-                            stop,
-                            index=index,
-                            robot=_robot_snapshot(),
-                            success=False,
-                            nav_status=status.nav_status,
-                            nav_status_label=status.nav_status_label,
-                            error=err,
-                        )
-                    raise RuntimeError(err)
-                if tracer:
-                    status = robot_service.get_status()
-                    tracer.nav_result(
-                        stop,
-                        index=index,
-                        robot=_robot_snapshot(),
-                        success=True,
-                        nav_status=status.nav_status,
-                        nav_status_label=status.nav_status_label,
-                    )
-            elif stop.target_point:
-                if tracer:
-                    tracer.nav_command(
-                        stop,
-                        index=index,
-                        robot=snap_before,
-                        nav_status=snap_before.get("nav_status"),
-                        nav_status_label=str(snap_before.get("nav_status_label", "")),
-                        detail=f"service /poi go → {stop.target_point}",
-                    )
-                success = await robot_service.navigate_to_point(stop.target_point)
-                if not success:
-                    if tracer:
-                        tracer.nav_result(
-                            stop,
-                            index=index,
-                            robot=_robot_snapshot(),
-                            success=False,
-                            error=f"Point '{stop.target_point}' introuvable",
-                        )
-                    raise RuntimeError(
-                        f"Point '{stop.target_point}' introuvable sur la carte"
-                    )
-                arrived = (
-                    await _wait_navigation_traced(tracer, stop, index)
-                    if tracer
-                    else await robot_service.wait_for_navigation_arrival()
-                )
-                if not arrived:
-                    status = robot_service.get_status()
-                    err = navigation_wait_failure_message(
-                        status.nav_status,
-                        destination=stop.target_point or "",
                         never_started=status.nav_status == 601,
                     )
                     err = f"{err} {navigation_recovery_hint(status.nav_status)}"
@@ -271,11 +275,26 @@ class TourService:
 
         if patrol_service.is_running():
             return {"ok": False, "error": "Une patrouille est en cours"}
+
+        if not robot_service.is_mock:
+            from services.poi_bootstrap import ensure_poi_synced_from_robot
+
+            try:
+                await ensure_poi_synced_from_robot()
+            except Exception as exc:
+                return {"ok": False, "error": f"Synchronisation POI impossible : {exc}"}
+
         self.reset_engine()
         tour = load_lab_tour(self._tour_path)
         tracer = start_tour_logger(tour_id=tour.id)
         tracer.robot_snapshot("tour_start_pose", _robot_snapshot())
-        self._engine = self._build_engine(tracer=tracer)
+        from services.persistence_service import persistence_service
+
+        available_poi = {p.name for p in persistence_service.load_points()}
+        self._engine = self._build_engine(
+            tracer=tracer,
+            available_poi=available_poi,
+        )
         if not robot_service.is_mock:
             status = robot_service.get_status()
             ready, reason = assess_tour_readiness(

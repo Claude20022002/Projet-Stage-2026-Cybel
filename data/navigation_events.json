@@ -155,8 +155,20 @@
       "nav_status": 602,
       "detail": "",
       "at": "2026-06-25T14:07:34.106066+00:00"
+    },
+    {
+      "id": "d0a09860-78f9-441c-bdb2-c79d9299981e",
+      "kind": "navigate_coordinate",
+      "success": true,
+      "point_name": null,
+      "x": 3.95,
+      "y": -5.5,
+      "theta": 0.66,
+      "nav_status": 602,
+      "detail": "",
+      "at": "2026-07-15T21:38:32.802811+00:00"
     }
   ],
   "version": 1,
-  "updated_at": "2026-06-25T14:07:34.106096+00:00"
+  "updated_at": "2026-07-15T21:38:32.802834+00:00"
 }

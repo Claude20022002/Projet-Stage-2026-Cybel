@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "id": "a8459df1-74a6-45cf-af5a-d9133929b303",
+      "text": "HESTIM est un établissement d'enseignement supérieur reconnu par l'État, basé à Casablanca, qui regroupe une école d'ingénieurs et une école de commerce. Sa mission est de former des ingénieurs et des managers engagés, agiles et ouverts sur le monde.",
+      "ok": true,
+      "method": "mock",
+      "error": "",
+      "at": "2026-07-15T21:38:09.047111+00:00"
+    },
+    {
+      "id": "8c9af799-6b30-4da7-885c-8fc6b4eda536",
+      "text": "Bienvenue pour la visite guidée. Nous allons commencer.",
+      "ok": true,
+      "method": "mock",
+      "error": "",
+      "at": "2026-07-15T21:38:32.457138+00:00"
+    },
+    {
+      "id": "62678aa6-bc21-42b1-8de3-ea0128d92de5",
+      "text": "Vous êtes à l'entrée du laboratoire HESTIM. C'est le point d'accueil de la visite sur la carte laboV2.",
+      "ok": true,
+      "method": "mock",
+      "error": "",
+      "at": "2026-07-15T21:38:32.776396+00:00"
+    }
+  ],
+  "version": 1,
+  "updated_at": "2026-07-15T21:38:32.776415+00:00"
+}

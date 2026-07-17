@@ -1,3 +1,6 @@
-uvicorn==0.32.1
-starlette==0.41.3
-websockets==14.1
+# Versions alignées sur scripts/termux/offline_bootstrap/wheels/ (installées et
+# validées sur le châssis CIOT le 2026-07-15). starlette >= 1.x impose l'API
+# lifespan (cybel_lite.py) — l'ancienne API @app.on_event n'existe plus.
+uvicorn==0.51.0
+starlette==1.3.1
+websockets==16.1

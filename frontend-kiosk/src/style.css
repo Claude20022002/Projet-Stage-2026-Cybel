@@ -106,6 +106,20 @@ body {
 .status-pill--danger { background: var(--danger-soft); color: var(--danger); }
 .status-pill--offline { background: var(--surface-2); color: var(--text-muted); }
 
+.variant-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: #ffedd5;
+    color: #c2410c;
+    border: 1px solid #fdba74;
+}
+
 .status-net {
     width: 12px;
     height: 12px;
@@ -854,4 +868,163 @@ body {
         min-height: 120px;
         padding: 18px;
     }
+}
+
+/* ===== Commande vocale ===== */
+.voice-button {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    margin: 4px 0 8px;
+    padding: 18px 24px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.voice-button:active {
+    transform: scale(0.985);
+    filter: brightness(0.96);
+}
+
+.voice-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.voice-button__icon {
+    font-size: 34px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.voice-button__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.voice-button__text strong {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.voice-button__text span {
+    font-size: 15px;
+    opacity: 0.9;
+}
+
+.voice-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.voice-overlay__card {
+    width: min(640px, 92vw);
+    background: var(--surface);
+    border-radius: 28px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+    padding: 40px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+}
+
+.voice-overlay__mic {
+    font-size: 64px;
+    line-height: 1;
+}
+
+.voice-overlay__mic--pulse {
+    animation: voice-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.18); opacity: 0.65; }
+}
+
+.voice-overlay__status {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.voice-overlay__hint {
+    font-size: 17px;
+    color: var(--text-muted);
+}
+
+.voice-overlay__spinner {
+    width: 52px;
+    height: 52px;
+    border: 5px solid var(--primary-soft);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: voice-spin 0.9s linear infinite;
+}
+
+@keyframes voice-spin {
+    to { transform: rotate(360deg); }
+}
+
+.voice-overlay__transcript,
+.voice-overlay__you {
+    font-size: 18px;
+    color: var(--text-muted);
+}
+
+.voice-overlay__you span {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.voice-overlay__bubble {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--primary-soft);
+    border-radius: 20px;
+    padding: 20px 22px;
+    text-align: left;
+}
+
+.voice-overlay__bubble-icon {
+    font-size: 30px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.voice-overlay__bubble p {
+    font-size: 20px;
+    line-height: 1.4;
+    color: var(--text);
+}
+
+.voice-overlay__close {
+    min-height: var(--touch-min);
+    margin-top: 8px;
+    padding: 0 32px;
+    border: none;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
 }

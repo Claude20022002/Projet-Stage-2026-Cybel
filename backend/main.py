@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from config import settings
-from routers import charge, diagnostics, history, knowledge, kiosk, map, mqtt, navigation, patrol, reception, robot, settings as settings_router, speech, tour
+from routers import charge, diagnostics, history, knowledge, kiosk, map, mqtt, navigation, patrol, reception, robot, settings as settings_router, speech, tour, visitors
 from services.charge_service import charge_service
 from services.mqtt_bridge_service import mqtt_bridge_service
 from services.robot_service import robot_service
@@ -85,6 +85,7 @@ app.include_router(knowledge.router)
 app.include_router(tour.router)
 app.include_router(patrol.router)
 app.include_router(diagnostics.router)
+app.include_router(visitors.router)
 
 
 KIOSK_DIST = ROOT / "frontend-kiosk" / "dist"
@@ -101,6 +102,45 @@ async def health() -> dict:
         "mqtt": mqtt_bridge_service.get_status(),
         "version": "0.2.0",
     }
+
+
+@app.post("/api/voice")
+async def voice_command(body: dict) -> dict:
+    """Alias top-level du traitement vocal — même contrat que le backend Termux
+    (cybel_lite `/api/voice`), pour que le kiosque parle aux deux backends de façon
+    identique. Ne lève jamais 400 : renvoie toujours 200 avec `ok`/`understood`,
+    afin que l'UI affiche la bulle « je n'ai pas compris » plutôt qu'une erreur."""
+    from services.reception_service import reception_service
+    from sdk.models import VoiceCommand
+
+    text = str(body.get("text", "")).strip()
+    lang = str(body.get("lang", "fr"))
+    if not text:
+        return {"ok": False, "understood": False, "kind": "empty", "transcript": text, "reply": ""}
+
+    result = await reception_service.handle_voice(VoiceCommand(text=text), lang)
+    kind = "unknown"
+    if result.get("matched_action"):
+        kind = "action"
+    elif result.get("matched_point"):
+        kind = "navigation"
+    elif result.get("matched_knowledge"):
+        kind = "faq"
+    reply = "; ".join(result.get("events", [])) or result.get("error", "")
+    payload = {
+        "ok": bool(result.get("ok")),
+        "understood": kind != "unknown",
+        "kind": kind,
+        "transcript": text,
+        "reply": reply,
+        "action": result.get("matched_action"),
+        "point": result.get("matched_point"),
+        "error": result.get("error"),
+    }
+    await ws_manager.broadcast("voice", {
+        "transcript": text, "reply": reply, "kind": kind, "ok": payload["ok"],
+    })
+    return payload
 
 
 @app.websocket("/ws/telemetry")

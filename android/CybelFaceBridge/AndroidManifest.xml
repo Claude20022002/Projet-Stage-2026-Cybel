@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.cybel.facebridge"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="25" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      Application headless par conception : aucune <activity>, aucune icône de lancement.
+      Ne peut donc jamais voler le focus écran au kiosque (CybelVisitorKiosk).
+      Permission CAMERA à accorder manuellement (pas de dialogue runtime possible
+      sans Activity) : adb shell pm grant com.cybel.facebridge android.permission.CAMERA
+    -->
+    <application
+        android:label="CybelFaceBridge"
+        android:allowBackup="false">
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".EnrollReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.cybel.facebridge.ENROLL" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".FaceRecognitionService"
+            android:exported="false" />
+
+    </application>
+</manifest>

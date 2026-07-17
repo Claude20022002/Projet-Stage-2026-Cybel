@@ -106,7 +106,26 @@ export interface SpeechStatus {
   mock: boolean;
 }
 
-export type AppPage = "dashboard" | "tour" | "patrol" | "settings";
+export type AppPage = "dashboard" | "tour" | "patrol" | "settings" | "visitors";
+
+export interface VisitorPublic {
+  id: string;
+  name: string;
+  civility: string;
+  consent: boolean;
+  enrolled_at: string;
+  last_identified_at: string | null;
+}
+
+/** Statut de détection faciale en direct (jamais d'image, uniquement le
+ * résultat du matching) — diffusé par le backend embarqué du kiosque à
+ * chaque frame où un visage est vu (correspondance ou non). */
+export interface FaceStatusEvent {
+  detected: boolean;
+  matched: boolean;
+  confidence: number;
+  visitor?: VisitorPublic;
+}
 
 export interface TourStopData {
   id: string;
@@ -225,4 +244,8 @@ export interface AppState {
   wsConnected: boolean;
   voiceListening: boolean;
   speech: SpeechStatus | null;
+  visitors: VisitorPublic[];
+  faceStatus: FaceStatusEvent | null;
+  faceStatusAt: number | null;
+  visitorsWsConnected: boolean;
 }

@@ -1,37 +1,78 @@
 # Documentation CYBEL
 
-Index central de la documentation — projet **CYBEL**, plateforme de commande pour le robot CIOT **TY1251D-03195**.
+Index de la documentation du projet **CYBEL** — plateforme de commande pour le robot CIOT TY1251D-03195.
 
 > Carte complète de l'organisation : [STRUCTURE.md](STRUCTURE.md)
 
+## Démarrage rapide
+
+| Besoin | Document |
+|--------|----------|
+| Lancer en dev (PC) | [README racine](../README.md) § Commandes |
+| **Kiosque tablette (lundi / panne)** | **[labo/DEMARRAGE_ET_DEPANNAGE.md](labo/DEMARRAGE_ET_DEPANNAGE.md)** + `scripts/kiosk_test.ps1` |
+| Connecter le robot | [ROBOT_CONNECTION.md](ROBOT_CONNECTION.md) |
+| Interface opérateur | [INTERFACE.md](INTERFACE.md) |
+| **Session labo / terrain** | **[labo/TERRAIN.md](labo/TERRAIN.md)** |
+| Preflight automatique | [`scripts/preflight_labo.ps1`](../scripts/preflight_labo.ps1) |
+| Smoke test matin (PC + robot) | [PHASE0_DEMARRAGE.md](PHASE0_DEMARRAGE.md) |
+| Débuter sur le projet | [guides/DEMARRAGE-RAPIDE.md](guides/DEMARRAGE-RAPIDE.md) |
+
 ---
 
-## Parcours recommandés
+## Labo & terrain
 
-### Je débute sur le projet
+Procédures sur le robot physique, sync POI, tests kiosque A/B.
 
-1. [README racine](../README.md) — vue d'ensemble et protocole ROS
-2. [guides/DEMARRAGE-RAPIDE.md](guides/DEMARRAGE-RAPIDE.md) — lancer en local
-3. [ROBOT_CONNECTION.md](ROBOT_CONNECTION.md) — réseau et connectivité
-4. [INTERFACE.md](INTERFACE.md) — interface opérateur
+| Document | Description |
+|----------|-------------|
+| [labo/README.md](labo/README.md) | Index section labo |
+| [labo/TERRAIN.md](labo/TERRAIN.md) | **Procédure pas à pas + commandes** |
+| [labo/DEMARRAGE_ET_DEPANNAGE.md](labo/DEMARRAGE_ET_DEPANNAGE.md) | **Démarrage kiosque TEST (contrôleur)** |
+| [labo/GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md) | **Formation POI → CybelVisitorKioskTest** |
+| [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md) | Comparaison kiosque coords vs POI |
+| [SENTRYMOVE_POI_SYNC.md](SENTRYMOVE_POI_SYNC.md) | Sync POI ROS → `points.json` |
 
-### Je vais au labo avec le robot
+---
 
-1. [`scripts/preflight_labo.ps1`](../scripts/preflight_labo.ps1) — vérifications automatiques
-2. [labo/TERRAIN.md](labo/TERRAIN.md) — procédure pas à pas + commandes
-3. [PHASE0_DEMARRAGE.md](PHASE0_DEMARRAGE.md) — smoke test matin (PC + robot)
+## Kiosque visiteur & Termux
 
-### Je déploie le kiosque visiteur
+| Document | Description |
+|----------|-------------|
+| [VISITOR_KIOSK.md](VISITOR_KIOSK.md) | Interface visiteur, WebView, parcours |
+| [TERMUX_DEPLOY.md](TERMUX_DEPLOY.md) | Backend lite sur tablette Android |
+| [TOUR_NAVIGATION.md](TOUR_NAVIGATION.md) | Moteur visite, diagnostic navigation |
+| [TTS_BRIDGE.md](TTS_BRIDGE.md) | Synthèse vocale (`CybelTTSBridge`) |
+| [VOICE_CHATBOT.md](VOICE_CHATBOT.md) | Chatbot vocal (STT, mot d'éveil, dialogue de visite) |
+| [FACE_PRESENCE.md](FACE_PRESENCE.md) | Reconnaissance faciale, détection de présence |
 
-1. [kiosque/README.md](kiosque/README.md) — index kiosque
-2. [VISITOR_KIOSK.md](VISITOR_KIOSK.md) — interface visiteur
-3. [TERMUX_DEPLOY.md](TERMUX_DEPLOY.md) — backend sur tablette
+---
 
-### Je conçois / étends le produit
+## Robot & protocole
 
-1. [cybel-conception/README.md](cybel-conception/README.md) — conception et backlog
-2. [cybel-conception/05-backlog.md](cybel-conception/05-backlog.md) — tâches agent IA
-3. [robot/movement-audit/](robot/movement-audit/) — audit protocole mouvement
+| Document | Description |
+|----------|-------------|
+| [ROBOT_CONNECTION.md](ROBOT_CONNECTION.md) | Topologie réseau, IPs, rosbridge |
+| [movement-audit/](movement-audit/) | Audit communication ROS/MQTT |
+| [cybel-conception/AUDIT_APK_CONSTRUCTEUR.md](cybel-conception/AUDIT_APK_CONSTRUCTEUR.md) | Audit APK constructeur (JADX) |
+
+---
+
+## Conception produit
+
+| Document | Description |
+|----------|-------------|
+| [cybel-conception/README.md](cybel-conception/README.md) | Index conception + backlog agent |
+| [cybel-conception/06-plan-hybride-sentrymove-kiosk.md](cybel-conception/06-plan-hybride-sentrymove-kiosk.md) | Stratégie hybride Sentrymove |
+| [ARCHITECTURE_LOGICIELLE.md](ARCHITECTURE_LOGICIELLE.md) | SDK, backends, flux de données |
+
+---
+
+## Rapport de stage (HESTIM)
+
+| Document | Description |
+|----------|-------------|
+| [Sujet de stage/rapport_stage_cybel.md](Sujet%20de%20stage/rapport_stage_cybel.md) | Rapport principal |
+| [Sujet de stage/chapitres_5_6_7_conclusion.md](Sujet%20de%20stage/chapitres_5_6_7_conclusion.md) | Chapitres méthodologie / validation |
 
 ---
 
@@ -49,25 +90,17 @@ Index central de la documentation — projet **CYBEL**, plateforme de commande p
 
 ---
 
-## Scripts opérationnels
+## Scripts utiles
 
 | Script | Usage |
 |--------|-------|
 | `scripts/dev.py` | Backend + opérateur + kiosque (dev local) |
-| `scripts/preflight_labo.ps1` | Preflight avant session labo |
-| `scripts/deploy_termux.py` | Déploiement SSH sur Termux |
-| `scripts/sync_poi_from_robot.py` | Sync POI (branche `feature/hybrid-sentrymove-kiosk`) |
+| `scripts/preflight_labo.ps1` | Vérifications avant session labo |
+| `scripts/deploy_termux.py` | Déploiement SSH sur Termux (`--target test`) |
+| `scripts/sync_poi_from_robot.py` | Sync POI depuis rosbridge |
+| `scripts/deploy_voice_face.sh` | Déploiement + validation chatbot vocal / reconnaissance faciale sur le kiosque |
 | `scripts/robot_status.py` | Test connexion rosbridge |
 
 ---
 
-## Branches et documentation associée
-
-| Branche | Rôle | Doc spécifique |
-|---------|------|----------------|
-| **`main`** | Production stable — navigation coords `/navi_goal` | Ce index, [labo/TERRAIN.md](labo/TERRAIN.md) |
-| `feature/hybrid-sentrymove-kiosk` | Expérimentation POI Sentrymove, kiosque A/B | [06-plan-hybride](cybel-conception/06-plan-hybride-sentrymove-kiosk.md), [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md) |
-
----
-
-_Dernière révision doc : juin 2026 — branche `main`_
+_Dernière mise à jour : 17 juillet 2026 — fusion `feature/face-presence` (chatbot vocal, reconnaissance faciale) dans `main`_

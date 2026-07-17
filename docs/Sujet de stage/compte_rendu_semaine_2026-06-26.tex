@@ -1,0 +1,271 @@
+% Compte rendu hebdomadaire — stage CYBEL
+% Compilation : pdflatex compte_rendu_semaine_2026-06-26.tex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\title{\textbf{Compte rendu d'activité — semaine du 23 au 26 juin 2026}\\[0.4em]
+\large Projet CYBEL — Plateforme de commande robot CIOT TY1251D}
+\author{[Nom du stagiaire]\\HESTIM Engineering \& Business School}
+\date{Encadrant : Dr. Sridath Tula\\Rédigé le 27 juin 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%==============================================================================
+\section{Synthèse de la semaine}
+%==============================================================================
+
+Cette semaine a été consacrée à la \textbf{validation terrain} de l'option hybride \emph{Sentrymove / Deployment Tool + kiosque CYBEL} sur la carte \textbf{laboV2} : migration du parcours guidé, synchronisation automatique des POI depuis ROS uniquement, correction des POI fantômes (ancienne carte), promotion de l'application \textbf{CYBEL Accueil} (test POI), et amorce de la détection de présence visiteur.
+
+\textbf{Livrables principaux :}
+\begin{itemize}[noitemsep]
+  \item Backend test \texttt{CybelVisitorKioskTest} opérationnel (port~8001, \texttt{~/cybel-test}) — application principale POI labo.
+  \item Sync POI ROS $\rightarrow$ \texttt{points.json} au démarrage kiosque et visite ; \textbf{remplacement} du cache (plus de POI fantômes).
+  \item Élagage POI obsolètes (\texttt{LG-10}, \texttt{LG-09}, \texttt{GAMME-CONTROLE-QUALITE}) ; exclusion \texttt{POINT-RECHARGE} de la visite.
+  \item Correctifs navigation visite guidée (proximité $\leq$ 0{,}45\,m si \texttt{nav\_status} reste à 601).
+  \item Branche \texttt{feature/face-presence} : détection de présence ROS $\rightarrow$ réveil kiosque (phase~1).
+  \item Documentation : \texttt{POI\_LABOV2.md}, \texttt{SENTRYMOVE\_POI\_SYNC.md}, \texttt{FACE\_PRESENCE.md}, \texttt{GUIDE\_CONTROLEUR\_POI.md}.
+\end{itemize}
+
+\textbf{État fonctionnel au 27/06 :}
+\begin{itemize}[noitemsep]
+  \item \textbf{Navigation point par point} (grille destinations) : validée terrain — 9 destinations visiteur.
+  \item \textbf{Visite guidée} : validée sur le terrain ; parcours aligné sur 10 POI Deployment Tool (9 effectifs si \texttt{POSTE-MACHINE} absent).
+  \item \textbf{Sync POI} : 10 marqueurs ROS dont \texttt{POINT-RECHARGE} (charge, hors visite).
+  \item \textbf{Détection de présence} : implémentée (code + config) ; validation caméra robot en attente.
+\end{itemize}
+
+%==============================================================================
+\section{Travaux réalisés (détail)}
+%==============================================================================
+
+\subsection{Migration carte laboV2 et parcours guidé}
+
+\begin{itemize}[noitemsep]
+  \item Passage à la carte \textbf{laboV2} dans \texttt{data/lab\_tour.json} (\texttt{map\_name: laboV2}, 10 arrêts avec \texttt{target\_point}).
+  \item Alignement des noms POI sur le format Deployment Tool (MAJUSCULES, tirets).
+  \item Mise à jour des présentations (\texttt{knowledgeV2-labV2.json}) et configuration kiosque test (\texttt{kiosk\_config.poi.json}).
+  \item Déploiement USB/ADB sur tablette (\texttt{172.16.0.132}).
+\end{itemize}
+
+\subsection{Synchronisation POI (option hybride)}
+
+Implémentation et documentation de la chaîne :
+\[
+\text{Deployment Tool} \rightarrow \text{marker\_manager (ROS)} \rightarrow \texttt{points.json} \rightarrow \text{kiosque CYBEL}
+\]
+
+\begin{itemize}[noitemsep]
+  \item Module \texttt{sdk/poi\_sync.py}, \texttt{sdk/marker\_utils.py}, script \texttt{sync\_poi\_from\_robot.py}.
+  \item API \texttt{POST /api/navigation/sync} (PC et \texttt{cybel\_lite}).
+  \item \textbf{Sync automatique} : \texttt{GET /api/reception/destinations} (ouverture kiosque) et \texttt{POST /api/tour/start} (démarrage visite).
+  \item \textbf{Élagage} : remplacement du cache (plus de fusion) — les POI absents de la carte ROS courante sont retirés.
+  \item Tests unitaires : \texttt{test\_poi\_sync.py}, \texttt{test\_poi\_charge.py}, \texttt{test\_lab\_tour\_filter.py} (28 tests passants).
+\end{itemize}
+
+\subsection{Élagage POI et alignement Deployment Tool (27/06)}
+
+Après validation terrain, constat : le robot chargeait encore des POI de l'\textbf{ancienne carte} (\texttt{LG-10}, \texttt{GAMME-CONTROLE-QUALITE}) malgré la sync. Correctifs :
+
+\begin{itemize}[noitemsep]
+  \item Liste noire \texttt{OBSOLETE\_POI\_NAMES} dans \texttt{sdk/poi\_names.py}.
+  \item \texttt{filter\_tour\_by\_poi()} : au démarrage visite, seuls les POI présents sur la carte ROS courante sont conservés.
+  \item \texttt{POINT-RECHARGE} (borne) : synchronisé depuis Deployment Tool mais \texttt{kiosk\_visible=false} et hors parcours (\texttt{is\_charge\_poi\_name}).
+  \item Destinations kiosque limitées aux arrêts \texttt{lab\_tour.json} éligibles visiteur.
+  \item Référence opérationnelle : \texttt{docs/labo/POI\_LABOV2.md}.
+\end{itemize}
+
+\subsection{Détection de présence (branche \texttt{feature/face-presence})}
+
+\begin{itemize}[noitemsep]
+  \item Écoute ROS \texttt{/detected\_people\_array} $\rightarrow$ WebSocket kiosque.
+  \item Réveil écran veille + message vocal si visiteur $\leq$ 3\,m (cooldown 90\,s).
+  \item Configuration \texttt{presence\_*} dans \texttt{kiosk\_config.poi.json}.
+  \item Phase~2 reconnaissance faciale planifiée (\texttt{data/visitors.json}, doc \texttt{FACE\_PRESENCE.md}).
+\end{itemize}
+
+\subsection{Robustesse navigation et prérequis robot}
+
+\begin{itemize}[noitemsep]
+  \item Lecture \texttt{hard\_estop} depuis ROS (plus de valeur figée).
+  \item Assouplissement des prérequis en statut 605 hors borne de charge.
+  \item Messages d'erreur et hints de récupération (\texttt{tour\_navigation.py}).
+\end{itemize}
+
+\subsection{Documentation et formation}
+
+\begin{itemize}[noitemsep]
+  \item Guide contrôleur POI pour technicien labo HESTIM.
+  \item Procédure courte \texttt{SENTRYMOVE\_POI\_SYNC.md}.
+  \item Mise à jour \texttt{CHANGELOG.md} (v0.3.2), \texttt{PARITY\_CHECKLIST.md}.
+\end{itemize}
+
+%==============================================================================
+\section{Problèmes rencontrés, hypothèses et solutions}
+%==============================================================================
+
+\begin{longtable}{@{}p{0.22\textwidth}p{0.28\textwidth}p{0.22\textwidth}p{0.22\textwidth}@{}}
+\toprule
+\textbf{Symptôme} & \textbf{Hypothèse} & \textbf{Solution appliquée} & \textbf{Statut} \\
+\midrule
+\endhead
+
+Robot ne bouge pas ; message relocalisation & E-stop physique actif ; \texttt{nav\_status} 600/605 & Lecture \texttt{hard\_estop} ROS ; recovery 605 hors charge & Résolu \\
+
+POI ancienne carte affichés sur kiosque & Cache \texttt{points.json} fusionné sans élagage & \texttt{merge\_point\_dicts} remplace par marqueurs ROS ; sync auto à l'ouverture & Résolu \\
+
+Erreur à l'ouverture du kiosque (HTTP 500) & Import \texttt{sdk/\_\_init\_\_.py} $\rightarrow$ \texttt{pydantic} absent sur Termux lite & Chargement modules SDK par stub (\texttt{\_load\_sdk\_module\_from\_file}) ; déploiement \texttt{poi\_names.py} & Résolu \\
+
+Backend TEST injoignable après déploiement & Délai démarrage Termux ; redémarrage via \texttt{su} sans Python & RUN\_COMMAND Termux ; scripts \texttt{start\_cybel\_test.sh} & Résolu \\
+
+Visite guidée : erreur statut 601 alors que le robot est arrivé & Le châssis ne publie pas 602/603 malgré déplacement effectif & Détection d'arrivée par \textbf{proximité} ($\leq$ 0{,}45\,m) dans \texttt{cybel\_lite.py} & Résolu ; visite validée terrain \\
+
+POI ancienne carte (\texttt{LG-10}, \texttt{GAMME-CONTROLE-QUALITE}) & Cache + marqueurs ROS résiduels & Liste noire + \texttt{filter\_tour\_by\_poi} + doc \texttt{POI\_LABOV2.md} & Résolu \\
+
+Point de charge dans la visite & \texttt{POINT-RECHARGE} ajouté Deployment Tool & Exclusion charge (\texttt{is\_charge\_poi\_name}) ; hors \texttt{lab\_tour.json} & Résolu \\
+
+Nouveau POI charge invisible kiosque & Comportement voulu (hors visiteur) & \texttt{kiosk\_visible=false} ; retour pile via action \texttt{return\_charge} & Documenté \\
+
+\bottomrule
+\end{longtable}
+
+\subsection{Hypothèse de travail retenue (stratégie S3)}
+
+L'\textbf{option hybride POI Sentrymove} est la stratégie la plus fiable pour la navigation visiteur : le kiosque CYBEL réutilise les mêmes destinations nommées que l'application constructeur (\texttt{/tag\_manager/navi}), évitant les écarts de calibration des coordonnées brutes (\texttt{/navi\_goal}, stratégie S1). La comparaison A/B sur deux backends (8000 vs 8001) permet de quantifier cet écart sur le terrain HESTIM.
+
+%==============================================================================
+\section{Architecture de déploiement (rappel)}
+%==============================================================================
+
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Instance} & \textbf{Répertoire Termux} & \textbf{Port} & \textbf{APK} \\
+\midrule
+Production (coords) & \texttt{\textasciitilde/cybel} & 8000 & CybelVisitorKiosk \\
+Test POI & \texttt{\textasciitilde/cybel-test} & 8001 & CybelVisitorKioskTest (CYBEL Accueil) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Robot : \texttt{192.168.20.22} (rosbridge 9090). Tablette : \texttt{172.16.0.132}.
+
+%==============================================================================
+\section{Perspectives — étapes suivantes et durées estimées}
+%==============================================================================
+
+\begin{longtable}{@{}p{0.05\textwidth}p{0.42\textwidth}p{0.12\textwidth}p{0.33\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Tâche} & \textbf{Durée} & \textbf{Critère de succès} \\
+\midrule
+\endhead
+
+1 & Validation détection de présence terrain (\texttt{/detected\_people\_array}) & 1--2 j & Sortie veille + TTS à l'approche \\
+2 & Phase reconnaissance faciale (spike caméra tablette) & 5--8 j & Accueil personnalisé visiteur enregistré \\
+3 & Retrait \texttt{POSTE-MACHINE} du parcours si confirmé absent Deployment Tool & 0{,}5 j & \texttt{lab\_tour.json} = carte réelle \\
+4 & Consolidation déploiement (\texttt{deploy\_termux.py}) & 1 j & Une commande PC $\rightarrow$ tablette \\
+5 & Comparaison A/B documentée (coords vs POI) & 2 j & Tableau + traces dans rapport \\
+6 & Rédaction rapport / chapitres 5--7 + diagrammes & 5--7 j & Version soumise encadrant \\
+
+\bottomrule
+\end{longtable}
+
+\textbf{Total estimé jusqu'à fin juillet} (hors vacances éventuelles) : \textbf{4 à 5 semaines} de travail effectif, selon disponibilité robot et reprises terrain.
+
+%==============================================================================
+\section{Besoin d'outils d'assistance au développement (IA)}
+%==============================================================================
+
+\subsection{Constat}
+
+Le projet CYBEL combine des domaines à forte charge cognitive :
+\begin{itemize}[noitemsep]
+  \item rétro-ingénierie ROS et APK constructeur (milliers de fichiers Java décompilés) ;
+  \item déploiement embarqué Android 7.1 / Termux / WebView ;
+  \item cycles court debug terrain (tablette $\leftrightarrow$ robot $\leftrightarrow$ PC) avec journaux distribués.
+\end{itemize}
+
+Sans assistance logicielle adaptée, une part significative du temps est absorbée par la navigation dans le code, la rédaction de scripts de déploiement répétitifs et le diagnostic d'erreurs environnementales (ex.\ \texttt{ModuleNotFoundError: pydantic} sur Termux, identifié et corrigé en une session grâce à l'analyse automatisée des logs).
+
+\subsection{Apport constaté cette semaine (exemples concrets)}
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Diagnostic accéléré} : analyse du traceback \texttt{cybel-test-uvicorn.log} $\rightarrow$ cause racine (import \texttt{sdk/\_\_init\_\_}) en minutes au lieu d'une demi-journée de tests manuels.
+  \item \textbf{Implémentation cohérente} : alignement de \texttt{cybel\_lite.py} sur \texttt{real\_robot.py} pour \texttt{evaluate\_navigation\_arrival} — réutilisation des tests existants (\texttt{test\_phase6.py}, 20 tests passants).
+  \item \textbf{Documentation opérationnelle} : rédaction synchronisée des guides contrôleur et procédures sync POI (format exploitables par le labo HESTIM).
+  \item \textbf{Déploiement} : commandes ADB, RUN\_COMMAND Termux, vérifications \texttt{curl} — exécution et itération sans rupture de concentration.
+\end{itemize}
+
+\subsection{Demande}
+
+Il est demandé la prise en charge d'un \textbf{abonnement professionnel} à un environnement de développement assisté par IA, par exemple :
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Cursor Pro} (IDE + agents intégrés au dépôt CYBEL) — environ 20\,€/mois ;
+  \item ou \textbf{Claude Pro / équivalent} (analyse de longs journaux, rédaction technique) — ordre de grandeur similaire.
+\end{itemize}
+
+\textbf{Justification :}
+\begin{enumerate}[noitemsep]
+  \item \textbf{Gain de temps mesurable} : cette semaine, plusieurs blocages terrain (sync POI, pydantic Termux, visite guidée 601) ont été levés en une session de travail grâce à l'itération assistée ; estimation conservative \textbf{30 à 40\,\%} de temps gagné sur debug + doc pour la durée restante du stage.
+  \item \textbf{Qualité} : respect des conventions du dépôt, tests unitaires maintenus, documentation à jour — réduction du risque de régression avant soutenance.
+  \item \textbf{Continuité} : le stage se poursuit en juillet avec validation complète visite, comparaison A/B et rédaction du rapport ; l'outil amortit son coût sur 2--3 mois restants ($\ll$ coût d'une journée de blocage terrain).
+  \item \textbf{Alternative moins favorable} : développement seul sans assistant — ralentissement prévisible sur les tâches transverses (déploiement, reverse engineering, rédaction LaTeX).
+\end{enumerate}
+
+\textbf{Recommandation} : privilégier \textbf{Cursor Pro} pour l'intégration directe au workflow Git / Termux / Python du projet ; compléter si besoin par Claude pour la rédaction du rapport final.
+
+%==============================================================================
+\section{Annexes}
+%==============================================================================
+
+\subsection{Commandes utiles (terrain)}
+
+\begin{verbatim}
+python scripts/sync_poi_from_robot.py --host 192.168.20.22
+adb forward tcp:18001 tcp:8001
+curl http://127.0.0.1:18001/api/reception/destinations
+curl -X POST "http://127.0.0.1:18001/api/tour/start?lang=fr"
+pytest tests/unit/test_poi_sync.py tests/unit/test_poi_charge.py -q
+\end{verbatim}
+
+\subsection{Références documentaires}
+
+\begin{itemize}[noitemsep]
+  \item \texttt{docs/labo/POI\_LABOV2.md} — référence POI carte laboV2
+  \item \texttt{docs/SENTRYMOVE\_POI\_SYNC.md}
+  \item \texttt{docs/FACE\_PRESENCE.md}
+  \item \texttt{docs/labo/GUIDE\_CONTROLEUR\_POI.md}
+  \item \texttt{docs/cybel-conception/06-plan-hybride-sentrymove-kiosk.md}
+  \item \texttt{docs/TOUR\_NAVIGATION.md}
+\end{itemize}
+
+\subsection{POI laboV2 (état 27/06)}
+
+\textbf{Deployment Tool (10)} : \texttt{PORTE-LABO}, \texttt{CNC ROUTEUR}, \texttt{IMPRIMANTE 3D}, \texttt{POINT-MACHINE}, \texttt{THERMOFORMAGE}, \texttt{EXTRUSION-SOUFFLAGE}, \texttt{POSTE-REMPLISSAGE-BOUCHONNAGE}, \texttt{POSTE-ETIQUETAGE}, \texttt{SÉRIGRAPHIE}, \texttt{POINT-RECHARGE} (charge, hors visite).
+
+\textbf{Visite guidée (10 arrêts configurés)} : idem sans \texttt{POINT-RECHARGE} ; \texttt{POSTE-MACHINE} ignoré si absent ROS.
+
+\textbf{Rejetés automatiquement} : \texttt{LG-10}, \texttt{LG-09}, \texttt{GAMME-CONTROLE-QUALITE}.
+
+\vfill
+\begin{center}
+\small\textit{Document généré dans le cadre du stage CYBEL — HESTIM — juin 2026.}
+\end{center}
+
+\end{document}

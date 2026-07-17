@@ -12,6 +12,7 @@ import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
 import { renderPatrolPage } from "./pages/patrol";
 import { renderTourPage } from "./pages/tour";
+import { bindVisitorsEvents, renderFaceStatus, renderVisitorsPage } from "./pages/visitors";
 import { connectTelemetry } from "./telemetry";
 import {
   state,
@@ -29,6 +30,9 @@ import {
   setTour,
   setTourEditingStopId,
   setTourStatus,
+  setVisitors,
+  setFaceStatus,
+  setVisitorsWsConnected,
   pushEvent,
 } from "./state";
 import type { AppPage, DiagnosticsSnapshot } from "./types";
@@ -48,6 +52,7 @@ let lastPeopleCount = 0;
 let pingStartedAt: number | null = null;
 let tourPollTimer: number | null = null;
 let patrolPollTimer: number | null = null;
+let faceStatusSocket: WebSocket | null = null;
 let pingRaf: number | null = null;
 let lastTourPanelKey = "";
 let lastTourBannerKey = "";
@@ -91,7 +96,9 @@ function renderApp(): void {
               state.patrolStatus,
               state.patrolEditingStopId
             )
-          : renderDashboardContent();
+          : state.page === "visitors"
+            ? renderVisitorsPage(state.visitors, state.faceStatus, state.faceStatusAt, state.visitorsWsConnected)
+            : renderDashboardContent();
 
   app.innerHTML = renderLayout(state.page, content, {
     tourActive: state.tourStatus?.state === "running",
@@ -111,6 +118,8 @@ function renderApp(): void {
     bindTourEvents();
   } else if (state.page === "patrol") {
     bindPatrolEvents();
+  } else if (state.page === "visitors") {
+    bindVisitorsEvents(() => void refreshVisitorsData());
   } else {
     bindSettingsEvents(
       () => api.getSettings().then(setSettings).catch(() => {}),
@@ -124,11 +133,67 @@ function bindLayoutEvents(): void {
     el.addEventListener("click", () => {
       const page = (el as HTMLElement).dataset.page as AppPage;
       if (page && page !== state.page) {
+        if (state.page === "visitors") disconnectFaceStatusWs();
         setPage(page);
         if (page === "settings") void refreshSettingsData(true);
+        if (page === "visitors") {
+          void refreshVisitorsData();
+          connectFaceStatusWs();
+        }
       }
     });
   });
+}
+
+async function refreshVisitorsData(): Promise<void> {
+  try {
+    setVisitors(await api.getVisitors());
+  } catch {
+    // silencieux — la page affichera simplement la dernière liste connue
+  }
+}
+
+/** Connexion WS directe au backend embarqué du kiosque (tablette) — distincte
+ * de connectTelemetry() qui parle au backend PC. face_status n'existe que
+ * sur cybel_lite.py, seul à voir la caméra tablette (CybelFaceBridge). */
+function connectFaceStatusWs(): void {
+  if (faceStatusSocket) return;
+  api
+    .getKioskStatusUrl()
+    .then(({ ws_url }) => {
+      if (!ws_url || state.page !== "visitors") return;
+      const socket = new WebSocket(ws_url);
+      faceStatusSocket = socket;
+      socket.onopen = () => setVisitorsWsConnected(true);
+      socket.onclose = () => {
+        setVisitorsWsConnected(false);
+        if (faceStatusSocket === socket) faceStatusSocket = null;
+      };
+      socket.onerror = () => socket.close();
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.type !== "face_status") return;
+          // Écrit l'état sans passer par notify() : ces messages arrivent
+          // ~1/s dès qu'un visage est visible, un re-render complet de la
+          // page effacerait la saisie en cours dans le champ nom.
+          state.faceStatus = data;
+          state.faceStatusAt = Date.now();
+          const body = document.getElementById("visitors-live-status-body");
+          if (body) body.innerHTML = renderFaceStatus(state.faceStatus, state.faceStatusAt, true);
+        } catch {
+          // ignore les messages non-JSON/hors-format
+        }
+      };
+    })
+    .catch(() => setVisitorsWsConnected(false));
+}
+
+function disconnectFaceStatusWs(): void {
+  faceStatusSocket?.close();
+  faceStatusSocket = null;
+  setVisitorsWsConnected(false);
+  setFaceStatus(null);
 }
 
 async function refreshSettingsData(rerender = false): Promise<void> {

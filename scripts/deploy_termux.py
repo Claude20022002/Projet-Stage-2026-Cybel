@@ -94,6 +94,7 @@ def deploy_remote(
     *,
     full: bool = False,
     lite_only: bool = False,
+    target: str = "main",
 ) -> int:
     try:
         import paramiko
@@ -120,8 +121,13 @@ def deploy_remote(
 
     stdin, stdout, stderr = client.exec_command("echo $HOME")
     home = stdout.read().decode("utf-8", errors="replace").strip() or "/data/data/com.termux/files/home"
-    remote_base = f"{home}/cybel"
-    remote_tar = f"{home}/cybel-deploy.tar.gz"
+    remote_dir = "cybel-test" if target == "test" else "cybel"
+    remote_base = f"{home}/{remote_dir}"
+    remote_tar = f"{home}/cybel-deploy-{target}.tar.gz"
+    backend_port = 8001 if target == "test" else 8000
+    start_script = "start_cybel_test.sh" if target == "test" else "start_cybel.sh"
+    stop_script = "stop_cybel_test.sh" if target == "test" else "stop_cybel.sh"
+    kiosk_config_src = "kiosk_config.poi.json" if target == "test" else "kiosk_config.coords.json"
 
     print("== Upload archive ==")
     sftp = client.open_sftp()
@@ -133,6 +139,7 @@ def deploy_remote(
         f"mkdir -p {sh_quote(remote_base)}",
         f"tar -xzf {sh_quote(remote_tar)} -C {sh_quote(remote_base)}",
         f"chmod +x {sh_quote(remote_base)}/scripts/termux/*.sh",
+        f"cp {sh_quote(remote_base)}/data/{kiosk_config_src} {sh_quote(remote_base)}/data/kiosk_config.json",
         f"bash {sh_quote(remote_base)}/scripts/termux/setup_termux_kiosk.sh || true",
         f"rm -f {sh_quote(remote_tar)}",
         f"bash {sh_quote(remote_base)}/scripts/termux/free_disk.sh || true",
@@ -149,8 +156,8 @@ def deploy_remote(
                 f"bash {sh_quote(remote_base)}/scripts/termux/bootstrap.sh"
             )
     if restart:
-        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/stop_cybel.sh || true")
-        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/start_cybel.sh")
+        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/{stop_script} || true")
+        remote_cmds.append(f"bash {sh_quote(remote_base)}/scripts/termux/{start_script}")
 
     print("== Exécution distante ==")
     for cmd in remote_cmds:
@@ -173,28 +180,63 @@ def deploy_remote(
 
     client.close()
     print("\nDéploiement terminé.")
-    print(f"Kiosque: http://127.0.0.1:8000/kiosk/ (sur la tablette)")
-    print(f"Logs:    ssh -p {port} {user}@{host} 'tail -f ~/cybel-uvicorn.log'")
+    print(f"Cible: {target} → {remote_base}")
+    print(f"Kiosque: http://127.0.0.1:{backend_port}/kiosk/ (sur la tablette)")
+    if target == "test":
+        print("App Android: CybelVisitorKioskTest.apk (com.cybel.visitorkiosk.test)")
+        print(f"Logs:    ssh -p {port} {user}@{host} 'tail -f ~/cybel-test-uvicorn.log'")
+    else:
+        print(f"Logs:    ssh -p {port} {user}@{host} 'tail -f ~/cybel-uvicorn.log'")
     return 0
+
+
+def write_bundle(bundle: bytes, target: str) -> Path:
+    out_dir = ROOT / "out"
+    out_dir.mkdir(exist_ok=True)
+    out_path = out_dir / f"cybel-deploy-{target}.tar.gz"
+    out_path.write_bytes(bundle)
+    legacy = out_dir / "cybel-deploy.tar.gz"
+    legacy.write_bytes(bundle)
+    print(f"Archive écrite : {out_path} ({len(bundle) / 1024:.1f} KiB)")
+    print(f"Copie legacy : {legacy}")
+    return out_path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Déploiement CYBEL sur Termux")
-    parser.add_argument("--host", default=os.environ.get("CYBEL_TERMUX_HOST", "172.16.0.130"))
+    parser.add_argument("--host", default=os.environ.get("CYBEL_TERMUX_HOST", "172.16.0.145"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("CYBEL_TERMUX_PORT", "8022")))
     parser.add_argument("--user", default=os.environ.get("CYBEL_TERMUX_USER", "u0_a92"))
     parser.add_argument("--password", default=os.environ.get("CYBEL_TERMUX_PASSWORD", ""))
     parser.add_argument("--skip-kiosk-build", action="store_true")
+    parser.add_argument(
+        "--bundle-only",
+        action="store_true",
+        help="Crée out/cybel-deploy.tar.gz sans SSH (déploiement ADB manuel)",
+    )
     parser.add_argument("--no-bootstrap", action="store_true", help="Ne pas réinstaller pip deps")
     parser.add_argument("--full", action="store_true", help="Forcer bootstrap complet (pas lite)")
     parser.add_argument("--lite-only", action="store_true", help="Bootstrap lite uniquement")
     parser.add_argument("--no-restart", action="store_true", help="Ne pas redémarrer uvicorn")
+    parser.add_argument(
+        "--target",
+        choices=("main", "test"),
+        default="main",
+        help="main=~/cybel:8000 (coords) ; test=~/cybel-test:8001 (POI Sentrymove)",
+    )
     args = parser.parse_args()
-
-    password = args.password or getpass.getpass(f"Mot de passe SSH ({args.user}@{args.host}): ")
 
     build_kiosk(args.skip_kiosk_build)
     bundle = create_bundle()
+    if args.bundle_only:
+        write_bundle(bundle, args.target)
+        remote_dir = "cybel-test" if args.target == "test" else "cybel"
+        print("\nDéploiement ADB : voir docs/labo/GUIDE_CONTROLEUR_POI.md §4.B")
+        print(f"Cible Termux : ~/{remote_dir}")
+        return 0
+
+    password = args.password or getpass.getpass(f"Mot de passe SSH ({args.user}@{args.host}): ")
+
     return deploy_remote(
         args.host,
         args.port,
@@ -205,6 +247,7 @@ def main() -> int:
         restart=not args.no_restart,
         full=args.full,
         lite_only=args.lite_only,
+        target=args.target,
     )
 
 

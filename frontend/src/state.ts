@@ -2,6 +2,7 @@ import type {
   AppPage,
   AppState,
   DetectedPerson,
+  FaceStatusEvent,
   LabTourData,
   LidarPoint,
   MapData,
@@ -14,6 +15,7 @@ import type {
   TourStatus,
   PatrolStatus,
   PatrolTaskData,
+  VisitorPublic,
 } from "./types";
 
 type Listener = () => void;
@@ -42,6 +44,10 @@ export const state: AppState = {
   wsConnected: false,
   voiceListening: false,
   speech: null,
+  visitors: [],
+  faceStatus: null,
+  faceStatusAt: null,
+  visitorsWsConnected: false,
 };
 
 const listeners = new Set<Listener>();
@@ -152,6 +158,22 @@ export function setPatrolEditingStopId(id: string | null): void {
 
 export function setWsConnected(connected: boolean): void {
   state.wsConnected = connected;
+  notify();
+}
+
+export function setVisitors(visitors: VisitorPublic[]): void {
+  state.visitors = visitors;
+  notify();
+}
+
+export function setFaceStatus(status: FaceStatusEvent | null): void {
+  state.faceStatus = status;
+  state.faceStatusAt = status ? Date.now() : null;
+  notify();
+}
+
+export function setVisitorsWsConnected(connected: boolean): void {
+  state.visitorsWsConnected = connected;
   notify();
 }
 

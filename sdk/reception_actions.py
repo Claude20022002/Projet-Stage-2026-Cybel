@@ -1,7 +1,18 @@
-import re
-import unicodedata
-
 from sdk.models import ReceptionAction
+
+# Le matching vocal (VOICE_COMMAND_MAP, match_voice_command, _normalize_text,
+# match_point_navigation, _NAV_PATTERN, _ARTICLE_PREFIX) vit désormais dans
+# sdk.voice_commands (module sans pydantic, réutilisable par le backend Termux).
+# Ré-exporté ici pour ne rien casser des imports existants.
+from sdk.voice_commands import (  # noqa: F401  (ré-exports rétrocompat)
+    VOICE_COMMAND_MAP,
+    _ARTICLE_PREFIX,
+    _NAV_PATTERN,
+    _normalize_text,
+    match_point_navigation,
+    match_voice_command,
+    normalize_text,
+)
 
 DEFAULT_ACTIONS: list[ReceptionAction] = [
     ReceptionAction(
@@ -91,85 +102,3 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         description_en="Interrupt current navigation and announcements",
     ),
 ]
-
-VOICE_COMMAND_MAP: dict[str, str] = {
-    "accueil": "welcome_guest",
-    "accueillir": "welcome_guest",
-    "visiteur": "welcome_guest",
-    "bienvenue": "welcome_guest",
-    "accueil point": "go_reception",
-    "aller accueil": "go_reception",
-    "va à l'accueil": "go_reception",
-    "salle": "go_meeting_room",
-    "salle a": "go_meeting_room",
-    "réunion": "go_meeting_room",
-    "attente": "wait_mode",
-    "attendre": "wait_mode",
-    "pile": "return_charge",
-    "charge": "return_charge",
-    "recharge": "return_charge",
-    "visite": "guided_tour",
-    "visite guidée": "guided_tour",
-    "arrête": "stop_all",
-    "stop": "stop_all",
-    "arrêter": "stop_all",
-}
-
-
-def match_voice_command(text: str) -> str | None:
-    normalized = text.lower().strip()
-    if normalized in VOICE_COMMAND_MAP:
-        return VOICE_COMMAND_MAP[normalized]
-    for phrase, action_id in sorted(VOICE_COMMAND_MAP.items(), key=lambda x: -len(x[0])):
-        if phrase in normalized:
-            return action_id
-    return None
-
-
-def _normalize_text(text: str) -> str:
-    """Minuscules, sans accents, sans ponctuation, espaces normalisés."""
-    decomposed = unicodedata.normalize("NFD", text)
-    without_accents = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
-    lowered = without_accents.lower().strip()
-    cleaned = re.sub(r"[^a-z0-9\s]", " ", lowered)
-    return re.sub(r"\s+", " ", cleaned).strip()
-
-
-_ARTICLE_PREFIX = re.compile(r"^(?:l|la|le|les|du|des|de la|de l)\s+")
-
-# Verbes/tournures de déplacement suivis d'une préposition + destination,
-# ex. « va à l'accueil », « rends-toi vers la salle b », « conduis-moi au point 3 ».
-_NAV_PATTERN = re.compile(
-    r"^(?:va|vas|aller|allez|aille|emmene|emmenez|conduis|conduisez|amene|amenez|"
-    r"deplace|deplacez|dirige|dirigez|rends toi|rendez vous)\s*"
-    r"(?:toi|vous|moi)?\s+"
-    r"(?:jusqu\s+)?(?:au|aux|a|vers|en|dans)\s+(.+)$"
-)
-
-
-def match_point_navigation(text: str, point_names: list[str]) -> str | None:
-    """Reconnaît une commande du type « va à <point> » et la fait correspondre
-    à un nom de point existant (insensible aux accents/casse/articles)."""
-    normalized = _normalize_text(text)
-    match = _NAV_PATTERN.match(normalized)
-    if not match:
-        return None
-
-    destination = _ARTICLE_PREFIX.sub("", match.group(1).strip()).strip()
-    if not destination:
-        return None
-
-    normalized_points = {_normalize_text(name): name for name in point_names}
-
-    if destination in normalized_points:
-        return normalized_points[destination]
-
-    for norm_name, original in normalized_points.items():
-        if _ARTICLE_PREFIX.sub("", norm_name).strip() == destination:
-            return original
-
-    for norm_name, original in normalized_points.items():
-        if destination in norm_name or norm_name in destination:
-            return original
-
-    return None

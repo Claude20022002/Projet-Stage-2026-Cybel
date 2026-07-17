@@ -1,0 +1,8 @@
+{
+  "input_size": 160,
+  "mean": 127.5,
+  "std": 128.0,
+  "output_dim": 128,
+  "quantized": false,
+  "l2_normalize": true
+}

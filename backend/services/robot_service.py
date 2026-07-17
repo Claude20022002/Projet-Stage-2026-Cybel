@@ -124,6 +124,10 @@ class RobotService:
     def get_points(self) -> list[Point]:
         return self._require().get_points()
 
+    def apply_synced_points(self, points: list[Point]) -> None:
+        if self._backend and hasattr(self._backend, "set_points"):
+            self._backend.set_points(points)
+
     def find_point(self, point_name: str) -> Point | None:
         for point in persistence_service.load_points():
             if point.name == point_name:
@@ -137,6 +141,7 @@ class RobotService:
         return navigation_precondition_detail(
             connected=status.connected,
             soft_estop=status.soft_estop,
+            hard_estop=status.hard_estop,
             nav_status=status.nav_status,
             nav_mode=status.nav_mode,
             localization_percent=status.localization_percent,

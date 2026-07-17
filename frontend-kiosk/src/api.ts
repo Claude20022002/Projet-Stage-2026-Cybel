@@ -7,6 +7,7 @@ import type {
   RobotStatus,
   SpeechStatus,
   TourStatus,
+  VoiceResult,
 } from "./types";
 
 const API_BASE = "";
@@ -61,4 +62,14 @@ export const api = {
     ),
   getRobotStatus: () => request<RobotStatus>("/api/robot/status"),
   getSpeechStatus: () => request<SpeechStatus>("/api/speech/status"),
+  say: (text: string) =>
+    request<{ ok: boolean }>("/api/speech/say", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  voice: (text: string, lang: Lang) =>
+    request<VoiceResult>("/api/voice", {
+      method: "POST",
+      body: JSON.stringify({ text, lang }),
+    }),
 };

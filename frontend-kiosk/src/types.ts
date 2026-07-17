@@ -33,6 +33,43 @@ export interface KioskDestination {
   theta?: number;
 }
 
+export interface DetectedPerson {
+  id: string;
+  x: number;
+  y: number;
+  distance: number;
+}
+
+export interface VisitorPublic {
+  id: string;
+  name: string;
+  civility: "M." | "Mme" | "";
+  consent: boolean;
+  enrolled_at: string;
+  last_identified_at: string | null;
+}
+
+export type VoiceKind =
+  | "action"
+  | "navigation"
+  | "faq"
+  | "faq+navigation"
+  | "unknown"
+  | "empty";
+
+export interface VoiceResult {
+  ok: boolean;
+  understood: boolean;
+  kind: VoiceKind;
+  transcript: string;
+  reply: string;
+  action?: string | null;
+  point?: string | null;
+  error?: string | null;
+}
+
+export type VoiceState = "idle" | "listening" | "processing" | "answer";
+
 export interface KioskConfig {
   organization_name_fr: string;
   organization_name_en: string;
@@ -42,6 +79,15 @@ export interface KioskConfig {
   standby_timeout_seconds: number;
   featured_destinations: string[];
   reception_actions?: string[];
+  kiosk_variant?: string;
+  kiosk_variant_label_fr?: string;
+  kiosk_variant_label_en?: string;
+  presence_welcome_enabled?: boolean;
+  presence_max_distance_m?: number;
+  presence_cooldown_seconds?: number;
+  presence_speak_welcome?: boolean;
+  face_recognition_enabled?: boolean;
+  face_recognition_threshold?: number;
 }
 
 export interface ReceptionAction {

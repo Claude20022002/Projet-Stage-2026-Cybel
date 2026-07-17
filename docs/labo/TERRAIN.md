@@ -1,157 +1,229 @@
 # Procédure terrain — labo CYBEL
 
-Guide pas à pas pour une session au laboratoire avec le robot CIOT TY1251D (**branche `main`** : kiosque coords, port 8000).
+Guide pas à pas pour une session au laboratoire avec le robot CIOT TY1251D : préparation POI Sentrymove, déploiement kiosque test POI, comparaison A/B avec le kiosque coords existant.
 
-> **Preflight** : `.\scripts\preflight_labo.ps1 -TabletHost <IP>`
-
-Index labo : [README.md](README.md) · Index doc : [../README.md](../README.md)
+> **Vérification rapide** : exécutez d'abord le preflight automatique :
+> ```powershell
+> .\scripts\preflight_labo.ps1 -TabletHost <IP_TABLETTE>
+> ```
 
 ---
 
 ## Sommaire
 
-1. [Connexion](#1-connexion)
-2. [Preflight automatique](#2-preflight-automatique)
-3. [Smoke test opérateur (PC)](#3-smoke-test-opérateur-pc)
-4. [Déploiement / redémarrage kiosque](#4-déploiement--redémarrage-kiosque)
-5. [Validation visite guidée](#5-validation-visite-guidée)
-6. [Dépannage](#6-dépannage)
-7. [Variante POI (branche hybrid)](#7-variante-poi-branche-hybrid)
-8. [Checklist](#8-checklist)
+1. [Avant le labo](#1-avant-le-labo)
+2. [Connexion au robot](#2-connexion-au-robot)
+3. [POI dans Sentrymove](#3-poi-dans-sentrymove)
+4. [Sync POI vers CYBEL](#4-sync-poi-vers-cybel)
+5. [Déploiement backend test](#5-déploiement-backend-test)
+6. [Installation APK test](#6-installation-apk-test)
+7. [Smoke test POI](#7-smoke-test-poi)
+8. [Comparaison A/B](#8-comparaison-ab)
+9. [Dépannage](#9-dépannage)
+10. [Checklist finale](#10-checklist-finale)
 
 ---
 
-## 1. Connexion
+## 1. Avant le labo
 
-| Action | Commande |
-|--------|----------|
-| Wi-Fi robot | Se connecter à `TY1251D-03195` |
-| Ping châssis | `ping 10.42.0.1` |
-| Ping eth0 interne | `ping 192.168.20.22` |
-| IP tablette | `adb shell ip -4 addr show wlan0` |
-| TTS installé | `adb shell pm list packages \| findstr cybel.ttsbridge` |
-
-Notez **`<IP_TABLETTE>`** (ex. `172.16.0.130`, SSH port **8022**).
-
----
-
-## 2. Preflight automatique
+### Branche Git (approche POI)
 
 ```powershell
 cd C:\Users\clusa\Desktop\cybel
-.\scripts\preflight_labo.ps1 -TabletHost <IP_TABLETTE>
-```
-
-Contrôles : ping, sync POI dry-run (si rosbridge joignable), health `:8000`, `lab_tour.json`, ADB.
-
-Codes sortie : `0` OK · `1` échecs · `2` avertissements.
-
----
-
-## 3. Smoke test opérateur (PC)
-
-Voir [guides/PHASE0_DEMARRAGE.md](../guides/PHASE0_DEMARRAGE.md).
-
-```powershell
-# backend/.env : ROBOT_MOCK=false, ROBOT_HOST=10.42.0.1
-python scripts/robot_status.py
-python scripts/dev.py
-```
-
-Ouvrir http://127.0.0.1:5173 — carte, batterie, un déplacement test.
-
----
-
-## 4. Déploiement / redémarrage kiosque
-
-### Build frontend (si modifié)
-
-```powershell
-cd frontend-kiosk
-npm run build
-```
-
-### Déployer sur Termux
-
-```powershell
-python scripts/deploy_termux.py --host <IP_TABLETTE> --lite-only
-```
-
-### Réinstaller APK (si rebuild)
-
-```powershell
-cd android\CybelVisitorKiosk
-bash build.sh
-adb install -r out\CybelVisitorKiosk.apk
-```
-
-### Vérifications
-
-```powershell
-curl http://<IP_TABLETTE>:8000/api/health
-curl http://<IP_TABLETTE>:8000/api/tour/full
-```
-
-Redémarrage manuel :
-
-```powershell
-ssh -p 8022 u0_a92@<IP_TABLETTE> "bash ~/cybel/scripts/termux/start_cybel.sh"
-```
-
-Logs : `ssh … "tail -50 ~/cybel-uvicorn.log"`
-
----
-
-## 5. Validation visite guidée
-
-1. Ouvrir **CYBEL Accueil** sur la tablette.
-2. Vérifier barre statut (réseau, batterie).
-3. **Démarrer la visite** — 8 arrêts labo.
-4. Noter pour chaque arrêt :
-
-| Arrêt | Robot bouge | Bon endroit | TTS OK | Notes |
-|-------|-------------|-------------|--------|-------|
-| Routeur CNC | | | | |
-| Station LG-10 | | | | |
-| Station LG-09 | | | | |
-| Extraction et soufflage | | | | |
-| Poste remplissage et bouchonnage | | | | |
-| Thermoformage | | | | |
-| Imprimante DTF C31 XP600 | | | | |
-| Sérigraphie | | | | |
-
-Symptômes connus (coords) : parle sans bouger, mauvaise destination, lenteur au départ → voir [TOUR_NAVIGATION.md](../TOUR_NAVIGATION.md).
-
----
-
-## 6. Dépannage
-
-| Problème | Action |
-|----------|--------|
-| Backend down | `bash ~/cybel/scripts/termux/start_cybel.sh` |
-| Écran blanc WebView | Vérifier `frontend-kiosk/dist`, regénérer URL : `start_cybel.sh` |
-| Pas de voix | `CybelTTSBridge` + `SPEECH_LOCAL_BROADCAST=true` |
-| rosbridge HS | `ping 192.168.20.22`, relocaliser via Sentrymove |
-| Arrêt urgence | Opérateur : `POST /api/tour/halt` |
-
----
-
-## 7. Variante POI (branche hybrid)
-
-Test A/B coords vs POI Sentrymove — **non inclus dans `main`** :
-
-```powershell
 git checkout feature/hybrid-sentrymove-kiosk
+git pull
 ```
 
-Puis suivre [KIOSK_AB_COMPARISON.md](KIOSK_AB_COMPARISON.md) et [06-plan-hybride](../cybel-conception/06-plan-hybride-sentrymove-kiosk.md).
+### APK test (déjà buildable offline)
+
+```powershell
+cd android\CybelVisitorKioskTest
+bash build.sh
+# → android\CybelVisitorKioskTest\out\CybelVisitorKioskTest.apk
+```
+
+### Matériel
+
+- PC + câble USB (ADB)
+- Accès Wi-Fi robot `TY1251D-03195` (mot de passe constructeur)
 
 ---
 
-## 8. Checklist
+## 2. Connexion au robot
 
-- [ ] Wi-Fi robot + preflight OK
-- [ ] `deploy_termux.py` ou backend déjà actif
-- [ ] `curl …8000/api/health` OK
-- [ ] CybelTTSBridge installé
-- [ ] Visite 8 arrêts testée / fiche remplie
+| Étape | Commande |
+|-------|----------|
+| Ping châssis (Wi-Fi PC) | `ping 10.42.0.1` |
+| Ping lien eth0 interne | `ping 192.168.20.22` |
+| IP tablette Termux | `adb shell ip -4 addr show wlan0` |
+| Preflight automatique | `.\scripts\preflight_labo.ps1 -TabletHost <IP>` |
+| Vérifier TTS | `adb shell pm list packages \| findstr cybel` → `com.cybel.ttsbridge` |
+
+Notez **`<IP_TABLETTE>`** (souvent `172.16.0.x`, port SSH **8022**).
+
+---
+
+## 3. POI dans Sentrymove
+
+Sur la tablette : ouvrir **Deployment Tool** (`com.ciot.sentrymove`).
+
+Carte active : **laboV2**. Créer les **11 POI** — noms **exactement** comme dans `data/lab_tour.json` :
+
+| # | `target_point` |
+|---|----------------|
+| 1 | `PORTE-LABO` |
+| 2 | `CNC ROUTEUR` |
+| 3 | `IMPRIMANTE 3D` |
+| 4 | `POINT-MACHINE` |
+| 5 | `THERMOFORMAGE` |
+| 6 | `EXTRUSION-SOUFFLAGE` |
+| 7 | `POSTE-MACHINE` |
+| 8 | `POSTE-REMPLISSAGE-BOUCHONNAGE` |
+| 9 | `POSTE-ETIQUETAGE` |
+| 10 | `GAMME-CONTROLE-QUALITE` |
+| 11 | `SÉRIGRAPHIE` |
+
+> **Note :** `LG-10` et `LG-09` appartiennent à l'ancienne carte — exclus du parcours laboV2.
+
+**Validation** : dans Sentrymove, envoyer le robot vers **un** POI → il doit bouger correctement.
+
+---
+
+## 4. Sync POI vers CYBEL
+
+### Automatique (kiosque / visite)
+
+Depuis juin 2026, la sync se fait **sans action manuelle** à l'ouverture du kiosque ou au démarrage de la visite. Les POI d'une ancienne carte sont **retirés** du cache local.
+
+Voir [SENTRYMOVE_POI_SYNC.md](../SENTRYMOVE_POI_SYNC.md) § « Synchronisation automatique » et **[POI_LABOV2.md](POI_LABOV2.md)** (référence à jour).
+
+### Manuelle depuis le PC (préparation déploiement)
+
+```powershell
+cd C:\Users\clusa\Desktop\cybel
+
+# Vérification (sans écrire)
+python scripts/sync_poi_from_robot.py --host 192.168.20.22 --dry-run
+
+# Écriture data/points.json (remplace le fichier, pas de fusion)
+python scripts/sync_poi_from_robot.py --host 192.168.20.22
+```
+
+Si `192.168.20.22` ne répond pas depuis le PC :
+
+```powershell
+python scripts/sync_poi_from_robot.py --host 10.42.0.1 --dry-run
+```
+
+Contrôle : les 12 noms laboV2 doivent apparaître dans la sortie du script.
+
+---
+
+## 5. Déploiement backend test
+
+Déploie le code dans `~/cybel-test`, port **8001**, config POI :
+
+```powershell
+python scripts/deploy_termux.py --host <IP_TABLETTE> --lite-only --target test
+```
+
+Vérifications :
+
+```powershell
+# HTTP depuis le PC (Wi-Fi robot)
+curl http://<IP_TABLETTE>:8001/api/health
+curl http://<IP_TABLETTE>:8001/api/navigation/points
+
+# Ou via SSH Termux
+ssh -p 8022 u0_a92@<IP_TABLETTE> "curl -s http://127.0.0.1:8001/api/health"
+```
+
+Redémarrer le backend test si besoin :
+
+```powershell
+ssh -p 8022 u0_a92@<IP_TABLETTE> "bash ~/cybel-test/scripts/termux/start_cybel_test.sh"
+```
+
+Logs :
+
+```powershell
+ssh -p 8022 u0_a92@<IP_TABLETTE> "tail -50 ~/cybel-test-uvicorn.log"
+```
+
+---
+
+## 6. Installation APK test
+
+```powershell
+adb install -r android\CybelVisitorKioskTest\out\CybelVisitorKioskTest.apk
+```
+
+Sur la tablette — **deux icônes** :
+
+| App | Label | Port |
+|-----|-------|------|
+| A (existant) | CYBEL Accueil | 8000 |
+| B (test) | CYBEL Accueil POI | 8001 |
+
+---
+
+## 7. Smoke test POI
+
+1. Ouvrir **CYBEL Accueil POI** (orange).
+2. Vérifier le badge **« TEST POI — Sentrymove »**.
+3. Lancer **« Démarrer la visite »**.
+4. Observer le 1er arrêt (Routeur CNC) : mouvement + TTS + bon emplacement.
+
+---
+
+## 8. Comparaison A/B
+
+Tester **B (POI)** puis **A (Coords)** — ou l'inverse, mais toujours le même ordre.
+
+| Critère | App A (8000) | App B (8001) |
+|---------|------------|--------------|
+| Délai avant 1er mouvement | | |
+| 8 arrêts — robot bouge | | |
+| 8 arrêts — bon endroit | | |
+| TTS pendant déplacement | | |
+| « Parle sans bouger » | | |
+| Blocage localisation | | |
+| Arrêt visiteur | | |
+
+Fiche par arrêt : voir [KIOSK_AB_COMPARISON.md](KIOSK_AB_COMPARISON.md).
+
+---
+
+## 9. Dépannage
+
+| Problème | Commande / action |
+|----------|-------------------|
+| Backend 8001 down | `ssh … "bash ~/cybel-test/scripts/termux/start_cybel_test.sh"` |
+| POI inconnu | Re-sync §4, vérifier noms Sentrymove |
+| Parle sans bouger | `curl …/api/navigation/points` — POI présent ? |
+| Écran erreur orange | Vérifier `cybel_kiosk_test_url.txt` sur SD |
+| Pas de voix | Installer / vérifier `CybelTTSBridge` |
+| rosbridge HS | `ping 192.168.20.22`, relocaliser via Sentrymove |
+
+---
+
+## 10. Checklist finale
+
+- [ ] PC sur Wi-Fi robot
+- [ ] `preflight_labo.ps1` → OK ou avertissements acceptables
+- [ ] 8 POI Sentrymove créés
+- [ ] `sync_poi_from_robot.py` exécuté (sans `--dry-run`)
+- [ ] `deploy_termux.py --target test` OK
+- [ ] `curl …8001/api/health` → OK
+- [ ] APK POI installé
+- [ ] CybelTTSBridge présent
+- [ ] Smoke test 1er arrêt OK
+
+---
+
+## Références
+
+- [Index labo](README.md)
+- [Comparaison A/B détaillée](KIOSK_AB_COMPARISON.md)
+- [Sync POI](../SENTRYMOVE_POI_SYNC.md)
+- [Déploiement Termux](../TERMUX_DEPLOY.md)

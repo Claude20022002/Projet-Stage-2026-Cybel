@@ -37,6 +37,37 @@ def _navigation_failure_detail(*, point_name: str | None = None) -> str:
     )
 
 
+@router.post("/sync")
+async def sync_points_from_robot() -> dict:
+    """Synchronise les POI ROS (Sentrymove) vers data/points.json."""
+    from pathlib import Path
+
+    from config import settings
+    from sdk.poi_sync import sync_from_robot
+
+    try:
+        merged, summary = await sync_from_robot(
+            Path(settings.data_dir),
+            settings.robot_host,
+            ws_port=settings.robot_ws_port,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Sync POI échouée : {exc}",
+        ) from exc
+
+    robot_service.apply_synced_points(merged)
+
+    return {
+        "ok": True,
+        "summary": summary,
+        "points": [p.model_dump() for p in merged],
+    }
+
+
 @router.get("/points", response_model=list[Point])
 async def get_points() -> list[Point]:
     return robot_service.get_points()

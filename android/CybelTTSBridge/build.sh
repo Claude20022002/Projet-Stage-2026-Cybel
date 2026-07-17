@@ -27,7 +27,10 @@ echo "== 1/6 Linking resources + manifest =="
   --java "$OUT/gen"
 
 echo "== 2/6 Compiling Java sources =="
-javac -source 8 -target 8 \
+# -encoding UTF-8 : sans elle, javac lit les .java avec l'encodage plateforme
+# (Cp1252 sous Windows) et corrompt les littéraux accentués (même bug trouvé
+# dans CybelVisitorKioskTest/CybelFaceBridge).
+javac -source 8 -target 8 -encoding UTF-8 \
   -cp "$ANDROID_JAR" \
   -d "$OUT/obj" \
   "$OUT/gen/com/cybel/ttsbridge/R.java" \

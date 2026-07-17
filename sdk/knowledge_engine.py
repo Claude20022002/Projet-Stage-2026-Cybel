@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sdk.json_store import load_json
-from sdk.reception_actions import _normalize_text
+from sdk.voice_commands import normalize_text as _normalize_text
 
 
 @dataclass
@@ -23,9 +23,15 @@ class KnowledgeMatch:
 
 
 class KnowledgeEngine:
-    def __init__(self, data_dir: Path) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        *,
+        lab_knowledge_file: str = "knowledgeV2-labV2.json",
+    ) -> None:
         self._data_dir = data_dir
-        self._lab_path = data_dir / "knowledgeV2-lab.json"
+        self._lab_knowledge_file = lab_knowledge_file
+        self._lab_path = data_dir / lab_knowledge_file
         self._faq_path = data_dir / "hestim_knowledge_base.json"
         self._lab_cache: dict[str, Any] | None = None
         self._faq_cache: list[dict[str, Any]] | None = None
@@ -41,7 +47,10 @@ class KnowledgeEngine:
             self._faq_cache = list(document.get("faq") or [])
         return self._faq_cache
 
-    def reload(self) -> None:
+    def reload(self, *, lab_knowledge_file: str | None = None) -> None:
+        if lab_knowledge_file:
+            self._lab_knowledge_file = lab_knowledge_file
+            self._lab_path = self._data_dir / lab_knowledge_file
         self._lab_cache = None
         self._faq_cache = None
 

@@ -70,6 +70,7 @@ class RosbridgeClient:
                     close_timeout=5,
                     ping_interval=20,
                     ping_timeout=20,
+                    max_size=10 * 1024 * 1024,  # 10 MB — OccupancyGrid /map peut dépasser 1 MB
                 )
                 self._connected = True
                 self._listener_task = asyncio.create_task(self._listen())

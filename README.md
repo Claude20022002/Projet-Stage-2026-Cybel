@@ -460,7 +460,30 @@ Guides opérationnels et index par thème : **[docs/README.md](docs/README.md)**
 | Déploiement Termux | [docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md) · [docs/kiosque/](docs/kiosque/) |
 | Kiosque visiteur | [docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md) |
 
-**État (fin juin 2026)** : backend lite et kiosque opérationnels sur Termux ; visite guidée labo (8 arrêts).
+## Documentation (index GitHub)
+
+**[docs/README.md](docs/README.md)** — index complet de la documentation.
+
+| Section | Lien |
+|---------|------|
+| **Session labo** | [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) |
+| Preflight auto | `.\scripts\preflight_labo.ps1` |
+| Kiosque A/B | [docs/labo/KIOSK_AB_COMPARISON.md](docs/labo/KIOSK_AB_COMPARISON.md) |
+| Sync POI | [docs/SENTRYMOVE_POI_SYNC.md](docs/SENTRYMOVE_POI_SYNC.md) |
+| Chatbot vocal | [docs/VOICE_CHATBOT.md](docs/VOICE_CHATBOT.md) |
+| Reconnaissance faciale | [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md) |
+
+## Déploiement kiosque sur Termux (tête Android)
+
+Backend + interface visiteur embarqués sur la tablette (`ssh -p 8022`) :
+
+- **[docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md)** — procédure, scripts, dépannage
+- **[docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md)** — interface visiteur, app Android, problèmes rencontrés
+
+**État (17 juillet 2026)** : backend lite et kiosque **opérationnels** sur Termux ;
+visite guidée labo (10 arrêts) ; contrôle opérateur avec arrêt d'urgence ;
+chatbot vocal (STT + mot d'éveil) et reconnaissance faciale validés terrain.
+Voir [VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md).
 
 ## Commandes de démarrage rapide
 

@@ -6,8 +6,13 @@ import asyncio
 import json
 import math
 import os
+import re
 import subprocess
 import sys
+import time
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import uvicorn
@@ -24,6 +29,7 @@ ACTIONS_PATH = CYBEL_HOME / "scripts" / "termux" / "actions.json"
 FAQ_PATH = CYBEL_HOME / "data" / "hestim_knowledge_base.json"
 TOUR_PATH = CYBEL_HOME / "data" / "lab_tour.json"
 POINTS_PATH = CYBEL_HOME / "data" / "points.json"
+VISITORS_PATH = CYBEL_HOME / "data" / "visitors.json"
 KIOSK_CONFIG_PATH = CYBEL_HOME / "data" / "kiosk_config.json"
 KIOSK_DIST = CYBEL_HOME / "frontend-kiosk" / "dist"
 LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
@@ -41,6 +47,44 @@ def _load_module_from_file(module_name: str, path: Path):
         raise RuntimeError(f"Module introuvable: {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _ensure_sdk_package_stub() -> None:
+    """Enregistre le package sdk sans exécuter sdk/__init__.py (pydantic absent sur Termux)."""
+    import types
+
+    existing = sys.modules.get("sdk")
+    if existing is not None and getattr(existing, "__file__", None):
+        return
+    if existing is not None and hasattr(existing, "__path__"):
+        return
+    pkg = types.ModuleType("sdk")
+    pkg.__path__ = [str(CYBEL_HOME / "sdk")]
+    pkg.__package__ = "sdk"
+    sys.modules["sdk"] = pkg
+
+
+def _load_sdk_module_from_file(module_suffix: str):
+    """Charge sdk/<suffix>.py en préservant les imports relatifs sdk.*."""
+    import importlib.util
+
+    full_name = f"sdk.{module_suffix}"
+    if full_name in sys.modules:
+        return sys.modules[full_name]
+
+    _ensure_sdk_package_stub()
+    path = CYBEL_HOME / "sdk" / f"{module_suffix}.py"
+    spec = importlib.util.spec_from_file_location(
+        full_name,
+        path,
+        submodule_search_locations=[str(CYBEL_HOME / "sdk")],
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Module sdk introuvable: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[full_name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -67,6 +111,7 @@ _tour_trace = _load_tour_trace_module()
 _tour_navigation = _load_tour_navigation_module()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
+filter_tour_by_poi = _lab_tour.filter_tour_by_poi
 load_tour_data = _lab_tour.load_tour_data
 save_tour_data = _lab_tour.save_tour_data
 validate_stop_dict = _lab_tour.validate_stop_dict
@@ -86,6 +131,9 @@ LOCALIZATION_MIN_PERCENT = float(
 TTS_RECEIVER = "com.cybel.ttsbridge/.SpeakReceiver"
 TTS_ACTION = "com.cybel.ttsbridge.SPEAK"
 
+FACE_ENROLL_RECEIVER = "com.cybel.facebridge/.EnrollReceiver"
+FACE_ENROLL_ACTION = "com.cybel.facebridge.ENROLL"
+
 NAV_STATUS_LABELS = {
     600: "En initialisation",
     601: "Prêt",
@@ -103,11 +151,66 @@ GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
 TELEOP_TOPIC = "/cmd_vel_mux/input/teleop"
 TWIST_TYPE = "geometry_msgs/Twist"
 POI_NAV_SERVICE_CHAIN = ("/tag_manager/navi", "/poi")
+MARKER_SERVICE_CHAIN = (
+    "/marker_manager/get_markers_details",
+    "/marker_operation/get_markers",
+)
+MARKER_UTILS_MODULE = CYBEL_HOME / "sdk" / "marker_utils.py"
 CANCEL_NAV_PUBLISH_TOPICS = ("/move_base/cancel", "/path_follower/cancel")
 CANCEL_NAV_SERVICE_CHAIN = ("/move_base/cancel", "/path_follower/cancel")
 
 _speech_state: dict = {"speaking": False, "last_text": ""}
 _telemetry_sockets: set[WebSocket] = set()
+PEOPLE_TOPIC = "/detected_people_array"
+_detected_people: list[dict] = []
+_people_utils_module = None
+_visitor_utils_module = None
+_voice_commands_module = None
+_knowledge_engine = None
+_current_identified_visitor: dict | None = None
+_current_identified_at: float = 0.0
+VISITOR_IDENTITY_TTL_SECONDS = 120.0
+DEFAULT_FACE_RECOGNITION_THRESHOLD = 0.82
+
+
+def _get_people_utils():
+    global _people_utils_module
+    if _people_utils_module is None:
+        _people_utils_module = _load_sdk_module_from_file("people_utils")
+    return _people_utils_module
+
+
+def _get_visitor_utils():
+    global _visitor_utils_module
+    if _visitor_utils_module is None:
+        _visitor_utils_module = _load_sdk_module_from_file("visitor_utils")
+    return _visitor_utils_module
+
+
+def _get_voice_commands():
+    global _voice_commands_module
+    if _voice_commands_module is None:
+        _voice_commands_module = _load_sdk_module_from_file("voice_commands")
+    return _voice_commands_module
+
+
+def _get_knowledge_engine():
+    """KnowledgeEngine (FAQ HESTIM + lab) — modules sdk purs, chargés via le shim.
+
+    knowledge_engine ne dépend que de json_store et voice_commands (tous deux sans
+    pydantic depuis le refactor), donc importable tel quel sur Termux.
+    """
+    global _knowledge_engine
+    if _knowledge_engine is None:
+        # voice_commands doit être chargé d'abord (import interne de knowledge_engine).
+        _get_voice_commands()
+        module = _load_sdk_module_from_file("knowledge_engine")
+        _knowledge_engine = module.KnowledgeEngine(CYBEL_HOME / "data")
+    return _knowledge_engine
+
+
+def get_detected_people() -> list[dict]:
+    return list(_detected_people)
 
 
 def load_actions() -> list[dict]:
@@ -132,10 +235,58 @@ def pick_speech(action: dict, lang: str) -> str | None:
     return action.get("speech")
 
 
+_ALLCAPS_RUN = re.compile(r"\b[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ]{2,}\b")
+
+
+def _tts_friendly(text: str) -> str:
+    """Convertit les suites de 2+ majuscules (noms de POI 'PORTE-LABO', sigles
+    comme 'HESTIM') en casse normale avant envoi au TTS.
+
+    De nombreux moteurs TextToSpeech (dont celui utilisé ici) épellent lettre
+    par lettre tout mot tout-en-majuscules qui n'est pas reconnu comme un mot
+    du dictionnaire — constaté sur le robot réel : « HESTIM » lu « H-E-S-T-I-M »
+    au lieu du mot. Les noms de POI (convention Deployment Tool : tout majuscule,
+    voir sdk/poi_names.py) sont exactement dans ce cas et seraient tout autant
+    affectés. On ne touche que le texte envoyé au TTS, jamais l'affichage écran.
+    """
+
+    def _title(match: "re.Match[str]") -> str:
+        word = match.group(0)
+        return word[0] + word[1:].lower()
+
+    return _ALLCAPS_RUN.sub(_title, text)
+
+
 def speak_local(text: str) -> bool:
+    text = _tts_friendly(text)
     escaped = text.replace("'", "'\\''")
     broadcast = (
         f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} --es text '{escaped}'"
+    )
+    for cmd in (broadcast, f"su -c '{broadcast}'"):
+        try:
+            result = subprocess.run(
+                ["sh", "-c", cmd],
+                capture_output=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return False
+
+
+def trigger_face_enrollment(name: str, civility: str) -> bool:
+    """Ouvre la fenêtre d'enrôlement CybelFaceBridge (15s) — équivalent
+    programmatique de scripts/termux/enroll_visitor.sh. Permet un déclenchement
+    distant (interface opérateur PC, via le backend PC qui relaie ici) plutôt
+    qu'un accès direct ADB/Termux à la tablette."""
+    escaped_name = name.replace("'", "'\\''")
+    escaped_civility = civility.replace("'", "'\\''")
+    broadcast = (
+        f"am broadcast -n {FACE_ENROLL_RECEIVER} -a {FACE_ENROLL_ACTION} "
+        f"--es name '{escaped_name}' --es civility '{escaped_civility}'"
     )
     for cmd in (broadcast, f"su -c '{broadcast}'"):
         try:
@@ -328,6 +479,15 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
         await asyncio.sleep(0.5)
 
     snap = await fetch_robot_snapshot()
+    nav_status = int(snap.get("nav_status") or 0)
+    if (
+        nav_status == _tour_navigation.CHARGING_NAV_STATUS
+        and not _tour_navigation.parse_charger_flag(snap.get("charger"))
+    ):
+        try:
+            await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+        except Exception:
+            pass
     await _cancel_and_mode(snap)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
@@ -354,6 +514,8 @@ def _readiness_kwargs(snap: dict, *, ghost_nav_recovered: bool = False) -> dict:
         "navigating_to": snap.get("navigating_to"),
         "ghost_nav_recovered": ghost_nav_recovered,
         "charger": charger,
+        "hard_estop": bool(snap.get("hard_estop")),
+        "soft_estop": bool(snap.get("soft_estop")),
     }
 
 
@@ -427,7 +589,11 @@ async def ensure_global_localization(
     target = min_percent if min_percent is not None else LOCALIZATION_MIN_PERCENT
     snap = await fetch_robot_snapshot(timeout=5.0)
     loc = snap.get("localization_percent")
-    if loc is not None and loc >= target:
+    nav_status_now = int(snap.get("nav_status") or 0)
+    # Court-circuit seulement si la loc est bonne ET le nav est déjà prêt (≠600).
+    # Si nav_status=600, il faut appeler /global_locate même avec une bonne loc,
+    # car c'est le service qui fait passer le châssis de 600→601.
+    if loc is not None and loc >= target and nav_status_now != 600:
         return True, snap
     service, _ = await ros_call_service_first(
         [(name, {}) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
@@ -435,13 +601,16 @@ async def ensure_global_localization(
     )
     if not service:
         return False, snap
+    # Délai minimum pour laisser le châssis traiter /global_locate et mettre à jour nav_status
+    await asyncio.sleep(3.0)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
         await asyncio.sleep(1.0)
         snap = await fetch_robot_snapshot(timeout=5.0)
         loc = snap.get("localization_percent")
-        if loc is not None and loc >= target:
+        nav = int(snap.get("nav_status") or 0)
+        if loc is not None and loc >= target and nav != 600:
             return True, snap
     return False, snap
 
@@ -454,7 +623,7 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
     loc = snap.get("localization_percent")
     ghost_recovered = nav_status == 602 and _ghost_nav(snap)
 
-    if nav_status in (604, 600):
+    if nav_status in (604,):
         _, reason = _tour_navigation.assess_tour_readiness(
             nav_status,
             loc,
@@ -463,6 +632,23 @@ async def prepare_for_tour() -> tuple[bool, str, dict]:
             **_readiness_kwargs(snap),
         )
         return False, reason, snap
+    if nav_status == 600:
+        loc_ok, snap = await ensure_global_localization()
+        nav_status = int(snap.get("nav_status") or 0)
+        loc = snap.get("localization_percent")
+        if nav_status == 600 and loc is not None and loc >= LOCALIZATION_MIN_PERCENT:
+            snap = await recover_navigation_state(timeout=15.0)
+            nav_status = int(snap.get("nav_status") or 0)
+            loc = snap.get("localization_percent")
+        if nav_status == 600:
+            _, reason = _tour_navigation.assess_tour_readiness(
+                nav_status,
+                loc,
+                min_localization=LOCALIZATION_MIN_PERCENT,
+                require_known_localization=True,
+                **_readiness_kwargs(snap),
+            )
+            return False, reason, snap
     if (
         nav_status == _tour_navigation.CHARGING_NAV_STATUS
         and _tour_navigation.parse_charger_flag(snap.get("charger"))
@@ -697,6 +883,9 @@ def _merge_robot_state(
         "connected": bool(pose_msg or status_msg),
         "nav_mode_label": "Automatique",
         "navigating_to": status_msg.get("navigating_to"),
+        "soft_estop": bool(status_msg.get("soft_estop")),
+        "hard_estop": bool(status_msg.get("hard_estop")),
+        "nav_mode": str(status_msg.get("nav_mode") or "auto_navi"),
     }
     state["nav_status_label"] = NAV_STATUS_LABELS.get(state["nav_status"], "?")
     if state["x"] is not None:
@@ -743,6 +932,20 @@ async def fetch_robot_snapshot(timeout: float = 6.0) -> dict:
     return _merge_robot_state(pose_msg, status_msg, loc_msg or None)
 
 
+def _stop_goal_xy(stop) -> tuple[float | None, float | None]:
+    """Coordonnées cible d'un arrêt (coords directes ou POI dans points.json)."""
+    if stop is None:
+        return None, None
+    if getattr(stop, "x", None) is not None and getattr(stop, "y", None) is not None:
+        return float(stop.x), float(stop.y)
+    target = getattr(stop, "target_point", None)
+    if target:
+        point = find_point(str(target))
+        if point is not None:
+            return float(point.get("x", 0.0)), float(point.get("y", 0.0))
+    return None, None
+
+
 async def wait_for_navigation_arrival(
     timeout: float = 300.0,
     *,
@@ -760,6 +963,24 @@ async def wait_for_navigation_arrival(
     pose_msg: dict = {}
     status_msg: dict = {}
     loc_msg: dict = {}
+    goal_x, goal_y = _stop_goal_xy(stop)
+
+    def _robot_velocity(robot: dict) -> tuple[float, float]:
+        velocity = robot.get("velocity") or [0.0, 0.0]
+        if isinstance(velocity, (list, tuple)) and len(velocity) >= 2:
+            return float(velocity[0]), float(velocity[1])
+        return 0.0, 0.0
+
+    def _arrived(robot: dict, nav_status: int) -> bool:
+        return _tour_navigation.evaluate_navigation_arrival(
+            nav_status=nav_status,
+            saw_active=saw_active,
+            pose_x=float(robot.get("x") or 0.0),
+            pose_y=float(robot.get("y") or 0.0),
+            goal_x=goal_x,
+            goal_y=goal_y,
+            velocity=_robot_velocity(robot),
+        )
 
     def _failure_message(robot: dict, *, never_started: bool) -> str:
         dest = ""
@@ -772,6 +993,13 @@ async def wait_for_navigation_arrival(
                     float(robot["y"]),
                     float(stop.x),
                     float(stop.y),
+                )
+            elif goal_x is not None and goal_y is not None and robot.get("x") is not None:
+                distance = _tour_trace.distance_xy(
+                    float(robot["x"]),
+                    float(robot["y"]),
+                    goal_x,
+                    goal_y,
                 )
         return _tour_navigation.navigation_wait_failure_message(
             int(robot.get("nav_status") or 0),
@@ -786,8 +1014,23 @@ async def wait_for_navigation_arrival(
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
             except asyncio.TimeoutError:
+                robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
+                nav_status = int(robot.get("nav_status") or 0)
+                vx, vy = _robot_velocity(robot)
+                if abs(vx) > 0.05 or abs(vy) > 0.05:
+                    saw_active = True
                 if not saw_active and loop.time() > activation_deadline:
-                    robot = _merge_robot_state(pose_msg, status_msg, loc_msg or None)
+                    if _arrived(robot, nav_status):
+                        if tracer and stop is not None:
+                            tracer.nav_result(
+                                stop,
+                                index=stop_index,
+                                robot=robot,
+                                success=True,
+                                nav_status=nav_status,
+                                nav_status_label=str(robot.get("nav_status_label", "")),
+                            )
+                        return True, ""
                     err = _failure_message(robot, never_started=True)
                     if tracer and stop is not None:
                         tracer.nav_result(
@@ -829,6 +1072,20 @@ async def wait_for_navigation_arrival(
             nav_status = int(robot.get("nav_status") or 0)
             if nav_status == 602:
                 saw_active = True
+            vx, vy = _robot_velocity(robot)
+            if abs(vx) > 0.05 or abs(vy) > 0.05:
+                saw_active = True
+            if _arrived(robot, nav_status):
+                if tracer and stop is not None:
+                    tracer.nav_result(
+                        stop,
+                        index=stop_index,
+                        robot=robot,
+                        success=True,
+                        nav_status=nav_status,
+                        nav_status_label=str(robot.get("nav_status_label", "")),
+                    )
+                return True, ""
             if nav_status == 604:
                 err = _failure_message(robot, never_started=False)
                 if tracer and stop is not None:
@@ -842,9 +1099,8 @@ async def wait_for_navigation_arrival(
                         error=err,
                     )
                 return False, err
-            if saw_active and nav_status == 603:
-                velocity = robot.get("velocity") or [0.0, 0.0]
-                if abs(velocity[0]) < 0.05 and abs(velocity[1]) < 0.05:
+            if not saw_active and loop.time() > activation_deadline:
+                if _arrived(robot, nav_status):
                     if tracer and stop is not None:
                         tracer.nav_result(
                             stop,
@@ -855,7 +1111,6 @@ async def wait_for_navigation_arrival(
                             nav_status_label=str(robot.get("nav_status_label", "")),
                         )
                     return True, ""
-            if not saw_active and loop.time() > activation_deadline:
                 err = _failure_message(robot, never_started=True)
                 if tracer and stop is not None:
                     tracer.nav_result(
@@ -985,8 +1240,10 @@ def _tour_log_dir() -> Path:
     return path
 
 
-def build_tour_engine(tracer=None) -> TourEngine:
+def build_tour_engine(tracer=None, available_poi: set[str] | None = None) -> TourEngine:
     tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    if available_poi is not None:
+        tour = filter_tour_by_poi(tour, available_poi)
 
     async def speak(text: str) -> None:
         await speak_local_and_wait(text)
@@ -995,7 +1252,23 @@ def build_tour_engine(tracer=None) -> TourEngine:
         snap_before = await fetch_robot_snapshot()
         if tracer:
             tracer.robot_snapshot("nav_before", snap_before, stop=stop)
-        if stop.has_coordinates():
+        if stop.target_point:
+            if tracer:
+                tracer.nav_command(
+                    stop,
+                    index=index,
+                    robot=snap_before,
+                    nav_status=snap_before.get("nav_status"),
+                    nav_status_label=str(snap_before.get("nav_status_label", "")),
+                    detail=f"service /tag_manager/navi → {stop.target_point}",
+                )
+            await navigate_to_point(str(stop.target_point))
+            arrived, err = await wait_for_navigation_arrival(
+                tracer=tracer, stop=stop, stop_index=index
+            )
+            if not arrived:
+                raise RuntimeError(err)
+        elif stop.has_coordinates():
             if tracer:
                 tracer.nav_command(
                     stop,
@@ -1006,22 +1279,6 @@ def build_tour_engine(tracer=None) -> TourEngine:
                     detail=f"publish /navi_goal ({stop.x}, {stop.y}, {stop.theta or 0})",
                 )
             await navigate_to_coordinate(stop.x, stop.y, stop.theta or 0.0)
-            arrived, err = await wait_for_navigation_arrival(
-                tracer=tracer, stop=stop, stop_index=index
-            )
-            if not arrived:
-                raise RuntimeError(err)
-        elif stop.target_point:
-            if tracer:
-                tracer.nav_command(
-                    stop,
-                    index=index,
-                    robot=snap_before,
-                    nav_status=snap_before.get("nav_status"),
-                    nav_status_label=str(snap_before.get("nav_status_label", "")),
-                    detail=f"service /poi go → {stop.target_point}",
-                )
-            await navigate_to_point(str(stop.target_point))
             arrived, err = await wait_for_navigation_arrival(
                 tracer=tracer, stop=stop, stop_index=index
             )
@@ -1061,6 +1318,12 @@ async def tour_start(request: Request) -> JSONResponse:
             {"ok": False, "error": "Une visite est déjà en cours"},
             status_code=409,
         )
+    sync_ok, _, sync_err = await sync_poi_from_ros_map()
+    if not sync_ok:
+        return JSONResponse(
+            {"ok": False, "error": sync_err or "Synchronisation POI impossible"},
+            status_code=503,
+        )
     reset_tour_engine()
     ready, reason, prereq_snap = await prepare_for_tour()
     if not ready:
@@ -1076,7 +1339,8 @@ async def tour_start(request: Request) -> JSONResponse:
         log_dir=_tour_log_dir(),
     )
     _active_tracer.robot_snapshot("tour_start_pose", prereq_snap)
-    _tour_engine = build_tour_engine(tracer=_active_tracer)
+    available_poi = {str(p.get("name")) for p in load_points() if p.get("name")}
+    _tour_engine = build_tour_engine(tracer=_active_tracer, available_poi=available_poi)
     try:
         result = await _tour_engine.start(lang)
     except Exception as exc:
@@ -1245,8 +1509,47 @@ def find_point(point_name: str) -> dict | None:
     return next((p for p in load_points() if p.get("name") == point_name), None)
 
 
+def load_visitors() -> list[dict]:
+    if not VISITORS_PATH.is_file():
+        return []
+    with open(VISITORS_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    return list(data.get("visitors", []))
+
+
+def save_visitors(visitors: list[dict]) -> None:
+    VISITORS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "visitors": visitors,
+    }
+    with open(VISITORS_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def find_visitor(visitor_id: str) -> dict | None:
+    return next((v for v in load_visitors() if v.get("id") == visitor_id), None)
+
+
+def visitor_public(visitor: dict) -> dict:
+    """Retire l'embedding — ne jamais exposer les données biométriques au client."""
+    return {k: v for k, v in visitor.items() if k != "embedding"}
+
+
 def kiosk_destinations() -> list[dict]:
-    return [p for p in load_points() if p.get("kiosk_visible", True)]
+    tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    tour_names = {
+        stop.target_point
+        for stop in tour.stops
+        if getattr(stop, "target_point", None)
+    }
+    return [
+        p
+        for p in load_points()
+        if p.get("kiosk_visible", True) and p.get("name") in tour_names
+    ]
 
 
 def load_kiosk_config() -> dict:
@@ -1259,6 +1562,12 @@ def load_kiosk_config() -> dict:
         "standby_timeout_seconds": 90,
         "featured_destinations": [],
         "reception_actions": ["welcome_guest", "go_meeting_room", "wait_mode"],
+        "presence_welcome_enabled": True,
+        "presence_max_distance_m": 3.0,
+        "presence_cooldown_seconds": 90,
+        "presence_speak_welcome": True,
+        "face_recognition_enabled": False,
+        "face_recognition_threshold": DEFAULT_FACE_RECOGNITION_THRESHOLD,
     }
     if not KIOSK_CONFIG_PATH.is_file():
         return default
@@ -1290,6 +1599,12 @@ async def kiosk_config_put(request: Request) -> JSONResponse:
         "standby_timeout_seconds",
         "featured_destinations",
         "reception_actions",
+        "presence_welcome_enabled",
+        "presence_max_distance_m",
+        "presence_cooldown_seconds",
+        "presence_speak_welcome",
+        "face_recognition_enabled",
+        "face_recognition_threshold",
     }
     current = load_kiosk_config()
     for key, value in body.items():
@@ -1309,7 +1624,8 @@ def robot_status_payload(snap: dict) -> dict:
         "connected": bool(snap.get("connected")),
         "battery": int(snap.get("battery") or 0),
         "charger": on_charger,
-        "soft_estop": False,
+        "soft_estop": bool(snap.get("soft_estop")),
+        "hard_estop": bool(snap.get("hard_estop")),
         "nav_status": int(snap.get("nav_status") or 600),
         "nav_status_label": str(snap.get("nav_status_label") or "Inconnu"),
         "nav_mode_label": str(snap.get("nav_mode_label") or "Automatique"),
@@ -1390,7 +1706,100 @@ async def robot_relocalize(_: Request) -> JSONResponse:
     return JSONResponse(payload)
 
 
+def save_points(points: list[dict]) -> None:
+    from datetime import datetime, timezone
+
+    POINTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "points": points,
+    }
+    with open(POINTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+_MARKER_UTILS_MODULE = None
+
+
+def _load_marker_utils():
+    global _MARKER_UTILS_MODULE
+    if _MARKER_UTILS_MODULE is not None:
+        return _MARKER_UTILS_MODULE
+    for dep in ("constants", "poi_names", "ros_ops"):
+        _load_sdk_module_from_file(dep)
+    _MARKER_UTILS_MODULE = _load_sdk_module_from_file("marker_utils")
+    return _MARKER_UTILS_MODULE
+
+
+async def fetch_raw_markers_from_ros() -> list[dict]:
+    marker_utils = _load_marker_utils()
+    for service in MARKER_SERVICE_CHAIN:
+        response = await ros_call_service(service, {})
+        raw = marker_utils.extract_raw_markers(response)
+        if raw:
+            return raw
+    return []
+
+
+async def sync_poi_from_ros_map() -> tuple[bool, dict | None, str | None]:
+    """Lit les POI ROS (carte courante) et remplace points.json (supprime les absents)."""
+    try:
+        marker_utils = _load_marker_utils()
+        raw_markers = await fetch_raw_markers_from_ros()
+        if not raw_markers:
+            return False, None, "Aucun marqueur ROS — créez les POI dans Deployment Tool."
+        tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+        mark_kiosk = {
+            stop.target_point
+            for stop in tour.stops
+            if getattr(stop, "target_point", None)
+        }
+        merged = marker_utils.merge_point_dicts(
+            load_points(),
+            raw_markers,
+            mark_kiosk=mark_kiosk,
+        )
+        save_points(merged)
+        summary = {
+            "ros_count": len(raw_markers),
+            "total_count": len(merged),
+            "kiosk_visible_count": sum(1 for p in merged if p.get("kiosk_visible")),
+        }
+        return True, summary, None
+    except Exception as exc:
+        return False, None, f"Sync POI échouée : {exc}"
+
+
+async def navigation_sync_points(_: Request) -> JSONResponse:
+    """Synchronise POI ROS (Sentrymove) → data/points.json sur la tablette."""
+    ok, summary, err = await sync_poi_from_ros_map()
+    if not ok:
+        return JSONResponse({"ok": False, "error": err}, status_code=503)
+    return JSONResponse(
+        {
+            "ok": True,
+            "summary": summary,
+            "points": load_points(),
+        }
+    )
+
+
+async def navigation_list_points(_: Request) -> JSONResponse:
+    return JSONResponse(load_points())
+
+
 async def list_destinations(_: Request) -> JSONResponse:
+    sync_ok, _, sync_err = await sync_poi_from_ros_map()
+    if not sync_ok:
+        cached = kiosk_destinations()
+        if cached:
+            return JSONResponse(cached)
+        return JSONResponse(
+            {"ok": False, "error": sync_err or "Synchronisation POI impossible"},
+            status_code=503,
+        )
     return JSONResponse(kiosk_destinations())
 
 
@@ -1447,9 +1856,290 @@ async def go_destination(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "point": point_name, "events": events})
 
 
+async def _voice_navigate(point_name: str, lang: str) -> dict:
+    """Prépare la navigation (localisation, mode auto), annonce et lance le trajet.
+    Même chaîne que go_destination, réutilisée par les commandes vocales."""
+    point = find_point(point_name)
+    if not point:
+        return {"ok": False, "error": f"Destination « {point_name} » inconnue"}
+    ready, reason, _ = await prepare_for_tour()
+    if not ready:
+        return {"ok": False, "error": reason}
+    if not await ensure_auto_navigation():
+        return {"ok": False, "error": "Impossible d'activer le mode navigation automatique"}
+    welcome = (
+        f"I will take you to {point_name}. Please follow me."
+        if lang == "en"
+        else f"Je vous accompagne vers {point_name}. Suivez-moi."
+    )
+    speak_local(welcome)
+    try:
+        await navigate_to_point(point_name)
+    except Exception as exc:
+        return {"ok": False, "error": f"Navigation vers « {point_name} » impossible : {exc}"}
+    return {"ok": True, "point": point_name, "reply": welcome}
+
+
+async def handle_voice_command(text: str, lang: str) -> dict:
+    """NLU minimal : commande vocale → action / navigation POI / réponse FAQ.
+
+    Réutilise le moteur partagé (sdk.voice_commands, sdk.knowledge_engine) et les
+    exécuteurs déjà présents dans ce backend (execute_action, navigate_to_point,
+    speak_local). Renvoie un dict structuré (le champ `start_tour` signale au routeur
+    d'enchaîner sur tour_start, qui a besoin de l'objet Request)."""
+    voice = _get_voice_commands()
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return {"ok": False, "understood": False, "kind": "empty",
+                "transcript": text, "reply": ""}
+
+    # 1) Commande d'action (« visite guidée », « arrête », « accueil »…)
+    action_id = voice.match_voice_command(cleaned)
+    if action_id:
+        if action_id == "guided_tour":
+            return {"ok": True, "understood": True, "kind": "action",
+                    "action": action_id, "transcript": cleaned,
+                    "reply": "Je démarre la visite guidée." if lang == "fr"
+                             else "Starting the guided tour.", "start_tour": True}
+        result = await execute_action(action_id, lang)
+        if result.get("error") == "use_tour_start":
+            return {"ok": True, "understood": True, "kind": "action",
+                    "action": action_id, "transcript": cleaned,
+                    "reply": "Je démarre la visite guidée." if lang == "fr"
+                             else "Starting the guided tour.", "start_tour": True}
+        reply = "; ".join(result.get("events", [])) or result.get("error", "")
+        return {"ok": bool(result.get("ok")), "understood": True, "kind": "action",
+                "action": action_id, "transcript": cleaned,
+                "reply": reply, "events": result.get("events", []),
+                "error": result.get("error")}
+
+    # 2) Navigation vers un POI nommé (« va à la porte labo »)
+    point_names = [str(p.get("name", "")) for p in load_points() if p.get("name")]
+    point_name = voice.match_point_navigation(cleaned, point_names)
+    if point_name:
+        nav = await _voice_navigate(point_name, lang)
+        return {"ok": bool(nav.get("ok")), "understood": True, "kind": "navigation",
+                "point": point_name, "transcript": cleaned,
+                "reply": nav.get("reply") or nav.get("error", ""),
+                "error": nav.get("error")}
+
+    # 3) Question FAQ / connaissances (« qu'est-ce que HESTIM »)
+    try:
+        engine = _get_knowledge_engine()
+        match = engine.match(cleaned, lang=lang, point_names=point_names)
+    except Exception:
+        match = None
+    # Seuil aligné sur backend/services/knowledge_service.py : sous 2.0, un mot
+    # générique (« est ») suffit à matcher n'importe quelle question — faux positifs.
+    if match and getattr(match, "score", 0.0) < 2.0:
+        match = None
+    if match and getattr(match, "answer", ""):
+        answer = str(match.answer)
+        speak_local(answer)
+        response = {"ok": True, "understood": True, "kind": "faq",
+                    "transcript": cleaned, "reply": answer}
+        # Si l'entrée pointe vers un lieu, on peut aussi y naviguer.
+        target = getattr(match, "point_name", None)
+        if target:
+            nav = await _voice_navigate(str(target), lang)
+            if nav.get("ok"):
+                response["point"] = target
+                response["kind"] = "faq+navigation"
+        return response
+
+    # 4) Non compris
+    reply = ("Je n'ai pas compris votre demande. Vous pouvez me demander une "
+             "destination, la visite guidée, ou une question sur HESTIM."
+             if lang == "fr" else
+             "I didn't understand. You can ask for a destination, the guided "
+             "tour, or a question about HESTIM.")
+    speak_local(reply)
+    return {"ok": False, "understood": False, "kind": "unknown",
+            "transcript": cleaned, "reply": reply}
+
+
+async def voice_command(request: Request) -> JSONResponse:
+    """POST /api/voice — reçoit un transcript (STT côté app native) et l'exécute."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    text = str(body.get("text", "")).strip()
+    lang = str(body.get("lang", "fr"))
+    if not text:
+        return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
+
+    result = await handle_voice_command(text, lang)
+    # Diffuse l'échange au kiosque (bulle transcript + réponse, TTS déjà déclenché).
+    await _broadcast_to_telemetry({
+        "type": "voice",
+        "transcript": result.get("transcript", text),
+        "reply": result.get("reply", ""),
+        "kind": result.get("kind", "unknown"),
+        "ok": bool(result.get("ok")),
+    })
+    # La visite guidée a besoin de l'objet Request (tour_start) — enchaînement ici.
+    if result.get("start_tour"):
+        await tour_start(request)
+    return JSONResponse(result)
+
+
+async def voice_vocabulary(_: Request) -> JSONResponse:
+    """GET /api/voice/vocabulary — vocabulaire fermé pour contraindre le STT
+    embarqué (grammaire Vosk) aux mots que ce backend comprend réellement :
+    actions connues, POI actuellement déployés, questions/mots-clés FAQ.
+    Calculé à la volée (pas de cache) pour rester en phase avec les POI et la
+    base de connaissances actuels sans nécessiter de rebuild APK."""
+    voice = _get_voice_commands()
+    point_names = [str(p.get("name", "")) for p in load_points() if p.get("name")]
+    extra_phrases = [str(entry.get("question_fr", "")) for entry in load_faq()]
+    try:
+        engine = _get_knowledge_engine()
+        for lab_entry in engine.list_lab_entries():
+            extra_phrases.extend(str(k) for k in lab_entry.get("keywords") or [])
+    except Exception:
+        pass
+    words = voice.build_vocabulary(point_names=point_names, extra_phrases=extra_phrases)
+    return JSONResponse({"words": words})
+
+
 async def robot_status(_: Request) -> JSONResponse:
     snap = await fetch_robot_snapshot()
     return JSONResponse(robot_status_payload(snap))
+
+
+async def robot_people(_: Request) -> JSONResponse:
+    return JSONResponse({"people": get_detected_people()})
+
+
+async def visitors_list(_: Request) -> JSONResponse:
+    return JSONResponse([visitor_public(v) for v in load_visitors()])
+
+
+async def visitors_current(_: Request) -> JSONResponse:
+    if _current_identified_visitor is None or (time.time() - _current_identified_at) > VISITOR_IDENTITY_TTL_SECONDS:
+        return JSONResponse({"visitor": None})
+    return JSONResponse({"visitor": _current_identified_visitor})
+
+
+async def visitors_identify(request: Request) -> JSONResponse:
+    """Reçoit un embedding facial calculé par CybelFaceBridge (tablette) et le compare
+    aux visiteurs enrôlés. Ne reçoit et n'expose jamais d'image — uniquement un vecteur."""
+    global _current_identified_visitor, _current_identified_at
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "message": "JSON invalide"}, status_code=400)
+
+    embedding = body.get("embedding")
+    visitor_utils = _get_visitor_utils()
+    if not visitor_utils.validate_embedding(embedding):
+        return JSONResponse({"ok": False, "message": "Embedding invalide"}, status_code=400)
+
+    visitors = load_visitors()
+    candidates = [(v.get("id"), v.get("embedding") or []) for v in visitors]
+    threshold = float(
+        load_kiosk_config().get(
+            "face_recognition_threshold", DEFAULT_FACE_RECOGNITION_THRESHOLD
+        )
+    )
+    visitor_id, score = visitor_utils.find_best_match(embedding, candidates, threshold)
+    if visitor_id is None:
+        # Diffusé même sans correspondance : permet à l'interface opérateur de
+        # confirmer en direct que la caméra voit bien un visage (« detected »),
+        # utile pour calibrer le seuil ou vérifier la distinction entre plusieurs
+        # visiteurs enrôlés, sans jamais transmettre d'image.
+        await _broadcast_to_telemetry(
+            {"type": "face_status", "detected": True, "matched": False, "confidence": score}
+        )
+        return JSONResponse({"ok": False, "confidence": score, "message": "Visiteur inconnu"})
+
+    matched = next(v for v in visitors if v.get("id") == visitor_id)
+    matched["last_identified_at"] = datetime.now(timezone.utc).isoformat()
+    save_visitors(visitors)
+
+    public = visitor_public(matched)
+    _current_identified_visitor = public
+    _current_identified_at = time.time()
+    await _broadcast_to_telemetry({"type": "visitor", "visitor": public, "confidence": score})
+    await _broadcast_to_telemetry(
+        {"type": "face_status", "detected": True, "matched": True, "confidence": score, "visitor": public}
+    )
+    return JSONResponse({"ok": True, "visitor": public, "confidence": score})
+
+
+async def visitors_enroll_trigger(request: Request) -> JSONResponse:
+    """Déclenche à distance l'ouverture de la fenêtre d'enrôlement facial (15s) —
+    permet à l'interface opérateur (frontend/, PC) de lancer un enrôlement sans
+    accès direct (ADB/Termux) à la tablette. Le backend PC relaie ici via
+    settings.kiosk_backend_url ; voir backend/services/visitor_service.py."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    name = str(body.get("name", "")).strip()
+    if not name:
+        return JSONResponse({"ok": False, "error": "Nom requis"}, status_code=400)
+    civility = str(body.get("civility", ""))
+    if not trigger_face_enrollment(name, civility):
+        return JSONResponse(
+            {"ok": False, "error": "Déclenchement impossible (CybelFaceBridge indisponible ?)"},
+            status_code=503,
+        )
+    return JSONResponse({"ok": True, "name": name, "window_seconds": 15})
+
+
+async def visitors_enroll(request: Request) -> JSONResponse:
+    """Enrôlement déclenché par le personnel (voir scripts/termux/enroll_visitor.sh) —
+    jamais de capture automatique/silencieuse d'un visiteur non consentant."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+
+    name = str(body.get("name", "")).strip()
+    civility = str(body.get("civility", ""))
+    embedding = body.get("embedding")
+    consent = bool(body.get("consent"))
+
+    if not consent:
+        return JSONResponse(
+            {"ok": False, "error": "Le consentement du visiteur est requis"}, status_code=400
+        )
+    if not name:
+        return JSONResponse({"ok": False, "error": "Nom requis"}, status_code=400)
+    visitor_utils = _get_visitor_utils()
+    if not visitor_utils.validate_embedding(embedding):
+        return JSONResponse({"ok": False, "error": "Embedding invalide"}, status_code=400)
+
+    visitor = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "civility": civility,
+        "consent": consent,
+        "enrolled_at": datetime.now(timezone.utc).isoformat(),
+        "last_identified_at": None,
+        "embedding": embedding,
+    }
+    visitors = load_visitors()
+    visitors.append(visitor)
+    save_visitors(visitors)
+    return JSONResponse(visitor_public(visitor))
+
+
+async def visitors_delete(request: Request) -> JSONResponse:
+    global _current_identified_visitor
+    visitor_id = request.path_params.get("visitor_id")
+    visitors = load_visitors()
+    remaining = [v for v in visitors if v.get("id") != visitor_id]
+    if len(remaining) == len(visitors):
+        return JSONResponse(
+            {"ok": False, "error": f"Visiteur '{visitor_id}' introuvable"}, status_code=404
+        )
+    save_visitors(remaining)
+    if _current_identified_visitor and _current_identified_visitor.get("id") == visitor_id:
+        _current_identified_visitor = None
+    return JSONResponse({"ok": True})
 
 
 async def speech_status(_: Request) -> JSONResponse:
@@ -1460,6 +2150,40 @@ async def speech_status(_: Request) -> JSONResponse:
             "mock": False,
         }
     )
+
+
+async def _people_listener_loop() -> None:
+    """Écoute /detected_people_array (caméra robot) pour présence visiteur."""
+    global _detected_people
+    uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
+    people_utils = _get_people_utils()
+    while True:
+        try:
+            async with websockets.connect(uri, open_timeout=5) as ws:
+                await _subscribe_topics(ws, [PEOPLE_TOPIC])
+                while True:
+                    raw = await ws.recv()
+                    data = json.loads(raw)
+                    if data.get("topic") != PEOPLE_TOPIC:
+                        continue
+                    _detected_people = people_utils.parse_people_from_ros_message(
+                        data.get("msg") or {}
+                    )
+        except Exception:
+            await asyncio.sleep(2.0)
+
+
+async def _broadcast_to_telemetry(message: dict) -> None:
+    """Diffuse un événement ponctuel (pas rejoué en boucle, contrairement à status/people)."""
+    payload = json.dumps(message)
+    dead: list[WebSocket] = []
+    for ws in list(_telemetry_sockets):
+        try:
+            await ws.send_text(payload)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        _telemetry_sockets.discard(ws)
 
 
 async def telemetry_ws(websocket: WebSocket) -> None:
@@ -1478,6 +2202,16 @@ async def telemetry_ws(websocket: WebSocket) -> None:
                 {"type": "tour", **get_tour_engine().get_status().to_dict()}
             )
         )
+        await websocket.send_text(
+            json.dumps({"type": "people", "people": get_detected_people()})
+        )
+        if (
+            _current_identified_visitor is not None
+            and (time.time() - _current_identified_at) <= VISITOR_IDENTITY_TTL_SECONDS
+        ):
+            await websocket.send_text(
+                json.dumps({"type": "visitor", "visitor": _current_identified_visitor})
+            )
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
@@ -1500,12 +2234,16 @@ async def _telemetry_broadcast_loop() -> None:
                 tour_msg = json.dumps(
                     {"type": "tour", **get_tour_engine().get_status().to_dict()}
                 )
+                people_msg = json.dumps(
+                    {"type": "people", "people": get_detected_people()}
+                )
                 dead: list[WebSocket] = []
                 for ws in list(_telemetry_sockets):
                     try:
                         await ws.send_text(status_msg)
                         await ws.send_text(speech_msg)
                         await ws.send_text(tour_msg)
+                        await ws.send_text(people_msg)
                     except Exception:
                         dead.append(ws)
                 for ws in dead:
@@ -1521,10 +2259,22 @@ def build_app() -> Starlette:
         Route("/api/kiosk/config", kiosk_config_get, methods=["GET"]),
         Route("/api/kiosk/config", kiosk_config_put, methods=["PUT"]),
         Route("/api/reception/destinations", list_destinations, methods=["GET"]),
+        Route("/api/navigation/points", navigation_list_points, methods=["GET"]),
+        Route("/api/navigation/sync", navigation_sync_points, methods=["POST"]),
         Route("/api/reception/go", go_destination, methods=["POST"]),
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
+        Route("/api/voice", voice_command, methods=["POST"]),
+        Route("/api/voice/vocabulary", voice_vocabulary, methods=["GET"]),
+        Route("/api/reception/voice", voice_command, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
+        Route("/api/robot/people", robot_people, methods=["GET"]),
+        Route("/api/visitors", visitors_list, methods=["GET"]),
+        Route("/api/visitors/current", visitors_current, methods=["GET"]),
+        Route("/api/visitors/identify", visitors_identify, methods=["POST"]),
+        Route("/api/visitors/enroll", visitors_enroll, methods=["POST"]),
+        Route("/api/visitors/enroll-trigger", visitors_enroll_trigger, methods=["POST"]),
+        Route("/api/visitors/{visitor_id}", visitors_delete, methods=["DELETE"]),
         Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
         Route("/api/navigation/cancel", navigation_cancel, methods=["POST"]),
         Route("/api/charge/go-home", charge_go_home, methods=["POST"]),
@@ -1551,13 +2301,14 @@ def build_app() -> Starlette:
         routes.append(
             Mount("/kiosk", app=StaticFiles(directory=str(KIOSK_DIST), html=True), name="kiosk")
         )
-    app = Starlette(routes=routes)
 
-    @app.on_event("startup")
-    async def _start_telemetry() -> None:
+    @asynccontextmanager
+    async def _lifespan(_: Starlette):
         asyncio.create_task(_telemetry_broadcast_loop())
+        asyncio.create_task(_people_listener_loop())
+        yield
 
-    return app
+    return Starlette(routes=routes, lifespan=_lifespan)
 
 
 app = build_app()

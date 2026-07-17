@@ -6,11 +6,13 @@ import {
   renderDestinations,
   renderStandby,
   renderTraveling,
+  renderVoiceOverlay,
   renderWelcome,
 } from "./screens/home";
 import { connectKioskTelemetry } from "./telemetry";
 import type {
   ActiveFlow,
+  DetectedPerson,
   KioskConfig,
   KioskDestination,
   Lang,
@@ -20,7 +22,24 @@ import type {
   SpeechStatus,
   TourScreen,
   TourStatus,
+  VisitorPublic,
+  VoiceState,
 } from "./types";
+
+/** Pont natif exposé par l'app Android hôte (CybelVisitorKioskTest) pour la
+ * reconnaissance vocale — absent dans un navigateur classique. */
+interface CybelVoiceBridge {
+  startListening: (lang: string) => void;
+  isAvailable?: () => boolean;
+  resumeWakeListening?: () => void;
+}
+declare global {
+  interface Window {
+    CybelVoice?: CybelVoiceBridge;
+    __cybelVoiceResult?: (transcript: string, ok: boolean) => void;
+    __cybelWakeDetected?: () => void;
+  }
+}
 
 let lang: Lang = "fr";
 let screen: TourScreen = "welcome";
@@ -42,6 +61,24 @@ let standbyTimer: number | null = null;
 let toastTimer: number | null = null;
 let sawNavigating = false;
 let lastInteractionAt = Date.now();
+let detectedPeople: DetectedPerson[] = [];
+/** Cooldown partagé entre les deux déclencheurs d'accueil (reconnaissance
+ * faciale caméra tablette, présence caméra châssis) — évite un double accueil
+ * si les deux systèmes détectent la même personne à quelques instants d'écart. */
+let lastGreetAt = 0;
+let identifiedVisitor: { visitor: VisitorPublic; at: number } | null = null;
+const VISITOR_GREETING_TTL_MS = 120_000;
+/** Micro état de dialogue : la question en attente d'une réponse oui/non ou
+ * d'un choix de visite, posée après l'accueil d'un visiteur reconnu. Éphémère
+ * (perdu au rechargement) — un nouveau visiteur n'a pas besoin d'un état persistant. */
+let pendingQuestion: "tour_offer" | "tour_type" | null = null;
+const YES_WORDS = ["oui", "ouais", "d'accord", "daccord", "yes"];
+const NO_WORDS = ["non", "no"];
+const FULL_TOUR_WORDS = ["complet", "complete", "guidee", "guidée", "tout", "entiere", "entière"];
+let voiceState: VoiceState = "idle";
+let voiceTranscript = "";
+let voiceReply = "";
+let voiceTimer: number | null = null;
 
 function tr() {
   return t[lang];
@@ -128,6 +165,238 @@ function syncScreenFromRobotStatus(): void {
   }
 }
 
+function personalizedGreeting(): string | null {
+  if (!config?.face_recognition_enabled || !identifiedVisitor) return null;
+  if (Date.now() - identifiedVisitor.at > VISITOR_GREETING_TTL_MS) return null;
+  const { name, civility } = identifiedVisitor.visitor;
+  if (lang === "en") return `Welcome back, ${name}!`;
+  return `Bonjour ${civility ? civility + " " : ""}${name} !`;
+}
+
+/** Accueille et propose une visite — déclenché soit par la reconnaissance
+ * faciale (caméra tablette, visiteur identifié par son nom), soit par la
+ * détection de présence châssis (caméra robot, visiteur anonyme) : les deux
+ * systèmes sont indépendants et appellent ce même point d'entrée, avec un
+ * cooldown partagé pour ne saluer qu'une fois si les deux se déclenchent
+ * à quelques instants d'écart. */
+function tryGreetAndOfferTour(): void {
+  if (!config) return;
+  if (busy || activeFlow) return;
+  if (pendingQuestion) return; // dialogue déjà en cours, ne pas l'interrompre
+  if (screen !== "standby" && screen !== "welcome") return;
+  const cooldownMs = (config.presence_cooldown_seconds ?? 90) * 1000;
+  const now = Date.now();
+  if (now - lastGreetAt < cooldownMs) return;
+  const greeting =
+    personalizedGreeting() ??
+    (lang === "fr"
+      ? config.welcome_message_fr || tr().presenceWelcome
+      : config.welcome_message_en || tr().presenceWelcome);
+  lastGreetAt = now;
+  if (screen === "standby") {
+    screen = "welcome";
+  }
+  showToast(personalizedGreeting() ?? tr().presenceDetected);
+  pendingQuestion = "tour_offer";
+  // Une seule phrase (pas deux appels api.say() séparés) pour éviter tout
+  // risque de la seconde qui coupe/écrase la première dans la queue TTS.
+  speakAndListen(`${greeting} ${tr().tourOfferQuestion}`);
+}
+
+function matchesAny(text: string, words: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return words.some((w) => normalized.includes(w));
+}
+
+/** Estimation grossière du temps de parole (débit oral FR modéré, ~2,5 mots/s)
+ * + marge fixe pour le démarrage du moteur TTS natif (broadcast shell, pas
+ * instantané) — sert à ne relancer l'écoute qu'une fois la question terminée,
+ * pour un dialogue enchaîné sans que le micro capte la voix du robot lui-même. */
+function estimateSpeechDurationMs(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const speakMs = (words / 2.5) * 1000;
+  // Plafond large (20 s) : sert aussi à estimer la durée d'une réponse FAQ
+  // potentiellement longue (plusieurs phrases), pas seulement les questions
+  // courtes du mini-dialogue de visite.
+  return Math.max(1200, Math.min(20000, speakMs + 600));
+}
+
+/** Relance l'écoute du mot d'éveil une fois qu'un texte a fini d'être
+ * prononcé (estimation) — rouvrir le micro trop tôt lui fait capter la
+ * propre voix du robot (pas d'annulation d'écho sur ce matériel), ce qui
+ * peut écraser une réponse correcte par un « non compris » alors que la
+ * réponse est encore en train d'être lue à voix haute. */
+function scheduleWakeResume(spokenText: string): void {
+  const delay = estimateSpeechDurationMs(spokenText);
+  window.setTimeout(() => {
+    try {
+      window.CybelVoice?.resumeWakeListening?.();
+    } catch {
+      // le filet de sécurité natif (MainActivity) relancera de toute façon
+    }
+  }, delay);
+}
+
+/** Prononce une question puis relance automatiquement l'écoute du micro pour
+ * la réponse — enchaîne le dialogue sans que le visiteur ait à retoucher
+ * l'écran entre chaque tour de parole. */
+function speakAndListen(text: string): void {
+  voiceTranscript = "";
+  voiceReply = text;
+  voiceState = "listening";
+  render();
+  if (config?.presence_speak_welcome !== false) {
+    void api.say(text).catch(() => undefined);
+  }
+  if (voiceTimer !== null) window.clearTimeout(voiceTimer);
+  const delay = estimateSpeechDurationMs(text);
+  voiceTimer = window.setTimeout(() => {
+    if (voiceState !== "listening") return; // annulé/fermé entre-temps
+    try {
+      window.CybelVoice?.startListening(lang);
+    } catch {
+      voiceState = "idle";
+      pendingQuestion = null;
+      render();
+      return;
+    }
+    // Garde-fou : si l'app native ne rappelle jamais, on ferme après 12 s
+    // (même filet que startVoice()).
+    if (voiceTimer !== null) window.clearTimeout(voiceTimer);
+    voiceTimer = window.setTimeout(() => {
+      if (voiceState === "listening") {
+        voiceReply = tr().voiceError;
+        voiceState = "answer";
+        pendingQuestion = null;
+        render();
+      }
+    }, 12000);
+  }, delay);
+}
+
+/** Envoie un texte au NLU backend (commande/POI/FAQ) et applique le résultat
+ * à l'écran — logique commune au flux vocal normal et au repli du dialogue
+ * de proposition de visite (ex. si la réponse ne matche ni oui ni non, on la
+ * traite comme une commande normale : elle contient peut-être déjà le nom
+ * du point ou « visite guidée »). */
+async function routeVoiceText(text: string): Promise<void> {
+  voiceTranscript = text;
+  voiceState = "processing";
+  render();
+  try {
+    const result = await api.voice(text, lang);
+    voiceReply = result.reply || tr().voiceError;
+    voiceState = "answer";
+    if (result.ok && result.kind === "navigation" && result.point) {
+      activeFlow = "destination";
+      selectedDestination = result.point;
+      sawNavigating = false;
+      screen = "dest_running";
+      robotStatus = await api.getRobotStatus().catch(() => robotStatus);
+      voiceState = "idle";
+    } else if (result.ok && result.action === "guided_tour") {
+      voiceState = "idle";
+      activeFlow = "tour";
+      screen = "running";
+      status = await api.getTourStatus().catch(() => status);
+    }
+    render();
+    scheduleWakeResume(voiceReply);
+  } catch (err) {
+    voiceReply = err instanceof Error ? err.message : tr().voiceError;
+    voiceState = "answer";
+    render();
+    scheduleWakeResume(voiceReply);
+  }
+}
+
+/** Interprète une réponse dans le mini-dialogue « proposition de visite »
+ * déclenché par tryGreetAndOfferTour(). */
+async function handlePendingAnswer(text: string): Promise<void> {
+  const question = pendingQuestion;
+  pendingQuestion = null;
+
+  if (question === "tour_offer") {
+    if (matchesAny(text, YES_WORDS)) {
+      pendingQuestion = "tour_type";
+      speakAndListen(tr().tourTypeQuestion);
+      return;
+    }
+    if (matchesAny(text, NO_WORDS)) {
+      const ack = tr().tourDeclined;
+      voiceTranscript = text;
+      voiceReply = ack;
+      voiceState = "idle";
+      if (config?.presence_speak_welcome !== false) void api.say(ack).catch(() => undefined);
+      render();
+      scheduleWakeResume(ack);
+      return;
+    }
+    // Ni oui ni non reconnu : peut-être une autre demande directe, on la
+    // traite normalement plutôt que de bloquer sur une réponse incomprise.
+    await routeVoiceText(text);
+    return;
+  }
+
+  if (question === "tour_type") {
+    if (matchesAny(text, FULL_TOUR_WORDS)) {
+      await routeVoiceText("visite guidée");
+      return;
+    }
+    // Une réponse à « quel point précis ? » est un nom de destination seul,
+    // sans verbe de déplacement (« CNC routeur », pas « va au CNC routeur ») —
+    // le NLU de navigation exige un verbe/« jusqu' », donc on résout plutôt
+    // directement contre la liste des destinations connues (même mécanisme
+    // que le clic sur une tuile de destination : nom exact, pas de texte libre).
+    const resolved = await resolveDestinationByVoice(text);
+    if (resolved) {
+      await goToDestination(resolved);
+      return;
+    }
+    // Aucun point reconnu : on retente via le NLU normal (action/FAQ possibles).
+    await routeVoiceText(text);
+    return;
+  }
+}
+
+function normalizeForMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Résout un texte prononcé vers un nom de destination connu (correspondance
+ * approximative sur sous-chaîne, comme sdk/voice_commands.match_point_navigation
+ * côté backend, mais ici contre la liste réellement affichable au kiosque). */
+async function resolveDestinationByVoice(text: string): Promise<string | null> {
+  const normalizedText = normalizeForMatch(text);
+  if (!normalizedText) return null;
+  try {
+    const list = destinations.length ? destinations : await api.getDestinations();
+    for (const dest of list) {
+      const normalizedName = normalizeForMatch(dest.name);
+      if (normalizedName && (normalizedText.includes(normalizedName) || normalizedName.includes(normalizedText))) {
+        return dest.name;
+      }
+    }
+  } catch {
+    // ignore — repli sur le NLU normal dans l'appelant
+  }
+  return null;
+}
+
+function handlePresenceWelcome(): void {
+  if (!config?.presence_welcome_enabled) return;
+  const maxDist = config.presence_max_distance_m ?? 3.0;
+  const nearby = detectedPeople.filter((p) => p.distance <= maxDist);
+  if (!nearby.length) return;
+  tryGreetAndOfferTour();
+}
+
 function startTelemetry(): void {
   connectKioskTelemetry({
     onRobotStatus: (robot) => {
@@ -153,6 +422,25 @@ function startTelemetry(): void {
         if (screen === "running" || screen === "completed") render();
       }
     },
+    onPeople: (people) => {
+      detectedPeople = people;
+      handlePresenceWelcome();
+    },
+    onVisitorIdentified: (visitor) => {
+      identifiedVisitor = { visitor, at: Date.now() };
+      if (config?.face_recognition_enabled) tryGreetAndOfferTour();
+    },
+    onVoice: (event) => {
+      // Diffusion serveur : utile si un autre client (ex. opérateur) parle au robot.
+      // Le flux local (bouton micro) est déjà géré par onVoiceTranscript ; on ne
+      // ré-affiche que si l'overlay n'est pas déjà actif localement.
+      if (voiceState === "idle" && event.transcript) {
+        voiceTranscript = event.transcript;
+        voiceReply = event.reply;
+        voiceState = "answer";
+        render();
+      }
+    },
   });
 }
 
@@ -174,7 +462,7 @@ function renderBody(): string {
     case "standby":
       return renderStandby(lang, config);
     case "welcome":
-      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy);
+      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy, voiceAvailable());
     case "destinations":
       return renderDestinations(lang, destinations, searchQuery, busy);
     case "dest_running":
@@ -201,8 +489,17 @@ function renderBody(): string {
       }
       return renderCompleted(lang, "tour", false, status?.state, status?.error);
     default:
-      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy);
+      return renderWelcome(lang, config, tour, featuredDestinations, receptionActions, busy, voiceAvailable());
   }
+}
+
+function kioskVariantLabel(): string | undefined {
+  if (!config) return undefined;
+  const label =
+    lang === "en"
+      ? config.kiosk_variant_label_en
+      : config.kiosk_variant_label_fr;
+  return label?.trim() || undefined;
 }
 
 function render(): void {
@@ -211,14 +508,19 @@ function render(): void {
 
   app.innerHTML = `
     <div class="kiosk" data-screen="${screen}">
-      ${screen === "standby" ? "" : renderStatusBar(lang, robotStatus, speechStatus, busy)}
+      ${screen === "standby" ? "" : renderStatusBar(lang, robotStatus, speechStatus, busy, kioskVariantLabel())}
       ${renderBody()}
+      ${renderVoiceOverlay(lang, voiceState, voiceTranscript, voiceReply)}
       ${message ? `<div class="kiosk-toast" role="status">${message}</div>` : ""}
     </div>
   `;
 
   bindEvents();
   resetStandbyTimer();
+}
+
+function voiceAvailable(): boolean {
+  return typeof window.CybelVoice?.startListening === "function";
 }
 
 function bindEvents(): void {
@@ -238,6 +540,8 @@ function bindEvents(): void {
   document.getElementById("btn-mode-tour")?.addEventListener("click", () => void startTour());
   document.getElementById("btn-mode-dest")?.addEventListener("click", () => void openDestinations());
   document.getElementById("btn-assistance")?.addEventListener("click", () => void runAssistance());
+  document.getElementById("btn-voice")?.addEventListener("click", () => startVoice());
+  document.getElementById("btn-voice-close")?.addEventListener("click", () => closeVoice());
 
   document.getElementById("btn-back-welcome")?.addEventListener("click", () => {
     touch();
@@ -397,6 +701,79 @@ async function runAssistance(): Promise<void> {
   }
 }
 
+/** Bascule l'UI en état d'écoute + garde-fou 12 s si l'app native ne rappelle jamais. */
+function enterListeningState(): void {
+  touch();
+  voiceTranscript = "";
+  voiceReply = "";
+  voiceState = "listening";
+  render();
+  if (voiceTimer !== null) window.clearTimeout(voiceTimer);
+  voiceTimer = window.setTimeout(() => {
+    if (voiceState === "listening") {
+      voiceReply = tr().voiceError;
+      voiceState = "answer";
+      render();
+    }
+  }, 12000);
+}
+
+function startVoice(): void {
+  if (busy || voiceState !== "idle") return;
+  if (!voiceAvailable()) {
+    showToast(tr().voiceUnavailable);
+    return;
+  }
+  enterListeningState();
+  try {
+    window.CybelVoice?.startListening(lang);
+  } catch {
+    voiceReply = tr().voiceUnavailable;
+    voiceState = "answer";
+    render();
+  }
+}
+
+/** Appelé par l'app native quand « Hé Cybel » est détecté ; la capture de la
+ * commande a déjà démarré côté natif, on bascule juste l'UI en écoute. */
+function onWakeDetected(): void {
+  if (busy || voiceState !== "idle") return;
+  enterListeningState();
+}
+
+function closeVoice(): void {
+  if (voiceTimer !== null) {
+    window.clearTimeout(voiceTimer);
+    voiceTimer = null;
+  }
+  voiceState = "idle";
+  voiceTranscript = "";
+  voiceReply = "";
+  pendingQuestion = null;
+  touch();
+  render();
+}
+
+/** Appelé par l'app native (evaluateJavascript) avec le transcript STT. */
+async function onVoiceTranscript(transcript: string, ok: boolean): Promise<void> {
+  if (voiceTimer !== null) {
+    window.clearTimeout(voiceTimer);
+    voiceTimer = null;
+  }
+  const text = (transcript || "").trim();
+  if (!ok || !text) {
+    voiceReply = tr().voiceError;
+    voiceState = "answer";
+    render();
+    return;
+  }
+  if (pendingQuestion) {
+    await handlePendingAnswer(text);
+    return;
+  }
+  await routeVoiceText(text);
+}
+
 async function runReceptionAction(actionId: string): Promise<void> {
   if (busy) return;
   touch();
@@ -442,6 +819,14 @@ async function runReceptionAction(actionId: string): Promise<void> {
 }
 
 export async function initApp(): Promise<void> {
+  // Callback global invoqué par l'app native (CybelVisitorKioskTest) après STT Vosk.
+  window.__cybelVoiceResult = (transcript: string, ok: boolean) => {
+    void onVoiceTranscript(transcript, ok);
+  };
+  // Callback global invoqué par l'app native quand « Hé Cybel » est détecté.
+  window.__cybelWakeDetected = () => {
+    onWakeDetected();
+  };
   render();
   startClock();
   startTelemetry();

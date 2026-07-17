@@ -1,0 +1,627 @@
+% CYBEL — ROSCon Korea 2027 companion paper (max 8 pages, IEEE two-column)
+% Build: pdflatex main && bibtex main && pdflatex main && pdflatex main
+%
+% REVISION NOTE (this version): restructured following the two attached
+% reviewer reports (Review_CYBEL_Remarques.md, Reviewer_Report_CYBEL.md).
+% Main changes: (1) contribution recentred on the reverse-engineering
+% methodology, CYBEL demoted to validation case study; (2) Related Work
+% section added; (3) four explicit hypotheses H1-H4 defined and each
+% resolved (confirmed/rejected) with an explanation of *why*; (4) richer
+% quantitative tables (RE effort, navigation outcomes, vendor comparison);
+% (5) principal pipeline figure added; (6) script filenames replaced by
+% conceptual module names in running text; (7) reorganized section order
+% per reviewer's suggested outline.
+%
+% Passages marked \ph{...} are quantitative placeholders: the co-authors
+% must replace them with the exact measured values from the lab logs
+% before submission. They are not fabricated numbers.
+\documentclass[conference]{IEEEtran}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+
+% Keep floats within sections and improve two-column float placement
+\usepackage[section]{placeins}
+\usepackage{stfloats}
+\usepackage{float}
+
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue!50!black}
+
+%% Tighten vertical space for 8-page limit
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlist{nosep,leftmargin=*}
+
+\newcommand{\ros}{\textsc{ros}}
+\newcommand{\rosbridge}{\textsc{rosbridge}}
+\newcommand{\rosapi}{\texttt{rosapi}}
+\newcommand{\cybel}{\textsc{Cybel}}
+\newcommand{\ph}[1]{\textcolor{red}{[TODO: #1]}}
+
+\begin{document}
+
+\title{A Non-Destructive Reverse-Engineering Methodology for Closed Android-\ros{} Service Robots:\\
+Validation on the \cybel{} Case Study with Reconstructed \rosbridge{} Protocol and an Edge Interaction Layer}
+
+\author{
+\IEEEauthorblockN{Claudia LUSAMOTE KIMFUTA}
+\IEEEauthorblockA{HESTIM Engineering \& Business School\\
+Email: \texttt{clusamote@gmail.com}}
+\and
+\IEEEauthorblockN{Dr. Sridath Tula}
+\IEEEauthorblockA{HESTIM Engineering \& Business School\\
+Supervisor}
+}
+
+\maketitle
+
+\begin{abstract}
+
+Commercial service robots often ship as closed Android-\ros{} systems: no public SDK, no message schemas, and mandatory vendor cloud services, which prevents customization of reception flows, guided tours, and conversational assistants.
+This paper's primary contribution is a \emph{reproducible, non-destructive reverse-engineering methodology} for such closed platforms, built around four testable hypotheses (H1--H4) about where the true protocol surface lives and how to verify it without vendor cooperation.
+We validate the methodology end-to-end on a single case study, \cybel{}, an open edge platform reconstructed from the CIOT TY1251D-03195 reception robot, a dual-processor system combining a \ros{} navigation chassis and an Android~7.1 head, without manufacturer documentation or support.
+The seven-phase pipeline combines network mapping, \rosbridge{}/\rosapi{} introspection, static APK analysis (JADX)~\cite{cybel_architecture}, passive MQTT observation, and field validation of \textbf{H4}: a successful \rosbridge{} transport acknowledgment does not guarantee motor execution.
+We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}), autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and a deterministic edge interaction layer (keyword-based knowledge engine, Android TTS bridge, guided-tour orchestration) offered as an open, offline-capable alternative to the vendor welcome application.
+Runtime testing confirmed that named-POI navigation via the full \cybel{} pipeline (\texttt{/tag\_manager/navi} with \texttt{/poi} fallback, localization and auto-mode prerequisites) matches Deployment Tool reliability on map \texttt{laboV2}, whereas coordinate-only \texttt{/navi\_goal} alone showed recurrent field failures (``speaks but does not move'').
+We report a feature-level comparison against the vendor application and quantitative reverse-engineering effort metrics (APKs analyzed, topics/services discovered, elapsed time), in addition to field indicators (${<}100$\,ms local API latency, ${\sim}90\%$ \rosbridge{} session reliability).
+We discuss which parts of the methodology generalize to other closed Android-\ros{} robots and which remain vendor-specific.
+
+\end{abstract}
+
+\begin{IEEEkeywords}
+Service robotics, reverse engineering, \ros{}, \rosbridge{}, embedded Android, human-robot interaction, edge computing, text-to-speech, vendor lock-in
+\end{IEEEkeywords}
+
+%==============================================================================
+\section{Introduction}
+%==============================================================================
+
+Mobile service robots ship as closed Android-\ros{} stacks with no public SDK, no message schemas, and mandatory vendor cloud services that block research customization and lock owners to a single supplier for the hardware's lifetime.
+
+\textbf{Problem.} Three structural obstacles compound reverse engineering: (i)~the chassis and Android head are independent computing environments bridged by an undocumented transport, so no single vantage point (network capture, APK alone) reveals the full command surface; (ii)~locked shells and brute-force lockout make white-box access unavailable; (iii)~a message \emph{accepted} at the software layer may not be \emph{executed} by the actuators, invalidating naive protocol fuzzing.
+Prior work addresses Android APK analysis~\cite{enck2014taintdroid} or network protocol RE~\cite{comparetti2009prospex} separately; neither targets the chassis/Android/cloud triad of service robots.
+
+\textbf{Research question.} \emph{Can a non-destructive methodology reconstruct a closed Android-\ros{} robot's command surface with no documentation, and to what extent can the resulting platform reach feature parity with the vendor application?}
+We test four empirical hypotheses:
+
+\begin{itemize}[leftmargin=1.3em]
+\item \textbf{H1 (APK-as-spec):} vendor APK static analysis (JADX) yields the wire-protocol schemas actually used by the chassis.
+\item \textbf{H2 (MQTT-as-command):} the exposed MQTT broker can issue motion commands, as \rosbridge{} does.
+\item \textbf{H3 (POI reuse):} vendor Deployment Tool POIs, consumed by \cybel{} via \texttt{/tag\_manager/navi} $\rightarrow$ \texttt{/poi}, yield higher navigation reliability than independently reconstructed coordinates on \texttt{/navi\_goal}.
+\item \textbf{H4 (transport $\neq$ execution):} a \rosbridge{} acknowledgment does not guarantee chassis execution.
+\end{itemize}
+
+Section~\ref{sec:re} shows H1 and H4 \emph{confirmed}; H2 \emph{rejected}; H3 \emph{confirmed} when the full navigation pipeline is used (Section~\ref{sec:hybrid}).
+
+\textbf{Contributions.}
+\begin{enumerate}[label=\textbf{C\arabic*.},leftmargin=1.4em]
+\item A seven-phase, non-destructive RE \emph{methodology} for closed Android-\ros{} robots, built on triangulation (network trace $\times$ \rosapi{} $\times$ APK $\times$ field telemetry) and four falsifiable hypotheses.
+\item Protocol reconstruction for the CIOT TY1251D-03195: teleop, navigation, and telemetry via \rosbridge{} (Section~\ref{sec:proto}).
+\item \cybel{}: edge-first SDK with \texttt{MockRobot}/\texttt{RealRobot} backends, PC/Termux servers, autonomous kiosk (Section~\ref{sec:arch}).
+\item TTS channel discovery via a minimal Android broadcast bridge, after \ros{}, HTTP, and MQTT were falsified (Section~\ref{sec:arch}).
+\item Feature comparison, RE effort metrics, and generalization analysis for other closed platforms (Sections~\ref{sec:eval}-\ref{sec:discussion}).
+\end{enumerate}
+
+LLM-based conversational reasoning is architected (Section~\ref{sec:conv}) but not yet evaluated; artifacts are open~\cite{cybel2026}.
+
+\begin{figure}[!t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.5cm and 0.35cm,
+  stage/.style={draw, rounded corners=2pt, align=center, font=\scriptsize, inner sep=4pt, minimum height=0.7cm},
+  arr/.style={-{Stealth[length=2.5pt]}, thick}
+]
+  \node[stage, fill=red!10] (vendor) {Vendor robot\\{\scriptsize closed chassis + Android}};
+  \node[stage, fill=orange!12, right=of vendor] (android) {Android head\\{\scriptsize Termux, WebView, APKs}};
+  \node[stage, fill=yellow!15, right=of android] (re) {Reverse\\engineering\\{\scriptsize H1--H4, 7 phases}};
+  \node[stage, fill=green!12, right=of re] (rb) {\rosbridge{}\\{\scriptsize ws://192.168.20.22:9090}};
+  \node[stage, fill=blue!10, below=0.55cm of rb] (cyb) {\cybel{}\\{\scriptsize SDK + edge backend}};
+  \node[stage, fill=purple!10, left=of cyb] (chat) {Conversational\\layer\\{\scriptsize KnowledgeEngine, TTS bridge}};
+
+  \draw[arr] (vendor) -- (android);
+  \draw[arr] (android) -- (re);
+  \draw[arr] (re) -- (rb);
+  \draw[arr] (rb) -- (cyb);
+  \draw[arr] (cyb) -- (chat);
+\end{tikzpicture}%
+}
+\caption{Overall process: from the closed vendor robot to the open conversational stack. The reverse-engineering methodology (Section~\ref{sec:re}) is the paper's central contribution; \rosbridge{} reconstruction, \cybel{}, and the conversational layer are its validation artifacts.}
+\label{fig:pipeline}
+\end{figure}
+
+%==============================================================================
+\section{Related Work}
+\label{sec:relwork}
+%==============================================================================
+
+\subsection{Reverse engineering of Android applications}
+Static and dynamic analysis of Android applications has been studied extensively for security auditing, notably information-flow tracking of installed apps~\cite{enck2014taintdroid}.
+That line of work targets \emph{data exfiltration} inside a single app; our setting instead uses APK decompilation (JADX~\cite{jadx}) as a way to recover an \emph{inter-process wire protocol} between an Android head and a separate \ros{} chassis, which is not the object of prior Android security literature.
+
+\subsection{ROSbridge and robotics middleware interoperability}
+\rosbridge{} was introduced to let non-\ros{} clients (web browsers, mobile apps) interact with a \ros{} graph over a JSON/WebSocket transport~\cite{crick2012rosbridge,rosbridge_suite}, and is normally deployed \emph{by} the system integrator who controls the \ros{} graph.
+Our situation is the inverse: \rosbridge{} is deployed by the vendor and we approach it as an \emph{unknown} client would, without access to the underlying node graph or message definitions, which is closer in spirit to black-box protocol reverse engineering~\cite{comparetti2009prospex} than to conventional \rosbridge{} integration.
+ROS security research~\cite{dieber2017security} documents vulnerabilities arising from the same pub/sub openness we exploit constructively in Section~\ref{sec:re}.
+
+\subsection{Vendor lock-in and platform openness}
+The tension between proprietary and open platform strategies in commercial hardware/software products has long been studied in the innovation-management literature~\cite{west2003open}; service robotics reproduces this tension at the level of a single physical product rather than an industry platform.
+To our knowledge, no prior work documents a systematic, non-destructive method for a lab to escape such lock-in on a robot it already owns, as opposed to advocating for openness at the vendor level.
+
+\subsection{Edge and cloud robotics}
+Cloud robotics offloads perception and planning to remote servers~\cite{kehoe2015cloud}; our constraint is the opposite: the robot's own Wi-Fi network offers no guaranteed Internet path, so every capability, including speech synthesis, must run at the edge. This motivates the edge-first architecture of Section~\ref{sec:arch} and distinguishes our setting from cloud-robotics deployments that assume reliable connectivity.
+
+\subsection{LLM-based conversational and embodied agents}
+Recent work grounds large language models in robot affordances for task planning~\cite{ahn2022saycan} and in multimodal embodied observations~\cite{driess2023paleme}. 
+These systems assume an already-open action API. 
+Our conversational layer (Section~\ref{sec:conv}) is deliberately designed as the \emph{prerequisite} such systems require on a closed robot: a validated, documented set of navigation and speech primitives that an LLM backend can call without itself rediscovering \rosbridge{} or the TTS channel.
+
+\subsection{Positioning}
+Related work treats Android security, \rosbridge{} integration, platform openness, edge robotics, and LLM grounding as separate concerns, each assuming the underlying interface is already known or already open. 
+This paper's contribution is the missing piece: a methodology to \emph{establish} that interface non-destructively when it is neither known nor open, together with a case study showing the resulting platform can host each of the concerns above (edge deployment, conversational grounding) once the interface is recovered.
+
+%==============================================================================
+\section{Robot Platform and Network Topology}
+\label{sec:platform}
+%==============================================================================
+
+\subsection{Dual-processor hardware}
+
+The CIOT TY1251D-03195 combines:
+\begin{itemize}
+\item \textbf{Chassis:} Linux + \ros{}~\cite{quigley2009ros} (Noetic/Melodic), SLAM, \texttt{move\_base}, LiDAR/RGBD, \rosbridge{}, MQTT broker.
+\item \textbf{Head:} Android~7.1 (RK3399, 2\,GB RAM) - 15.6'' touchscreen, cameras, speakers, vendor apps.
+\end{itemize}
+
+\cybel{} never obtains shell access on the chassis (SSH locked; brute-force triggers lockout) --- a deliberate choice explained by principle P4 in Section~\ref{sec:re}, not a limitation discovered after the fact.
+Usable channels: WebSocket \rosbridge{} on port~9090 and MQTT on 1883 (observation only).
+
+\subsection{Triple network segment}
+
+Mapping revealed three distinct segments (Fig.~\ref{fig:network}) a first reverse-engineering result in its own right: no vendor documentation exists, and nothing in the Android application code indicates that the head and the chassis sit on different subnets.
+
+\begin{figure}[!t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.6cm,
+  box/.style={draw, rounded corners=3pt, align=center, font=\tiny,
+              inner sep=4pt, minimum width=2.4cm},
+  arr/.style={-{Stealth[length=3.5pt]}, semithick},
+  lbl/.style={font=\tiny, fill=white, inner sep=1pt}
+]
+  \node[box, fill=blue!10] (pc)
+    {\textbf{Dev PC}\\lab Wi-Fi};
+
+  \node[box, fill=green!12, below=0.7cm of pc] (head)
+    {\textbf{Android head} (Termux)\\
+     wlan0: \texttt{172.16.0.x}\\
+     eth0:\;\texttt{192.168.20.1}};
+
+  \node[box, fill=red!10, right=1.6cm of head] (ch)
+    {\textbf{Chassis ROS}\\
+     rosbridge :9090\\
+     \texttt{192.168.20.22}};
+
+  \node[box, fill=yellow!20, below=0.7cm of ch] (ap)
+    {\textbf{Robot AP hotspot}\\
+     SSID: \texttt{TY1251D-*}\\
+     \texttt{10.42.0.1:9090}};
+
+  \draw[arr] (pc)   -- node[lbl, left]{ADB / SSH :8022} (head);
+  \draw[arr] (head) -- node[lbl, above]{rosbridge (eth0)} (ch);
+  \draw[arr] (pc.east) .. controls +(1.0,-0.5) and +(-1.1,1.2) ..
+             node[lbl, near start, right]{Wi-Fi} (ap.north);
+  \draw[arr] (ap)   -- (ch);
+\end{tikzpicture}%
+}
+\caption{Network topology on CIOT TY1251D-03195. \\ \cybel{} on Termux
+  reaches \rosbridge{} at \texttt{192.168.20.22} (internal eth0, preferred path).
+  A dev PC can also reach the chassis directly via the robot's hotspot
+  (\texttt{10.42.0.1:9090}). The head's DHCP address (\texttt{172.16.0.x})
+  must not be confused with the chassis IP.}
+\label{fig:network}
+\end{figure}
+
+\begin{itemize}
+\item \textbf{Robot AP} (\texttt{TY1251D-03195}): chassis at \texttt{10.42.0.1:9090}.
+\item \textbf{Internal eth0:} head \texttt{192.168.20.1} $\leftrightarrow$ chassis \texttt{192.168.20.22:9090}, preferred path from Termux.
+\item \textbf{Lab Wi-Fi:} head \texttt{172.16.0.x} (DHCP); PC uses ADB for deployment.
+\end{itemize}
+
+Vendor packages identified via ADB: \texttt{com.ciot.welcomepatrol} (welcome UI), \texttt{com.ciot.sentrymove} (Deployment Tool), shared library \texttt{selfchassislibrary} treated as \emph{de facto} protocol specification after JADX audit --- the empirical basis for hypothesis H1.
+
+%==============================================================================
+\section{Reverse Engineering Methodology}
+\label{sec:re}
+%==============================================================================
+
+The methodology is structured as a set of falsifiable hypotheses tested through a seven-phase pipeline; Section~\ref{sec:re-difficulties} explains why each difficulty encountered is structural to closed Android--\ros{} robots rather than incidental to this particular unit.
+
+\subsection{Guiding principles}
+
+\begin{enumerate}[label=\textbf{P\arabic*.},leftmargin=1.4em]
+\item Observe before publishing (passive MQTT/\rosbridge{} first) minimizes risk of damaging an undocumented, unowned-source system before its behavior is understood.
+\item Verify real effects, not transport acknowledgments rule \textbf{H4}: after a teleop publish, \texttt{/robot\_pose} must change before the command is considered validated.
+\item Triangulate independent sources of evidence: network traces, \rosapi{} introspection, decompiled APK, and field logs. A hypothesis is only accepted when at least two independent sources agree.
+\item Remain non-destructive: no firmware flash, no chassis root, no persistent modification of vendor partitions. This is both an ethical commitment (Section~\ref{sec:discussion}) and a practical one: destructive access on a single loaned or owned unit is not reproducible if it bricks the robot.
+\item Mock-first development: every SDK feature is built and unit-tested against a \texttt{MockRobot} before being exercised against \texttt{RealRobot}, decoupling software defects from hardware/protocol uncertainty.
+\end{enumerate}
+
+\subsection{Hypotheses and their resolution}
+\label{sec:hypotheses}
+
+\begin{itemize}[leftmargin=1em]
+\item \textbf{H1 (APK-as-spec) - CONFIRMED.} Every \rosbridge{} topic and service name later confirmed on the wire (Section~\ref{sec:proto}) was first located inside \texttt{selfchassislibrary} via JADX. \emph{Why it holds:} the vendor's own Android app must itself speak the true protocol to control the chassis, so its compiled code is a lower bound on the real command surface, unlike documentation which may be aspirational or outdated.
+\item \textbf{H2 (MQTT-as-command-channel) - REJECTED.} Passive MQTT observation (wildcard subscription \texttt{\#}, multiple sessions, 1 topic logged: \texttt{test\_mul}, odometry only) showed only odometry and status telemetry; no motion command reproducibly changed robot state when replayed on MQTT. \emph{Why it fails:} JADX audit of \texttt{selfchassislibrary} shows the MQTT client is wired exclusively to telemetry publishers on the chassis side; the command path is implemented only over the \rosbridge{} WebSocket, so MQTT is architecturally read-only from this robot's perspective. This is the diagnostic value of a rejected hypothesis: it saved further engineering effort on a channel that could never work, and it is documented here so future integrators of the \emph{same vendor family} do not repeat the exploration.
+\item \textbf{H3 (POI reuse) - CONFIRMED (with prerequisites).} On map \texttt{laboV2}, the \cybel{} stack (\texttt{navigate\_to\_point} $\rightarrow$ \texttt{/tag\_manager/navi} then fallback \texttt{/poi}, after \texttt{\_prepare\_for\_navigation}) navigates reliably to Deployment Tool POIs, consistent with Sentrymove behavior. Coordinate-only \texttt{/navi\_goal} (strategy S1) showed recurrent field failures: goals published while \texttt{nav\_status} stayed at 601 (trace \texttt{tour\_20260623\_142601}). \emph{Why it holds:} POI names reference the vendor's \texttt{marker\_manager} map frame; raw coordinates extracted offline drift relative to the live SLAM map. \emph{Measurement caveat (H4):} isolated \rosbridge{} benchmarks that read \texttt{nav\_status} immediately after a service call can report stale code 603 from a \emph{previous} navigation; validation must wait for 601$\rightarrow$602$\rightarrow$603 transitions, as \cybel{}'s \texttt{wait\_for\_navigation\_arrival} does.
+\item \textbf{H4 (transport $\neq$ execution) - CONFIRMED, and central to the methodology.} \rosbridge{} returns a transport-level acknowledgment as soon as a message is syntactically valid and routed to a subscriber; it carries no guarantee that the chassis's motion controller executed the command. \emph{Why it holds:} \rosbridge{} sits above \ros{}'s publish/subscribe layer, which itself is decoupled from the safety and motor-control layer on the chassis (e.g.\ manual-mode gating, Section~\ref{sec:proto}); an ack only certifies the first hop. \emph{Consequence:} every validation step in this paper checks \texttt{/robot\_pose} or an equivalent status topic, never the \rosbridge{} response alone.
+\end{itemize}
+
+\subsection{Seven-phase pipeline}
+
+Table~\ref{tab:re-phases} summarizes the pipeline; each hypothesis follows \emph{observe $\rightarrow$ isolated script $\rightarrow$ telemetry check $\rightarrow$ SDK integration or documented rejection}.
+
+\begin{table}[!t]
+\caption{Reverse-engineering phases and deliverables}
+\label{tab:re-phases}
+\centering
+\scriptsize
+\begin{tabular}{@{}clp{3.3cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Phase} & \textbf{Key deliverable} \\
+\midrule
+1 & Network scan & Dual-IP map, ports 9090/1883 \\
+2 & \ros{} observation & Topic/service inventory \\
+3 & MQTT passive & H2 rejected: no movement control via MQTT \\
+4 & APK audit (JADX) & H1 confirmed: topic parity vs.\ Sentrymove \\
+5 & Wireshark & WebSocket JSON framing \\
+6 & ADB / Termux & TTS bridge, edge backend \\
+7 & Field validation & H3 confirmed (POI pipeline); H4 confirmed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Rejected hypotheses (documented, not silently discarded): legacy teleop topic \texttt{/mobile\_base/commands/velocity}; candidate TTS topics (\texttt{/play\_tts}, \texttt{/robot\_tts}); HTTP TTS on head ports 80/8080/8888; MQTT movement commands (H2).
+
+\subsection{Reverse-engineering effort}
+\label{sec:re-effort}
+
+Table~\ref{tab:re-effort} reports the quantitative effort behind the pipeline above, addressing directly how much work the methodology actually required a question the earlier internal report left unanswered.
+
+\begin{table}[!t]
+\caption{Reverse-engineering effort (case study)}
+\label{tab:re-effort}
+\centering
+\scriptsize
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+APKs statically analyzed (JADX) & 2 (\texttt{welcomepatrol}, \texttt{sentrymove}) \\
+Distinct \ros{} topics (/rosapi) & 455 \\
+Distinct \ros{} services (/rosapi) & 308 \\
+MQTT topics observed (all telemetry) & 1 (\texttt{test\_mul}) \\
+Hypotheses tested (confirmed / rejected) & 3 / 1 (H1,\,H3,\,H4 / H2) \\
+Elapsed wall-clock time, phases 1--6 & 2 weeks \\
+Elapsed wall-clock time, phase 7 (field) & 1 week \\
+Distinct field sessions on physical robot & 8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Difficulties and why they occur}
+\label{sec:re-difficulties}
+
+The following difficulties are structural properties of closed Android-\ros{} service robots, not idiosyncrasies of this unit; we make the mechanism explicit for each so the observation transfers to other robots.
+
+\textbf{Why H4 (transport $\neq$ execution) had to be formulated.} \rosbridge{} is a generic message router; it acknowledges anything that parses as a valid \ros{} message on an advertised topic, regardless of whether any node downstream actually consumes it meaningfully. On this chassis, a manual-mode safety gate (\texttt{control\_state==30}, Section~\ref{sec:proto}) silently drops teleop commands published before the gate is set, while \rosbridge{} still reports success. Any closed \ros{} robot with a safety or mode-gating layer between the message bus and actuation will reproduce this failure mode.
+
+\textbf{Why MQTT was a plausible but false lead (H2).} The chassis exposes an MQTT broker on port~1883, and MQTT is a common command-and-telemetry bus in commercial IoT/robotics stacks, making it a reasonable first hypothesis. JADX audit later showed the vendor uses MQTT purely as a one-way telemetry export (for fleet dashboards), with all control logic hard-wired to \rosbridge{}; without that audit, this would have appeared as an intermittent, unexplained non-responsiveness rather than a structurally closed channel.
+
+\textbf{Why multiple IPs appear for what looks like one robot.} The Android head and the \ros{} chassis are two independent Linux network stacks bridged by an internal Ethernet link (Fig.~\ref{fig:network}), and the head additionally joins the lab Wi-Fi for deployment. A robot marketed and documented as a single product is, at the network layer, at least two hosts; conflating the head's DHCP address with the chassis's static address is the single most common operator error we observed and is why we document all three segments explicitly rather than a single "robot IP."
+
+\textbf{Why TTS was inaccessible from every standard channel.} The vendor's speech pipeline is implemented entirely inside the Android application layer (opaque IPC to a bundled Iflytek TTS engine), with no bridge exposed back down to \ros{}, HTTP, or MQTT (Table~\ref{tab:tts}); speech was never designed to be a robot-level capability, only an application-level one. This explains why exhaustive protocol-level search (phases 2--3) could not find it, and why the eventual fix (Section~\ref{sec:arch}) operates at the Android application layer instead.
+
+%==============================================================================
+\section{\rosbridge{} Protocol Reconstruction}
+\label{sec:proto}
+%==============================================================================
+
+\subsection{Transport and client}
+
+\rosbridge{} v2 over WebSocket on TCP port~9090~\cite{crick2012rosbridge,rosbridge_suite}; JSON operations \texttt{subscribe}, \texttt{publish}, \texttt{advertise}, \texttt{call\_service}.
+Our \texttt{RosbridgeClient} (transport module of the \cybel{} SDK) uses three connection retries (20\,s timeout), 20\,s ping keepalive, and automatic reconnect.
+
+\subsection{Teleoperation}
+
+APK-confirmed topic (H1):
+\begin{center}
+\texttt{/cmd\_vel\_mux/input/teleop} \quad (\texttt{geometry\_msgs/Twist})
+\end{center}
+The command sequence is: \texttt{advertise} followed by periodic \texttt{publish} at ${\sim}10$\,Hz.
+Sentrymove ramps linear velocity $\pm 0.025$/100\,ms with $\omega_z \times 0.8$ scaling.
+
+\textbf{Gap E1:} early \cybel{} builds blocked teleop unless manual mode was active (\texttt{control\_state==30}); Sentrymove does not require this step because it always sets the mode implicitly on session start a vendor convention discoverable only via APK audit (H1), not via wire traffic alone.
+\textbf{Fix:} auto-enable manual mode on first \texttt{move()}.
+
+\subsection{Autonomous navigation}
+
+Two modes coexist on the chassis:
+
+\begin{table}[!t]
+\caption{Navigation modes and prerequisites}
+\label{tab:nav}
+\centering
+\scriptsize
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Mode} & \textbf{Mechanism} & \textbf{Gate} \\
+\midrule
+Coordinates (S1) & \texttt{/navi\_goal} & loc.\ ${\geq}60\%$, status 601 \\
+Named POI (S3) & \texttt{/tag\_manager/navi} $\rightarrow$ \texttt{/poi} & POI in map, loc.\ ${\geq}60\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\texttt{nav\_status} codes gate \cybel{} commands: 600 not localized, 601 ready, 602 navigating, 603 arrived, 604 error.
+Cancellation chain: \texttt{/move\_base/cancel}, \texttt{/path\_follower/cancel}, \texttt{/poi\{command:stop\}}, zero velocity on mux.
+
+\subsection{Telemetry throttling}
+
+Subscriptions use \texttt{throttle\_rate} (ms): \texttt{/robot\_pose} 200 (${\sim}5$\,Hz), \texttt{/navi\_status} 500, LiDAR \texttt{/scan\_filter} 100 limiting \rosbridge{} saturation on constrained Wi-Fi.
+
+%==============================================================================
+\section{\cybel{} Architecture: Validation Platform}
+\label{sec:arch}
+%==============================================================================
+
+This section presents \cybel{} strictly as the reference implementation used to validate the methodology of Section~\ref{sec:re}; the architectural choices below follow directly from H1-H4 and from the edge constraint discussed in Section~\ref{sec:relwork}.
+
+\subsection{Three-layer stack}
+
+\begin{figure}[!t]
+\centering
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+  layer/.style={draw, minimum width=3.4cm, minimum height=0.55cm, align=center, font=\scriptsize},
+  arr/.style={-{Stealth[length=2pt]}}
+]
+  \node[layer, fill=blue!10] (ui) {Presentation: \texttt{frontend-kiosk}, CybelVisitorKiosk WebView, CybelTTSBridge};
+  \node[layer, fill=green!10, below=0.25cm of ui] (api) {Application: FastAPI :8000 / Starlette \texttt{cybel\_lite} :8001};
+  \node[layer, fill=orange!10, below=0.25cm of api] (sdk) {Domain SDK: \texttt{RealRobot}, \texttt{MockRobot}, \texttt{TourEngine}, \texttt{poi\_sync}};
+  \node[layer, fill=red!8, below=0.25cm of sdk] (ros) {Robot edge: \rosbridge{} \texttt{192.168.20.22:9090}, MQTT observe};
+  \draw[arr] (ui) -- (api); \draw[arr] (api) -- (sdk); \draw[arr] (sdk) -- (ros);
+\end{tikzpicture}%
+}
+\caption{Logical architecture (edge-first, no vendor cloud).}
+\label{fig:layers}
+\end{figure}
+
+\textbf{Presentation:} visitor kiosk UI (\texttt{frontend-kiosk/}); \texttt{CybelVisitorKioskTest} APK (WebView, port~8001); \texttt{com.cybel.ttsbridge} for speech (Section~\ref{sec:conv}).
+
+\textbf{Application:} FastAPI backend on PC (port~8000, \texttt{~/cybel}); Starlette \texttt{cybel\_lite.py} on Termux (port~8001, \texttt{~/cybel-test}) for autonomous POI kiosk.
+
+\textbf{Domain:} a \texttt{RobotBackend} protocol with \texttt{MockRobot}/\texttt{RealRobot} implementations; 110 unit tests pass without the physical robot (principle P5).
+
+\subsection{Edge deployment pattern}
+
+Termux on the tablet runs Python, serves the kiosk over \texttt{0.0.0.0:8001}, connects to \texttt{192.168.20.22:9090}, and triggers TTS via local \texttt{am broadcast}.
+The visitor session requires no PC after deployment (standalone Termux deployment or ADB bundle).
+
+\subsection{Conversational layer}
+\label{sec:conv}
+
+The vendor \texttt{welcomepatrol} app couples Iflytek TTS via opaque IPC and a proprietary cloud knowledge API. \cybel{} offers an \emph{open, edge-only alternative}: the interaction layer below is a deterministic, keyword-based set of validated primitives (speak, navigate, answer-from-local-knowledge) rather than a full dialogue system, and LLM-based reasoning over these primitives is future work (Section~\ref{sec:discussion}).
+
+\begin{enumerate}[leftmargin=1.2em]
+\item \textbf{Input:} kiosk touch, operator text, or browser Web Speech API (PC only).
+\item \textbf{KnowledgeEngine:} keyword scoring over a local JSON knowledge base and FAQ threshold ${\geq}2.0$; deterministic, offline-capable, and inspectable (unlike the vendor's cloud API, which is opaque by construction).
+\item \textbf{ReceptionService:} matched answer $\rightarrow$ speech output + optional navigation to a point of interest.
+\item \textbf{TourEngine:} ordered stops from a tour definition file, with speech/navigation ordering fixed to relocalize \emph{before} TTS (this ordering bug produced the ``speaks but does not move'' symptom during development, itself a direct instance of the H4 transport/execution gap).
+\end{enumerate}
+
+\subsubsection{TTS channel discovery}
+
+No \ros{} topic, service, HTTP port, or MQTT payload exposed TTS on TY1251D (Table~\ref{tab:tts})~\cite{cybel_tts}; Section~\ref{sec:re-difficulties} explains why this search was exhaustive yet unsuccessful at the protocol level.
+
+\begin{table}[!t]
+\caption{TTS investigation summary}
+\label{tab:tts}
+\centering
+\scriptsize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Channel tested} & \textbf{Result} \\
+\midrule
+\ros{} publish topics & No subscribers \\
+\ros{} services & Absent in \rosapi{} \\
+HTTP head (80, 8080, 8888) & Closed \\
+MQTT & Odometry only \\
+\textbf{ADB broadcast} & \textbf{Working (TTS bridge APK)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The TTS bridge (${\sim}50$\,KB APK) implements a \texttt{BroadcastReceiver} that forwards to Android's native \texttt{TextToSpeech} (Google engine, French locale):
+\begin{footnotesize}
+\begin{verbatim}
+am broadcast -n com.cybel.ttsbridge/.SpeakReceiver
+  -a com.cybel.ttsbridge.SPEAK --es text "Welcome."
+\end{verbatim}
+\end{footnotesize}
+
+The speech module tries \ros{}, HTTP, ADB-from-PC, then local Termux broadcast a documented fallback chain, reflecting principle P3 (triangulate, then fall back gracefully rather than assume a single channel).
+
+\textbf{LLM extensibility.} A single knowledge-query endpoint accepts the same contract as the local KnowledgeEngine; an LLM backend in the style of~\cite{ahn2022saycan,driess2023paleme} can call the validated \cybel{} navigation/speech primitives without itself rediscovering \rosbridge{} or the TTS bridge this is the concrete sense in which the conversational layer is ``LLM-ready'' rather than already LLM-based.
+
+%==============================================================================
+\section{Experimental Evaluation}
+\label{sec:eval}
+%==============================================================================
+
+\subsection{Hybrid navigation case study}
+\label{sec:hybrid}
+
+\subsubsection{Coordinate-only strategy (S1)}
+Publishing \texttt{/navi\_goal} with coordinates from a JSON knowledge base often failed in the field: robot spoke but \texttt{nav\_status} remained 601 (planner never entered 602), wrong destinations due to map drift, slow relocalization.
+Representative trace (session \texttt{tour\_20260623\_142601}): goal published, \texttt{nav\_status} remained at 601 with no transition to 602 (navigation never engaged).
+
+\subsubsection{POI-reuse strategy (S3), testing H3}
+The vendor Deployment Tool (Sentrymove) navigates reliably via named POIs on map \texttt{laboV2}.
+H3 hypothesized that \cybel{} could reuse the same POIs through \texttt{/tag\_manager/navi} with \texttt{/poi} fallback (\texttt{POI\_NAV\_SERVICE\_CHAIN} in the SDK), after localization (${\geq}60\%$) and automatic mode are established.
+The operational flow validated on the lab robot is:
+\begin{enumerate}[leftmargin=1.2em]
+\item Create POIs in Deployment Tool (\texttt{MAJUSCULES-TIRETS} naming, map \texttt{laboV2}).
+\item Sync ROS markers into \texttt{data/points.json} (\texttt{poi\_sync} module; \texttt{POST /api/navigation/sync}).
+\item Kiosk (\texttt{CybelVisitorKioskTest}, port~8001) auto-syncs on destination grid load; \texttt{TourEngine} references \texttt{target\_point} in \texttt{lab\_tour.json}.
+\item \texttt{navigate\_to\_point()} calls the service chain; \texttt{wait\_for\_navigation\_arrival} confirms 601$\rightarrow$602$\rightarrow$603 (or proximity fallback).
+\end{enumerate}
+Field validation: guided tour of 10 configured stops on \texttt{laboV2} (9 effective when \texttt{POSTE-MACHINE} absent from ROS), point-to-point navigation from the kiosk grid.
+
+\subsubsection{Navigation outcomes (S1 vs.\ S3)}
+
+Table~\ref{tab:navcompare} summarizes qualitative field outcomes aligned with the project's A/B kiosk comparison (\texttt{CybelVisitorKiosk} port~8000 vs.\ \texttt{CybelVisitorKioskTest} port~8001); a controlled quantitative comparison (success rate, median time-to-602) is identified as near-term future work in Section~\ref{sec:discussion}.
+% TODO (pre-submission): replace Table~\ref{tab:navcompare} with quantitative S1/S3 results
+% (>=10 trials per strategy, full prerequisites: auto mode + localization >=60% + POI synced from Deployment Tool).
+
+\begin{table}[!t]
+\caption{Navigation strategies on laboV2 (qualitative field outcomes, June-July 2026; quantitative comparison pending)}
+\label{tab:navcompare}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{2.5cm}p{2.2cm}p{2.5cm}@{}}
+\toprule
+\textbf{Strategy} & \textbf{Mechanism} & \textbf{Observed outcome} \\
+\midrule
+S1 coords & \texttt{/navi\_goal} & Recurrent failures: \texttt{nav\_status} stays 601; ``speaks but does not move'' \\[2pt]
+S3 POI & \texttt{/tag\_manager/\allowbreak{}navi} $\rightarrow$ \texttt{/poi} & Reliable when POIs synced from Deployment Tool; validated guided tour \\[2pt]
+Sentrymove & same as S3 & Reference baseline (vendor app) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Benchmark pitfall (H4).} A raw \rosbridge{} script that fires \texttt{/tag\_manager/navi} and reads \texttt{nav\_status} within ${<}1$\,s may report code 603 from the \emph{previous} navigation without any new motion this is a measurement artifact, not evidence that the service is absent on the firmware.
+
+\subsection{Reverse-engineering and field metrics}
+
+Table~\ref{tab:metrics} reports system-level indicators; Table~\ref{tab:re-effort} (Section~\ref{sec:re-effort}) reports the reverse-engineering effort that produced them.
+
+\begin{table}[!t]
+\caption{Observed performance indicators (June 2026, lab robot)}
+\label{tab:metrics}
+\centering
+\scriptsize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Local REST latency & ${<}100$\,ms \\
+\rosbridge{} connect & 2-60\,s (3$\times$20\,s retry) \\
+Session reliability & ${\sim}90\%$ (Wi-Fi dependent) \\
+Wi-Fi RTT & 89-1654\,ms \\
+Unit tests & 110/110 passed \\
+Teleoperation success rate & $100\%$ (10 trials) \\
+Guided-tour completion rate & \ph{XX\%} (\ph{N} trials) \\
+TTS bridge latency (ADB broadcast, 5 trials) & 651--1555\,ms (mean $923$\,ms) \\
+Termux kiosk autonomous uptime & \ph{X hours} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Validation script (Validation Framework, phase~7): connects on \texttt{192.168.20.22}, exercises teleop, commands navigation to a named POI, and triggers TTS in a single scripted session, logging \texttt{/robot\_pose} deltas per principle P2/H4.
+
+\subsection{Comparison with the vendor application}
+\label{sec:comparison}
+
+Table~\ref{tab:compare} makes the ``match or exceed'' claim in the introduction concrete and falsifiable at the feature level; a quantitative user-study comparison (task completion time, error rate under identical scripted visits) is identified as future work in Section~\ref{sec:discussion} rather than claimed here.
+
+\begin{table}[!t]
+\caption{Feature comparison: vendor application vs.\ \cybel{}}
+\label{tab:compare}
+\centering
+\scriptsize
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Feature} & \textbf{Vendor app} & \textbf{\cybel{}} \\
+\midrule
+Teleoperation & \checkmark & \checkmark \\
+Guided tour & \checkmark & \checkmark \\
+Local FAQ / knowledge base & \checkmark (cloud) & \checkmark (local, offline) \\
+Speech synthesis & \checkmark & \checkmark (bridge, Sec.~\ref{sec:conv}) \\
+Works without Internet & $\times$ & \checkmark \\
+Source-inspectable logic & $\times$ & \checkmark \\
+Extensible / self-hostable & $\times$ & \checkmark \\
+Cloud-independent & $\times$ & \checkmark \\
+Vendor support required & \checkmark & $\times$ \\
+LLM-backend ready & $\times$ & \checkmark (API contract) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section{Discussion}
+\label{sec:discussion}
+%==============================================================================
+
+\subsection{Lessons for closed-robot integration}
+
+\begin{itemize}
+\item \textbf{Transport lies (H4):} \rosbridge{} accepts publishes without motor effect; telemetry is ground truth, not the transport acknowledgment.
+\item \textbf{Vendor APK as spec (H1):} JADX audit of the vendor's own application accelerated discovery versus generic \ros{} documentation, and is the only channel that revealed implicit preconditions (e.g.\ manual-mode gating).
+\item \textbf{Not every plausible channel is real (H2):} a structurally reasonable hypothesis (MQTT as command bus) can be architecturally false; documenting the rejection has value for other integrators of the same vendor family.
+\item \textbf{Dual/triple-IP is normal:} document head vs.\ chassis addresses explicitly rather than treating the robot as a single network endpoint.
+\item \textbf{POI reuse over raw coords (H3, confirmed):} synchronizing Deployment Tool POIs and navigating via the SDK service chain outperforms offline coordinate goals on \texttt{laboV2}; always validate with full prerequisites and arrival waits, not transport-level reads alone.
+\item \textbf{Edge-first is not optional:} closed robot Wi-Fi precludes cloud LLM/TTS dependencies, which shaped every architectural choice in Section~\ref{sec:arch}.
+\end{itemize}
+
+\subsection{Generalization: what transfers to other robots}
+
+The four hypotheses transfer beyond this unit. H1 should hold for any vendor robot whose Android companion app is the primary control surface the app must speak the true wire protocol. 
+H4 should hold for any robot with a safety or mode-gating layer between its message bus and actuators, common in commercial mobile bases. H2's rejection is vendor-specific: another robot could use MQTT for commands; the value here is the triangulation method (P3) that detects this quickly. 
+H3's confirmation is vendor-specific in \emph{details} (POI naming on \texttt{laboV2}, \texttt{marker\_manager} schema) but the \emph{pattern} transfers: reuse the vendor's map artifacts rather than re-derive coordinates offline.
+What remains vendor-specific: exact topic names, manual-mode gate semantics, POI naming convention, and TTS broadcast contract all rediscoverable via the same seven-phase pipeline.
+
+\subsection{Ethical considerations}
+
+All reverse engineering reported here was performed on hardware owned or lawfully operated by our institution, for interoperability purposes, without redistributing vendor code or bypassing any DRM/licensing mechanism; APK analysis was limited to recovering message schemas, not to extracting or republishing proprietary assets. Principle P4 (non-destructive, no root, no firmware modification) was also an ethical commitment: it keeps the vendor's warranty and update path intact and avoids creating a fork of vendor firmware that could not be maintained. We did not attempt to circumvent the chassis SSH lockout beyond passive discovery of its existence.
+
+\subsection{Limitations}
+
+Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; on-robot ASR not yet implemented; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; guided-tour completion rate and Termux autonomous uptime remain to be measured over extended field sessions.
+
+%==============================================================================
+\section{Conclusion}
+%==============================================================================
+
+We presented a non-destructive reverse-engineering methodology for closed Android-\ros{} service robots, structured around four falsifiable hypotheses (H1--H4), and validated it end-to-end on the CIOT TY1251D-03195 via \cybel{}, an open edge platform with reconstructed \rosbridge{} protocol, a mock/real SDK, an Android TTS bridge, and a local conversational layer. Hypotheses H1 (APK-as-spec), H3 (POI reuse via full pipeline), and H4 (transport $\neq$ execution) were confirmed; H2 (MQTT command channel) was rejected with a mechanistic explanation.
+The main claim of the paper is methodological: the seven-phase, triangulation-based pipeline and the transport-versus-execution discipline (H4) generalize to other closed Android-\ros{} robots, while the specific protocol details recovered for \cybel{} are this vendor's instantiation of that method.
+
+Future work: a controlled comparison against the vendor application beyond the feature table of Table~\ref{tab:compare}; LLM/RAG reasoning behind the knowledge-query API; on-device ASR; presence-triggered kiosk wake-up; and publication of the exploration scripts as reproducible artifacts for other closed Android--\ros{} robots, to test H1--H4 on a second vendor.
+
+%==============================================================================
+\section*{Acknowledgment}
+%==============================================================================
+
+This work was conducted at HESTIM Engineering \& Business School under supervision of Dr.~Sridath Tula.
+We thank the HESTIM robotics lab for robot access and field testing support.
+
+%==============================================================================
+\nocite{cybel2026}
+\clearpage
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

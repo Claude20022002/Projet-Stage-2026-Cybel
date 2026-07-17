@@ -2,24 +2,24 @@
   {
     "id": "welcome_guest",
     "label": "Accueillir un visiteur",
-    "description": "Annonce de bienvenue puis déplacement vers la station d'accueil",
+    "description": "Annonce de bienvenue puis déplacement vers l'entrée du laboratoire",
     "icon": "hand-wave",
     "category": "accueil",
     "speech": "Bienvenue ! Je suis CYBEL, votre robot d'accueil. Suivez-moi.",
-    "target_point": "Station LG-10",
+    "target_point": "PORTE-LABO",
     "label_en": "Welcome a visitor",
-    "description_en": "Welcome announcement, then move to the reception station",
+    "description_en": "Welcome announcement, then move to the laboratory entrance",
     "speech_en": "Welcome! I am CYBEL, your reception robot. Follow me."
   },
   {
     "id": "go_reception",
     "label": "Aller à l'accueil",
-    "description": "Navigation autonome vers la station LG-10",
+    "description": "Navigation autonome vers l'entrée du laboratoire",
     "icon": "map-pin",
     "category": "navigation",
-    "target_point": "Station LG-10",
+    "target_point": "PORTE-LABO",
     "label_en": "Go to reception",
-    "description_en": "Autonomous navigation to station LG-10"
+    "description_en": "Autonomous navigation to the laboratory entrance"
   },
   {
     "id": "go_meeting_room",
@@ -28,7 +28,7 @@
     "icon": "navigation",
     "category": "navigation",
     "speech": "Je vous accompagne. Suivez-moi s'il vous plaît.",
-    "target_point": "Poste remplissage et bouchonnage",
+    "target_point": "POSTE-REMPLISSAGE-BOUCHONNAGE",
     "label_en": "Lead to work area",
     "description_en": "Accompany the visitor to the filling station",
     "speech_en": "I will take you there. Please follow me."
@@ -36,13 +36,13 @@
   {
     "id": "wait_mode",
     "label": "Mode attente",
-    "description": "Se placer à la station LG-09 et rester disponible",
+    "description": "Se placer à l'entrée du laboratoire et rester disponible",
     "icon": "clock",
     "category": "accueil",
     "speech": "Je reste à votre disposition.",
-    "target_point": "Station LG-09",
+    "target_point": "PORTE-LABO",
     "label_en": "Standby mode",
-    "description_en": "Move to station LG-09 and stay available",
+    "description_en": "Move to the laboratory entrance and stay available",
     "speech_en": "I remain available for you."
   },
   {

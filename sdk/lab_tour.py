@@ -5,11 +5,11 @@ import asyncio
 import json
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Awaitable, Callable, Literal, Any
 
-TourPhase = Literal["", "intro", "navigating", "presenting", "dwell", "outro"]
+TourPhase = Literal["", "intro", "navigating", "presenting", "dwell", "outro", "returning"]
 TourStateName = Literal["idle", "running", "completed", "stopped", "error"]
 
 
@@ -33,6 +33,10 @@ class TourStop:
     def has_coordinates(self) -> bool:
         return self.x is not None and self.y is not None
 
+    def prefers_poi_navigation(self) -> bool:
+        """POI nommé (Sentrymove) prioritaire sur coordonnées brutes."""
+        return bool(self.target_point)
+
 
 @dataclass
 class LabTour:
@@ -46,6 +50,7 @@ class LabTour:
     outro_speech_fr: str
     outro_speech_en: str
     stops: list[TourStop]
+    return_point: str | None = None
 
 
 @dataclass
@@ -181,7 +186,25 @@ def load_lab_tour(path: Path | None = None) -> LabTour:
         outro_speech_fr=str(raw.get("outro_speech_fr", "")),
         outro_speech_en=str(raw.get("outro_speech_en", "")),
         stops=stops,
+        return_point=raw.get("return_point") or None,
     )
+
+
+def filter_tour_by_poi(tour: LabTour, available_names: set[str]) -> LabTour:
+    """Ne conserve que les arrêts dont le POI existe sur la carte courante (hors obsolètes / charge)."""
+    from sdk.poi_names import OBSOLETE_POI_NAMES, is_charge_poi_name
+
+    kept: list[TourStop] = []
+    for stop in tour.stops:
+        if stop.target_point:
+            if stop.target_point in OBSOLETE_POI_NAMES:
+                continue
+            if is_charge_poi_name(stop.target_point):
+                continue
+            if available_names and stop.target_point not in available_names:
+                continue
+        kept.append(stop)
+    return replace(tour, stops=kept)
 
 
 def tour_public_payload(tour: LabTour) -> dict:
@@ -367,6 +390,28 @@ class TourEngine:
                 if self._tracer:
                     self._tracer.phase("outro", message="Fin de visite")
                 await self._speak(outro)
+
+            if self.tour.return_point and not self._cancel:
+                self._status.phase = "returning"
+                self._status.message = f"Retour à {self.tour.return_point}"
+                if self._tracer:
+                    self._tracer.phase(
+                        "returning", message=f"Retour {self.tour.return_point}"
+                    )
+                _return_stop = TourStop(
+                    id="return_charge",
+                    name_fr="Retour base de recharge",
+                    name_en="Return to charging station",
+                    equipment_fr=self.tour.return_point,
+                    equipment_en=self.tour.return_point,
+                    speech_fr="",
+                    speech_en="",
+                    target_point=self.tour.return_point,
+                )
+                try:
+                    await self._navigate(_return_stop, len(self.tour.stops))
+                except Exception:
+                    pass
 
             self._status.state = "completed"
             self._status.phase = ""

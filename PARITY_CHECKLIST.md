@@ -20,7 +20,8 @@
 - [x] Démarrage auto backend (app Accueil v1.3)
 - [x] Scénarios prédéfinis complets (accueil, salle, attente visiteur)
 - [x] Retour à la base (kiosque)
-- [ ] Reconnaissance faciale
+- [ ] Reconnaissance faciale (backend `/api/visitors/*` + app `CybelFaceBridge` : matching testé, et caméra/détection de visage validées sur le châssis CIOT réel le 2026-07-14 ; seule l'identification avec un vrai modèle `.tflite` reste à faire — voir [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md))
+- [x] Détection de présence ROS → accueil kiosque (branche `feature/face-presence`, phase 1)
 - [ ] Météo / média
 
 ## Opérateur & robot
@@ -28,6 +29,8 @@
 - [x] Dashboard opérateur
 - [x] Navigation POI / coordonnées
 - [x] Destinations kiosque (`kiosk_visible`)
+- [x] Sync POI auto au démarrage kiosque / visite (ROS → `points.json`, élagage carte + liste noire obsolètes)
+- [x] Exclusion point de charge (`POINT-RECHARGE`) de la visite et destinations visiteur
 - [x] Synthèse vocale
 - [ ] Gestion visiteurs (enregistrement)
 - [ ] Historique missions (UI)
@@ -41,3 +44,7 @@
 - [docs/README.md](docs/README.md) — index documentation
 - [docs/STRUCTURE.md](docs/STRUCTURE.md) — architecture doc
 - [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) — procédure labo
+- [x] UI_AUDIT.md
+- [x] FEATURES_STATUS.md
+- [x] MIGRATION_PLAN.md
+- [x] Documentation POI laboV2 (`docs/labo/POI_LABOV2.md`)
