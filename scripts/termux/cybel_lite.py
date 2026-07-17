@@ -488,6 +488,14 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
 
     snap = await fetch_robot_snapshot()
     nav_status = int(snap.get("nav_status") or 0)
+    # Court-circuit : déjà prêt et déjà en mode auto, rien à récupérer —
+    # l'appel précédent annulait/changeait de mode sans condition, ajoutant
+    # annulation + changement de mode + 0,5 s à *chaque* déplacement, y
+    # compris quand le robot n'en avait pas besoin (voir ensure_auto_navigation,
+    # appelée juste après dans le même flux de navigation — même tax payée
+    # deux fois de suite).
+    if nav_status in (601, 603) and snap.get("nav_mode") == "auto_navi":
+        return snap
     if (
         nav_status == _tour_navigation.CHARGING_NAV_STATUS
         and not _tour_navigation.parse_charger_flag(snap.get("charger"))
