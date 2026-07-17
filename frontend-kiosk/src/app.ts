@@ -62,6 +62,7 @@ let sawNavigating = false;
 let lastInteractionAt = Date.now();
 let detectedPeople: DetectedPerson[] = [];
 let lastPresenceWelcomeAt = 0;
+let lastVisitorGreetAt = 0;
 let identifiedVisitor: { visitor: VisitorPublic; at: number } | null = null;
 const VISITOR_GREETING_TTL_MS = 120_000;
 let voiceState: VoiceState = "idle";
@@ -162,6 +163,30 @@ function personalizedGreeting(): string | null {
   return `Bonjour ${civility ? civility + " " : ""}${name} !`;
 }
 
+/** Salue directement un visiteur identifié par reconnaissance faciale (caméra
+ * tablette), indépendamment de la détection de présence châssis (caméra robot,
+ * Phase 1) — les deux sont des systèmes séparés ; attendre la seconde revient
+ * à ne jamais saluer un visiteur détecté uniquement par la première. */
+function greetIdentifiedVisitor(): void {
+  if (!config?.face_recognition_enabled) return;
+  if (busy || activeFlow) return;
+  if (screen !== "standby" && screen !== "welcome") return;
+  const cooldownMs = (config.presence_cooldown_seconds ?? 90) * 1000;
+  const now = Date.now();
+  if (now - lastVisitorGreetAt < cooldownMs) return;
+  const greeting = personalizedGreeting();
+  if (!greeting) return;
+  lastVisitorGreetAt = now;
+  if (screen === "standby") {
+    screen = "welcome";
+  }
+  if (config.presence_speak_welcome !== false) {
+    void api.say(greeting).catch(() => undefined);
+  }
+  showToast(greeting);
+  render();
+}
+
 function handlePresenceWelcome(): void {
   if (!config?.presence_welcome_enabled) return;
   if (busy || activeFlow) return;
@@ -219,6 +244,7 @@ function startTelemetry(): void {
     },
     onVisitorIdentified: (visitor) => {
       identifiedVisitor = { visitor, at: Date.now() };
+      greetIdentifiedVisitor();
     },
     onVoice: (event) => {
       // Diffusion serveur : utile si un autre client (ex. opérateur) parle au robot.
