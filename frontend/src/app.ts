@@ -96,7 +96,9 @@ function renderApp(): void {
               state.patrolStatus,
               state.patrolEditingStopId
             )
-          : renderDashboardContent();
+          : state.page === "visitors"
+            ? renderVisitorsPage(state.visitors, state.faceStatus, state.faceStatusAt, state.visitorsWsConnected)
+            : renderDashboardContent();
 
   app.innerHTML = renderLayout(state.page, content, {
     tourActive: state.tourStatus?.state === "running",
@@ -116,6 +118,8 @@ function renderApp(): void {
     bindTourEvents();
   } else if (state.page === "patrol") {
     bindPatrolEvents();
+  } else if (state.page === "visitors") {
+    bindVisitorsEvents(() => void refreshVisitorsData());
   } else {
     bindSettingsEvents(
       () => api.getSettings().then(setSettings).catch(() => {}),
@@ -129,11 +133,60 @@ function bindLayoutEvents(): void {
     el.addEventListener("click", () => {
       const page = (el as HTMLElement).dataset.page as AppPage;
       if (page && page !== state.page) {
+        if (state.page === "visitors") disconnectFaceStatusWs();
         setPage(page);
         if (page === "settings") void refreshSettingsData(true);
+        if (page === "visitors") {
+          void refreshVisitorsData();
+          connectFaceStatusWs();
+        }
       }
     });
   });
+}
+
+async function refreshVisitorsData(): Promise<void> {
+  try {
+    setVisitors(await api.getVisitors());
+  } catch {
+    // silencieux — la page affichera simplement la dernière liste connue
+  }
+}
+
+/** Connexion WS directe au backend embarqué du kiosque (tablette) — distincte
+ * de connectTelemetry() qui parle au backend PC. face_status n'existe que
+ * sur cybel_lite.py, seul à voir la caméra tablette (CybelFaceBridge). */
+function connectFaceStatusWs(): void {
+  if (faceStatusSocket) return;
+  api
+    .getKioskStatusUrl()
+    .then(({ ws_url }) => {
+      if (!ws_url || state.page !== "visitors") return;
+      const socket = new WebSocket(ws_url);
+      faceStatusSocket = socket;
+      socket.onopen = () => setVisitorsWsConnected(true);
+      socket.onclose = () => {
+        setVisitorsWsConnected(false);
+        if (faceStatusSocket === socket) faceStatusSocket = null;
+      };
+      socket.onerror = () => socket.close();
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.type === "face_status") setFaceStatus(data);
+        } catch {
+          // ignore les messages non-JSON/hors-format
+        }
+      };
+    })
+    .catch(() => setVisitorsWsConnected(false));
+}
+
+function disconnectFaceStatusWs(): void {
+  faceStatusSocket?.close();
+  faceStatusSocket = null;
+  setVisitorsWsConnected(false);
+  setFaceStatus(null);
 }
 
 async function refreshSettingsData(rerender = false): Promise<void> {
