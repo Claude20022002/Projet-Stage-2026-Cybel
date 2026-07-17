@@ -21,7 +21,7 @@ function formatDate(iso: string | null): string {
   }
 }
 
-function renderFaceStatus(status: FaceStatusEvent | null, at: number | null, wsConnected: boolean): string {
+export function renderFaceStatus(status: FaceStatusEvent | null, at: number | null, wsConnected: boolean): string {
   if (!wsConnected) {
     return `<p class="settings-hint">${icons.wifiOff("icon", 14)} Non connecté au kiosque — vérifiez <code>kiosk_backend_url</code> dans la config backend.</p>`;
   }
@@ -86,7 +86,7 @@ export function renderVisitorsPage(
 
       <section class="settings-card" id="visitors-live-status">
         <h2>${icons.crosshair("icon", 18)} Détection en direct</h2>
-        ${renderFaceStatus(faceStatus, faceStatusAt, wsConnected)}
+        <div id="visitors-live-status-body">${renderFaceStatus(faceStatus, faceStatusAt, wsConnected)}</div>
         <p class="settings-hint">Utile pour vérifier que le robot voit bien la personne, et qu'il la distingue correctement des autres visiteurs enrôlés.</p>
       </section>
 

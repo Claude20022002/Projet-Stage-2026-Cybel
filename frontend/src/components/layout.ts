@@ -41,6 +41,14 @@ export function renderLayout(
             <span>Patrouille</span>
           </button>
           <button
+            class="sidebar__link ${activePage === "visitors" ? "sidebar__link--active" : ""}"
+            data-page="visitors"
+            type="button"
+          >
+            ${icons.users("icon", 18)}
+            <span>Visiteurs</span>
+          </button>
+          <button
             class="sidebar__link ${activePage === "settings" ? "sidebar__link--active" : ""}"
             data-page="settings"
             type="button"

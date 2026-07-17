@@ -12,7 +12,7 @@ import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
 import { renderPatrolPage } from "./pages/patrol";
 import { renderTourPage } from "./pages/tour";
-import { bindVisitorsEvents, renderVisitorsPage } from "./pages/visitors";
+import { bindVisitorsEvents, renderFaceStatus, renderVisitorsPage } from "./pages/visitors";
 import { connectTelemetry } from "./telemetry";
 import {
   state,
@@ -173,7 +173,14 @@ function connectFaceStatusWs(): void {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data?.type === "face_status") setFaceStatus(data);
+          if (data?.type !== "face_status") return;
+          // Écrit l'état sans passer par notify() : ces messages arrivent
+          // ~1/s dès qu'un visage est visible, un re-render complet de la
+          // page effacerait la saisie en cours dans le champ nom.
+          state.faceStatus = data;
+          state.faceStatusAt = Date.now();
+          const body = document.getElementById("visitors-live-status-body");
+          if (body) body.innerHTML = renderFaceStatus(state.faceStatus, state.faceStatusAt, true);
         } catch {
           // ignore les messages non-JSON/hors-format
         }
