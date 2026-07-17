@@ -131,6 +131,9 @@ LOCALIZATION_MIN_PERCENT = float(
 TTS_RECEIVER = "com.cybel.ttsbridge/.SpeakReceiver"
 TTS_ACTION = "com.cybel.ttsbridge.SPEAK"
 
+FACE_ENROLL_RECEIVER = "com.cybel.facebridge/.EnrollReceiver"
+FACE_ENROLL_ACTION = "com.cybel.facebridge.ENROLL"
+
 NAV_STATUS_LABELS = {
     600: "En initialisation",
     601: "Prêt",
@@ -259,6 +262,31 @@ def speak_local(text: str) -> bool:
     escaped = text.replace("'", "'\\''")
     broadcast = (
         f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} --es text '{escaped}'"
+    )
+    for cmd in (broadcast, f"su -c '{broadcast}'"):
+        try:
+            result = subprocess.run(
+                ["sh", "-c", cmd],
+                capture_output=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return False
+
+
+def trigger_face_enrollment(name: str, civility: str) -> bool:
+    """Ouvre la fenêtre d'enrôlement CybelFaceBridge (15s) — équivalent
+    programmatique de scripts/termux/enroll_visitor.sh. Permet un déclenchement
+    distant (interface opérateur PC, via le backend PC qui relaie ici) plutôt
+    qu'un accès direct ADB/Termux à la tablette."""
+    escaped_name = name.replace("'", "'\\''")
+    escaped_civility = civility.replace("'", "'\\''")
+    broadcast = (
+        f"am broadcast -n {FACE_ENROLL_RECEIVER} -a {FACE_ENROLL_ACTION} "
+        f"--es name '{escaped_name}' --es civility '{escaped_civility}'"
     )
     for cmd in (broadcast, f"su -c '{broadcast}'"):
         try:
@@ -2017,6 +2045,13 @@ async def visitors_identify(request: Request) -> JSONResponse:
     )
     visitor_id, score = visitor_utils.find_best_match(embedding, candidates, threshold)
     if visitor_id is None:
+        # Diffusé même sans correspondance : permet à l'interface opérateur de
+        # confirmer en direct que la caméra voit bien un visage (« detected »),
+        # utile pour calibrer le seuil ou vérifier la distinction entre plusieurs
+        # visiteurs enrôlés, sans jamais transmettre d'image.
+        await _broadcast_to_telemetry(
+            {"type": "face_status", "detected": True, "matched": False, "confidence": score}
+        )
         return JSONResponse({"ok": False, "confidence": score, "message": "Visiteur inconnu"})
 
     matched = next(v for v in visitors if v.get("id") == visitor_id)
@@ -2027,7 +2062,31 @@ async def visitors_identify(request: Request) -> JSONResponse:
     _current_identified_visitor = public
     _current_identified_at = time.time()
     await _broadcast_to_telemetry({"type": "visitor", "visitor": public, "confidence": score})
+    await _broadcast_to_telemetry(
+        {"type": "face_status", "detected": True, "matched": True, "confidence": score, "visitor": public}
+    )
     return JSONResponse({"ok": True, "visitor": public, "confidence": score})
+
+
+async def visitors_enroll_trigger(request: Request) -> JSONResponse:
+    """Déclenche à distance l'ouverture de la fenêtre d'enrôlement facial (15s) —
+    permet à l'interface opérateur (frontend/, PC) de lancer un enrôlement sans
+    accès direct (ADB/Termux) à la tablette. Le backend PC relaie ici via
+    settings.kiosk_backend_url ; voir backend/services/visitor_service.py."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    name = str(body.get("name", "")).strip()
+    if not name:
+        return JSONResponse({"ok": False, "error": "Nom requis"}, status_code=400)
+    civility = str(body.get("civility", ""))
+    if not trigger_face_enrollment(name, civility):
+        return JSONResponse(
+            {"ok": False, "error": "Déclenchement impossible (CybelFaceBridge indisponible ?)"},
+            status_code=503,
+        )
+    return JSONResponse({"ok": True, "name": name, "window_seconds": 15})
 
 
 async def visitors_enroll(request: Request) -> JSONResponse:
@@ -2214,6 +2273,7 @@ def build_app() -> Starlette:
         Route("/api/visitors/current", visitors_current, methods=["GET"]),
         Route("/api/visitors/identify", visitors_identify, methods=["POST"]),
         Route("/api/visitors/enroll", visitors_enroll, methods=["POST"]),
+        Route("/api/visitors/enroll-trigger", visitors_enroll_trigger, methods=["POST"]),
         Route("/api/visitors/{visitor_id}", visitors_delete, methods=["DELETE"]),
         Route("/api/robot/relocalize", robot_relocalize, methods=["POST"]),
         Route("/api/navigation/cancel", navigation_cancel, methods=["POST"]),

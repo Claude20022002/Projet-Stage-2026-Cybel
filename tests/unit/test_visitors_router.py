@@ -101,3 +101,59 @@ def test_delete_existing_visitor() -> None:
     assert response.status_code == 200
     assert response.json()["ok"] is True
     assert client.get("/api/visitors").json() == []
+
+
+def test_enroll_trigger_requires_name() -> None:
+    response = client.post("/api/visitors/enroll-trigger", json={"name": ""})
+    assert response.status_code == 400
+
+
+def test_enroll_trigger_relays_to_kiosk(monkeypatch) -> None:
+    async def fake_trigger(name: str, civility: str) -> dict:
+        assert name == "Bob"
+        assert civility == "M."
+        return {"ok": True, "name": name, "window_seconds": 15}
+
+    monkeypatch.setattr(
+        visitor_service_module.visitor_service, "trigger_remote_enrollment", fake_trigger
+    )
+    response = client.post(
+        "/api/visitors/enroll-trigger", json={"name": "Bob", "civility": "M."}
+    )
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+def test_enroll_trigger_no_kiosk_configured_returns_503(monkeypatch) -> None:
+    async def fake_trigger(name: str, civility: str) -> dict:
+        raise RuntimeError("kiosk_backend_url non configuré")
+
+    monkeypatch.setattr(
+        visitor_service_module.visitor_service, "trigger_remote_enrollment", fake_trigger
+    )
+    response = client.post("/api/visitors/enroll-trigger", json={"name": "Bob"})
+    assert response.status_code == 503
+
+
+def test_kiosk_telemetry_ws_url_derives_from_http_setting(monkeypatch) -> None:
+    from config import settings
+
+    monkeypatch.setattr(settings, "kiosk_backend_url", "http://192.168.20.22:8001")
+    assert (
+        visitor_service_module.visitor_service.kiosk_telemetry_ws_url()
+        == "ws://192.168.20.22:8001/ws/telemetry"
+    )
+
+    monkeypatch.setattr(settings, "kiosk_backend_url", "")
+    assert visitor_service_module.visitor_service.kiosk_telemetry_ws_url() is None
+
+
+def test_kiosk_status_url_reflects_config(monkeypatch) -> None:
+    monkeypatch.setattr(
+        visitor_service_module.visitor_service,
+        "kiosk_telemetry_ws_url",
+        lambda: "ws://192.168.20.22:8001/ws/telemetry",
+    )
+    response = client.get("/api/visitors/kiosk-status-url")
+    assert response.status_code == 200
+    assert response.json()["ws_url"] == "ws://192.168.20.22:8001/ws/telemetry"

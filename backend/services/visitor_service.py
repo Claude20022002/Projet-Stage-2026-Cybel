@@ -10,6 +10,9 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import httpx
+
+from config import settings
 from sdk.json_store import utc_now_iso
 from sdk.models import Visitor, VisitorIdentifyResult, VisitorPublic
 from sdk.visitor_utils import find_best_match, validate_embedding
@@ -84,6 +87,32 @@ class VisitorService:
         if removed and self._current and self._current["visitor"].id == visitor_id:
             self._current = None
         return removed
+
+    async def trigger_remote_enrollment(self, name: str, civility: str) -> dict:
+        """Relaie le déclenchement d'enrôlement vers le backend embarqué du
+        kiosque (cybel_lite.py, tablette) — seul capable d'atteindre
+        CybelFaceBridge en local (`am broadcast`). Même mécanisme relais que
+        tour_service._halt_remote_kiosk (settings.kiosk_backend_url)."""
+        base = settings.kiosk_backend_url.strip().rstrip("/")
+        if not base:
+            raise RuntimeError("kiosk_backend_url non configuré")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{base}/api/visitors/enroll-trigger",
+                json={"name": name, "civility": civility},
+            )
+        response.raise_for_status()
+        return response.json()
+
+    def kiosk_telemetry_ws_url(self) -> str | None:
+        """URL WebSocket du backend embarqué (télémétrie live, incl.
+        face_status) — dérivée de kiosk_backend_url pour éviter de faire
+        deviner/coder en dur l'adresse du robot côté frontend."""
+        base = settings.kiosk_backend_url.strip().rstrip("/")
+        if not base:
+            return None
+        ws_base = base.replace("http://", "ws://").replace("https://", "wss://")
+        return f"{ws_base}/ws/telemetry"
 
 
 visitor_service = VisitorService()

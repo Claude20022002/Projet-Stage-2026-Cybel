@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import httpx
 from fastapi import APIRouter, HTTPException
 
 from sdk.models import VisitorEnrollRequest, VisitorIdentifyRequest, VisitorIdentifyResult, VisitorPublic
@@ -54,3 +55,25 @@ async def delete_visitor(visitor_id: str) -> dict:
     if not removed:
         raise HTTPException(status_code=404, detail=f"Visiteur '{visitor_id}' introuvable")
     return {"ok": True}
+
+
+@router.post("/enroll-trigger")
+async def enroll_trigger(body: dict) -> dict:
+    """Déclenche à distance l'enrôlement facial (interface opérateur) — relaie
+    vers le backend embarqué du kiosque, seul à pouvoir atteindre
+    CybelFaceBridge en local sur la tablette."""
+    name = str(body.get("name", "")).strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nom requis")
+    civility = str(body.get("civility", ""))
+    try:
+        return await visitor_service.trigger_remote_enrollment(name, civility)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Kiosque injoignable : {exc}") from exc
+
+
+@router.get("/kiosk-status-url")
+async def kiosk_status_url() -> dict:
+    return {"ws_url": visitor_service.kiosk_telemetry_ws_url()}
