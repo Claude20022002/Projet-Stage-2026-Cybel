@@ -391,13 +391,36 @@ public class MainActivity extends Activity {
             return voiceRecognizer != null && voiceRecognizer.isReady()
                     && hasRecordAudioPermission();
         }
+
+        /**
+         * Appelé par le JS une fois la réponse (TTS) terminée de parler — le
+         * JS connaît la durée estimée du texte prononcé, le natif non. Relance
+         * l'écoute du mot d'éveil ; sans effet si déjà active.
+         */
+        @JavascriptInterface
+        public void resumeWakeListening() {
+            startWakeLoop();
+        }
     }
 
     /**
      * Capture une commande (déclenchée par le bouton micro ou par le mot
-     * d'éveil) puis relance la boucle d'éveil une fois le résultat livré, pour
-     * que « Hé Cybel » reste actif entre deux commandes.
+     * d'éveil). Ne relance PAS la boucle d'éveil immédiatement : le transcript
+     * est livré dès que le STT reconnaît la phrase, mais la réponse (TTS,
+     * potentiellement longue — une réponse FAQ par ex.) ne commence à être
+     * prononcée qu'ensuite, côté JS, une fois l'appel /api/voice terminé.
+     * Rouvrir le micro tout de suite ferait capter la propre voix du robot
+     * (pas d'annulation d'écho) — constaté sur le robot réel : affichage
+     * d'une réponse FAQ correcte immédiatement suivi de « non compris »,
+     * parce que le mot d'éveil s'était réarmé et avait capté la fin de la
+     * réponse encore en train d'être lue. Le JS rappelle explicitement
+     * CybelVoiceBridge.resumeWakeListening() une fois la parole terminée
+     * (estimation basée sur la longueur du texte) ; un filet de sécurité
+     * relance quand même l'écoute après un délai fixe si le JS ne le fait
+     * jamais (erreur, page rechargée…).
      */
+    private static final long WAKE_RESUME_FALLBACK_MS = 6000;
+
     private void startCommandListening() {
         if (voiceRecognizer == null || !hasRecordAudioPermission()) {
             deliverVoiceResult("", false);
@@ -407,10 +430,18 @@ public class MainActivity extends Activity {
             @Override
             public void onResult(String transcript, boolean ok) {
                 deliverVoiceResult(transcript, ok);
-                startWakeLoop();
+                retryHandler.removeCallbacks(wakeResumeFallback);
+                retryHandler.postDelayed(wakeResumeFallback, WAKE_RESUME_FALLBACK_MS);
             }
         });
     }
+
+    private final Runnable wakeResumeFallback = new Runnable() {
+        @Override
+        public void run() {
+            startWakeLoop();
+        }
+    };
 
     /** Démarre (ou relance) l'écoute d'arrière-plan du mot d'éveil « Hé Cybel ». */
     private void startWakeLoop() {

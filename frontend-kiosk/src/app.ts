@@ -31,6 +31,7 @@ import type {
 interface CybelVoiceBridge {
   startListening: (lang: string) => void;
   isAvailable?: () => boolean;
+  resumeWakeListening?: () => void;
 }
 declare global {
   interface Window {
@@ -214,7 +215,26 @@ function matchesAny(text: string, words: string[]): boolean {
 function estimateSpeechDurationMs(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   const speakMs = (words / 2.5) * 1000;
-  return Math.max(1200, Math.min(8000, speakMs + 600));
+  // Plafond large (20 s) : sert aussi à estimer la durée d'une réponse FAQ
+  // potentiellement longue (plusieurs phrases), pas seulement les questions
+  // courtes du mini-dialogue de visite.
+  return Math.max(1200, Math.min(20000, speakMs + 600));
+}
+
+/** Relance l'écoute du mot d'éveil une fois qu'un texte a fini d'être
+ * prononcé (estimation) — rouvrir le micro trop tôt lui fait capter la
+ * propre voix du robot (pas d'annulation d'écho sur ce matériel), ce qui
+ * peut écraser une réponse correcte par un « non compris » alors que la
+ * réponse est encore en train d'être lue à voix haute. */
+function scheduleWakeResume(spokenText: string): void {
+  const delay = estimateSpeechDurationMs(spokenText);
+  window.setTimeout(() => {
+    try {
+      window.CybelVoice?.resumeWakeListening?.();
+    } catch {
+      // le filet de sécurité natif (MainActivity) relancera de toute façon
+    }
+  }, delay);
 }
 
 /** Prononce une question puis relance automatiquement l'écoute du micro pour
@@ -281,10 +301,12 @@ async function routeVoiceText(text: string): Promise<void> {
       status = await api.getTourStatus().catch(() => status);
     }
     render();
+    scheduleWakeResume(voiceReply);
   } catch (err) {
     voiceReply = err instanceof Error ? err.message : tr().voiceError;
     voiceState = "answer";
     render();
+    scheduleWakeResume(voiceReply);
   }
 }
 
@@ -307,6 +329,7 @@ async function handlePendingAnswer(text: string): Promise<void> {
       voiceState = "idle";
       if (config?.presence_speak_welcome !== false) void api.say(ack).catch(() => undefined);
       render();
+      scheduleWakeResume(ack);
       return;
     }
     // Ni oui ni non reconnu : peut-être une autre demande directe, on la
