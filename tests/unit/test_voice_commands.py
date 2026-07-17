@@ -33,6 +33,12 @@ def test_match_voice_command_unknown() -> None:
     assert match_voice_command("quelle heure est-il") is None
 
 
+def test_match_voice_command_greeting() -> None:
+    assert match_voice_command("bonjour") == "greeting"
+    assert match_voice_command("salut") == "greeting"
+    assert match_voice_command("coucou") == "greeting"
+
+
 def test_match_point_navigation_basic() -> None:
     points = ["PORTE-LABO", "CNC ROUTEUR", "ACCUEIL"]
     assert match_point_navigation("va à la porte labo", points) == "PORTE-LABO"
@@ -68,7 +74,7 @@ def test_voice_command_map_targets_are_known_actions() -> None:
     # Toutes les cibles doivent correspondre à des ids d'action réels
     known = {
         "welcome_guest", "go_reception", "go_meeting_room", "wait_mode",
-        "return_charge", "guided_tour", "inform_waiting", "stop_all",
+        "return_charge", "guided_tour", "inform_waiting", "stop_all", "greeting",
     }
     assert set(VOICE_COMMAND_MAP.values()) <= known
 

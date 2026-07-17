@@ -93,6 +93,17 @@ DEFAULT_ACTIONS: list[ReceptionAction] = [
         speech_en="Your contact will arrive shortly. Thank you for waiting.",
     ),
     ReceptionAction(
+        id="greeting",
+        label="Répondre à une salutation",
+        description="Réponse conversationnelle quand un visiteur salue le robot après le mot d'éveil",
+        icon="hand-wave",
+        category="accueil",
+        speech="Bonjour ! Je suis CYBEL. Que puis-je faire pour vous ?",
+        label_en="Reply to a greeting",
+        description_en="Conversational reply when a visitor greets the robot after the wake word",
+        speech_en="Hello! I am CYBEL. How can I help you?",
+    ),
+    ReceptionAction(
         id="stop_all",
         label="Arrêter l'action",
         description="Interrompre navigation et annonces en cours",
