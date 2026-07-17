@@ -429,6 +429,14 @@ def _ghost_nav(snap: dict) -> bool:
 async def ensure_auto_navigation() -> bool:
     """Annule la nav en cours, passe en mode auto et attend nav_status prêt (601/603)."""
     snap = await fetch_robot_snapshot(timeout=4.0)
+    nav_status_now = int(snap.get("nav_status") or 0)
+    # Court-circuit : robot déjà prêt et déjà en mode auto — annuler une nav
+    # inexistante et re-demander le mode auto ne fait qu'ajouter deux
+    # aller-retours ROS (et leur latence réseau) à chaque déplacement pour
+    # rien. Sans danger : nav_mode reflète control_state (téléop/joystick),
+    # pas seulement le champ brut nav_mode qui peut être en retard.
+    if nav_status_now in (601, 603) and snap.get("nav_mode") == "auto_navi":
+        return True
     try:
         await cancel_navigation_full(
             point_name=str(snap.get("navigating_to") or "") or None
@@ -866,6 +874,15 @@ def _merge_robot_state(
     loc_msg: dict | None = None,
 ) -> dict:
     localization = _tour_navigation.parse_localization_percent(status_msg, loc_msg)
+    # control_state != 30 signale une prise de contrôle manuelle (joystick/téléop)
+    # même quand le champ nav_mode brut n'a pas encore été remis à jour côté
+    # châssis — même logique que sdk/real_robot.py._handle_status, nécessaire
+    # pour pouvoir se fier à nav_mode et court-circuiter ensure_auto_navigation()
+    # sans risquer de rater un passage en manuel.
+    control_state = int(status_msg.get("control_state") or 30)
+    nav_mode = str(status_msg.get("nav_mode") or "auto_navi")
+    if control_state != 30:
+        nav_mode = "manual"
     state = {
         "x": pose_msg.get("x"),
         "y": pose_msg.get("y"),
@@ -881,11 +898,11 @@ def _merge_robot_state(
         "battery": int(status_msg.get("battery") or 0),
         "charger": _tour_navigation.parse_charger_flag(status_msg.get("charger")),
         "connected": bool(pose_msg or status_msg),
-        "nav_mode_label": "Automatique",
+        "nav_mode_label": "Manuel" if nav_mode == "manual" else "Automatique",
         "navigating_to": status_msg.get("navigating_to"),
         "soft_estop": bool(status_msg.get("soft_estop")),
         "hard_estop": bool(status_msg.get("hard_estop")),
-        "nav_mode": str(status_msg.get("nav_mode") or "auto_navi"),
+        "nav_mode": nav_mode,
     }
     state["nav_status_label"] = NAV_STATUS_LABELS.get(state["nav_status"], "?")
     if state["x"] is not None:
