@@ -52,6 +52,18 @@ def test_match_point_navigation_unknown_point() -> None:
     assert match_point_navigation("va à la cafétéria", ["PORTE-LABO"]) is None
 
 
+def test_match_point_navigation_fallback_truncated_stt() -> None:
+    # Le STT contraint par grammaire tronque souvent le verbe et la préposition
+    # (« va jusqu'à Stendhal » -> « jusqu stendhal ») : le mot « jusqu » seul
+    # devant un point reconnu doit suffire à déclencher la navigation.
+    assert match_point_navigation("jusqu stendhal", ["ENTREE-STENDHAL"]) == "ENTREE-STENDHAL"
+
+
+def test_match_point_navigation_fallback_does_not_match_unknown_word() -> None:
+    # "jusqu est" (destination perdue par le STT) ne doit matcher aucun point.
+    assert match_point_navigation("jusqu est", ["ENTREE-STENDHAL", "PORTE-LABO"]) is None
+
+
 def test_voice_command_map_targets_are_known_actions() -> None:
     # Toutes les cibles doivent correspondre à des ids d'action réels
     known = {

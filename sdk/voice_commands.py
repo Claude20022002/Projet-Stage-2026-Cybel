@@ -75,12 +75,20 @@ _NAV_PATTERN = re.compile(
     r"(?:jusqu\s+)?(?:au|aux|a|vers|en|dans)\s+(.+)$"
 )
 
+# Filet de secours : un STT contraint par grammaire tronque souvent le verbe
+# et/ou la préposition (« jusqu'à » élidé, mot de tête avalé) alors qu'il capte
+# correctement le nom du point (constaté sur le robot réel : « jusqu stendhal »
+# au lieu de « va jusqu'à Stendhal »). « jusqu » est un mot assez spécifique
+# (absent de VOICE_COMMAND_MAP et des questions FAQ) pour servir de signal de
+# navigation à lui seul, sans risquer de faux positifs sur du texte libre.
+_NAV_FALLBACK_PATTERN = re.compile(r"^(?:.*?\s)?jusqu\s*(?:au|aux|a|vers|en|dans)?\s+(.+)$")
+
 
 def match_point_navigation(text: str, point_names: list[str]) -> str | None:
     """Reconnaît une commande du type « va à <point> » et la fait correspondre
     à un nom de point existant (insensible aux accents/casse/articles)."""
     normalized = normalize_text(text)
-    match = _NAV_PATTERN.match(normalized)
+    match = _NAV_PATTERN.match(normalized) or _NAV_FALLBACK_PATTERN.match(normalized)
     if not match:
         return None
 
