@@ -122,6 +122,11 @@ _NAV_WORDS_FR = [
     "dans", "jusqu",
 ]
 
+# Réponses oui/non — nécessaires pour les mini-dialogues (ex. « voulez-vous
+# faire une visite ? ») : sans ces mots dans le vocabulaire fermé, le STT ne
+# peut tout simplement pas les transcrire, quelle que soit la logique NLU.
+_DIALOG_WORDS_FR = ["oui", "non", "ouais", "d'accord", "daccord"]
+
 _WORD_RE = re.compile(r"[a-zà-ÿ]+")
 
 
@@ -148,6 +153,7 @@ def build_vocabulary(
     for phrase in VOICE_COMMAND_MAP:
         words.update(_stt_tokens(phrase))
     words.update(_NAV_WORDS_FR)
+    words.update(_DIALOG_WORDS_FR)
     for name in point_names or []:
         words.update(_stt_tokens(name))
     for phrase in extra_phrases or []:

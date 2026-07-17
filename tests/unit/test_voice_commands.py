@@ -120,3 +120,10 @@ def test_build_vocabulary_empty_inputs_still_returns_base_words() -> None:
     words = build_vocabulary(point_names=[], extra_phrases=[])
     assert len(words) > 0
     assert "stop" in words
+
+
+def test_build_vocabulary_includes_yes_no_words() -> None:
+    # Nécessaire pour les mini-dialogues (ex. "voulez-vous faire une visite ?").
+    words = build_vocabulary()
+    assert "oui" in words
+    assert "non" in words

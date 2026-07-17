@@ -65,6 +65,13 @@ let lastPresenceWelcomeAt = 0;
 let lastVisitorGreetAt = 0;
 let identifiedVisitor: { visitor: VisitorPublic; at: number } | null = null;
 const VISITOR_GREETING_TTL_MS = 120_000;
+/** Micro état de dialogue : la question en attente d'une réponse oui/non ou
+ * d'un choix de visite, posée après l'accueil d'un visiteur reconnu. Éphémère
+ * (perdu au rechargement) — un nouveau visiteur n'a pas besoin d'un état persistant. */
+let pendingQuestion: "tour_offer" | "tour_type" | null = null;
+const YES_WORDS = ["oui", "ouais", "d'accord", "daccord", "yes"];
+const NO_WORDS = ["non", "no"];
+const FULL_TOUR_WORDS = ["complet", "complete", "guidee", "guidée", "tout", "entiere", "entière"];
 let voiceState: VoiceState = "idle";
 let voiceTranscript = "";
 let voiceReply = "";
@@ -180,11 +187,137 @@ function greetIdentifiedVisitor(): void {
   if (screen === "standby") {
     screen = "welcome";
   }
+  // Une seule phrase (pas deux appels api.say() séparés) pour éviter tout
+  // risque de la seconde qui coupe/écrase la première dans la queue TTS.
+  const fullMessage = `${greeting} ${tr().tourOfferQuestion}`;
   if (config.presence_speak_welcome !== false) {
-    void api.say(greeting).catch(() => undefined);
+    void api.say(fullMessage).catch(() => undefined);
   }
   showToast(greeting);
+  pendingQuestion = "tour_offer";
   render();
+}
+
+function matchesAny(text: string, words: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return words.some((w) => normalized.includes(w));
+}
+
+/** Envoie un texte au NLU backend (commande/POI/FAQ) et applique le résultat
+ * à l'écran — logique commune au flux vocal normal et au repli du dialogue
+ * de proposition de visite (ex. si la réponse ne matche ni oui ni non, on la
+ * traite comme une commande normale : elle contient peut-être déjà le nom
+ * du point ou « visite guidée »). */
+async function routeVoiceText(text: string): Promise<void> {
+  voiceTranscript = text;
+  voiceState = "processing";
+  render();
+  try {
+    const result = await api.voice(text, lang);
+    voiceReply = result.reply || tr().voiceError;
+    voiceState = "answer";
+    if (result.ok && result.kind === "navigation" && result.point) {
+      activeFlow = "destination";
+      selectedDestination = result.point;
+      sawNavigating = false;
+      screen = "dest_running";
+      robotStatus = await api.getRobotStatus().catch(() => robotStatus);
+      voiceState = "idle";
+    } else if (result.ok && result.action === "guided_tour") {
+      voiceState = "idle";
+      activeFlow = "tour";
+      screen = "running";
+      status = await api.getTourStatus().catch(() => status);
+    }
+    render();
+  } catch (err) {
+    voiceReply = err instanceof Error ? err.message : tr().voiceError;
+    voiceState = "answer";
+    render();
+  }
+}
+
+/** Interprète une réponse dans le mini-dialogue « proposition de visite »
+ * déclenché par greetIdentifiedVisitor(). */
+async function handlePendingAnswer(text: string): Promise<void> {
+  const question = pendingQuestion;
+  pendingQuestion = null;
+
+  if (question === "tour_offer") {
+    if (matchesAny(text, YES_WORDS)) {
+      const ask = tr().tourTypeQuestion;
+      voiceTranscript = text;
+      voiceReply = ask;
+      voiceState = "answer";
+      pendingQuestion = "tour_type";
+      if (config?.presence_speak_welcome !== false) void api.say(ask).catch(() => undefined);
+      render();
+      return;
+    }
+    if (matchesAny(text, NO_WORDS)) {
+      const ack = tr().tourDeclined;
+      voiceTranscript = text;
+      voiceReply = ack;
+      voiceState = "idle";
+      if (config?.presence_speak_welcome !== false) void api.say(ack).catch(() => undefined);
+      render();
+      return;
+    }
+    // Ni oui ni non reconnu : peut-être une autre demande directe, on la
+    // traite normalement plutôt que de bloquer sur une réponse incomprise.
+    await routeVoiceText(text);
+    return;
+  }
+
+  if (question === "tour_type") {
+    if (matchesAny(text, FULL_TOUR_WORDS)) {
+      await routeVoiceText("visite guidée");
+      return;
+    }
+    // Une réponse à « quel point précis ? » est un nom de destination seul,
+    // sans verbe de déplacement (« CNC routeur », pas « va au CNC routeur ») —
+    // le NLU de navigation exige un verbe/« jusqu' », donc on résout plutôt
+    // directement contre la liste des destinations connues (même mécanisme
+    // que le clic sur une tuile de destination : nom exact, pas de texte libre).
+    const resolved = await resolveDestinationByVoice(text);
+    if (resolved) {
+      await goToDestination(resolved);
+      return;
+    }
+    // Aucun point reconnu : on retente via le NLU normal (action/FAQ possibles).
+    await routeVoiceText(text);
+    return;
+  }
+}
+
+function normalizeForMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Résout un texte prononcé vers un nom de destination connu (correspondance
+ * approximative sur sous-chaîne, comme sdk/voice_commands.match_point_navigation
+ * côté backend, mais ici contre la liste réellement affichable au kiosque). */
+async function resolveDestinationByVoice(text: string): Promise<string | null> {
+  const normalizedText = normalizeForMatch(text);
+  if (!normalizedText) return null;
+  try {
+    const list = destinations.length ? destinations : await api.getDestinations();
+    for (const dest of list) {
+      const normalizedName = normalizeForMatch(dest.name);
+      if (normalizedName && (normalizedText.includes(normalizedName) || normalizedName.includes(normalizedText))) {
+        return dest.name;
+      }
+    }
+  } catch {
+    // ignore — repli sur le NLU normal dans l'appelant
+  }
+  return null;
 }
 
 function handlePresenceWelcome(): void {
@@ -582,34 +715,11 @@ async function onVoiceTranscript(transcript: string, ok: boolean): Promise<void>
     render();
     return;
   }
-  voiceTranscript = text;
-  voiceState = "processing";
-  render();
-  try {
-    const result = await api.voice(text, lang);
-    voiceReply = result.reply || tr().voiceError;
-    voiceState = "answer";
-    // Si la commande a lancé une navigation/visite, on bascule l'écran adéquat.
-    if (result.ok && result.kind === "navigation" && result.point) {
-      activeFlow = "destination";
-      selectedDestination = result.point;
-      sawNavigating = false;
-      screen = "dest_running";
-      robotStatus = await api.getRobotStatus().catch(() => robotStatus);
-      voiceState = "idle";
-    } else if (result.ok && result.action === "guided_tour") {
-      // Le backend a déjà lancé la visite ; on bascule sur l'écran de visite.
-      voiceState = "idle";
-      activeFlow = "tour";
-      screen = "running";
-      status = await api.getTourStatus().catch(() => status);
-    }
-    render();
-  } catch (err) {
-    voiceReply = err instanceof Error ? err.message : tr().voiceError;
-    voiceState = "answer";
-    render();
+  if (pendingQuestion) {
+    await handlePendingAnswer(text);
+    return;
   }
+  await routeVoiceText(text);
 }
 
 async function runReceptionAction(actionId: string): Promise<void> {

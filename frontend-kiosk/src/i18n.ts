@@ -75,6 +75,9 @@ export const t = {
     voiceError: "Je n'ai pas pu vous entendre. Réessayez.",
     voiceClose: "Fermer",
     voiceRetry: "Réessayer",
+    tourOfferQuestion: "Voulez-vous faire une visite ?",
+    tourTypeQuestion: "Souhaitez-vous visiter un point précis, ou faire la visite guidée complète ?",
+    tourDeclined: "Très bien, n'hésitez pas si vous changez d'avis !",
   },
   en: {
     title: "Laboratory tour",
@@ -151,6 +154,9 @@ export const t = {
     voiceError: "I couldn't hear you. Please try again.",
     voiceClose: "Close",
     voiceRetry: "Try again",
+    tourOfferQuestion: "Would you like to take a tour?",
+    tourTypeQuestion: "Would you like to visit a specific point, or take the full guided tour?",
+    tourDeclined: "No problem, just let me know if you change your mind!",
   },
 } as const;
 
