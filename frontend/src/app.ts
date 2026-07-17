@@ -12,6 +12,7 @@ import { toggleVoiceListening } from "./voice";
 import { bindSettingsEvents, renderSettingsPage } from "./pages/settings";
 import { renderPatrolPage } from "./pages/patrol";
 import { renderTourPage } from "./pages/tour";
+import { bindVisitorsEvents, renderVisitorsPage } from "./pages/visitors";
 import { connectTelemetry } from "./telemetry";
 import {
   state,
@@ -29,6 +30,9 @@ import {
   setTour,
   setTourEditingStopId,
   setTourStatus,
+  setVisitors,
+  setFaceStatus,
+  setVisitorsWsConnected,
   pushEvent,
 } from "./state";
 import type { AppPage, DiagnosticsSnapshot } from "./types";

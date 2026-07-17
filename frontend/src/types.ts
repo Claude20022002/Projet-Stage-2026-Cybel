@@ -247,4 +247,5 @@ export interface AppState {
   visitors: VisitorPublic[];
   faceStatus: FaceStatusEvent | null;
   faceStatusAt: number | null;
+  visitorsWsConnected: boolean;
 }

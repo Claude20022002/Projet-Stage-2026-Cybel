@@ -47,6 +47,7 @@ export const state: AppState = {
   visitors: [],
   faceStatus: null,
   faceStatusAt: null,
+  visitorsWsConnected: false,
 };
 
 const listeners = new Set<Listener>();
@@ -168,6 +169,11 @@ export function setVisitors(visitors: VisitorPublic[]): void {
 export function setFaceStatus(status: FaceStatusEvent | null): void {
   state.faceStatus = status;
   state.faceStatusAt = status ? Date.now() : null;
+  notify();
+}
+
+export function setVisitorsWsConnected(connected: boolean): void {
+  state.visitorsWsConnected = connected;
   notify();
 }
 
