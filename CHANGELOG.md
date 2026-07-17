@@ -1,5 +1,90 @@
 # Changelog CYBEL
 
+## [0.4.0] — 2026-07-17
+
+### Validation terrain complète — chatbot vocal + reconnaissance faciale (branche `feature/face-presence`)
+
+Première session de validation en conditions réelles sur le châssis CIOT
+TY1251D-03195, avec correctifs trouvés et appliqués en direct.
+
+#### STT — grammaire fermée dynamique + mot d'éveil
+
+- **Vocabulaire fermé pour Vosk** : `sdk/voice_commands.build_vocabulary()`
+  (actions connues + POI actuellement déployés + questions/mots-clés FAQ) au
+  lieu de la dictée libre, qui confondait systématiquement les noms propres du
+  site (« HESTIM », noms de salles). Servi par `GET /api/voice/vocabulary`
+  (`cybel_lite.py`), recalculé à la volée — pas de rebuild APK au changement
+  de POI/FAQ.
+- **Mot d'éveil « Hé Cybel »** : échec total constaté sur le robot réel — le
+  modèle Vosk « small » n'a pas de repli phonétique (G2P) pour les mots hors
+  dictionnaire, et « Cybel » n'existe dans aucun lexique français. Contourné
+  avec **« Hé si belle »** (`/si bɛl/`), composé de deux mots réels déjà connus
+  du modèle, phonétiquement très proche.
+- **Filet de secours navigation** : le STT contraint tronque souvent le verbe
+  et la préposition (« va jusqu'à Stendhal » → « jusqu stendhal ») ;
+  `_NAV_FALLBACK_PATTERN` reconnaît une destination après le seul mot « jusqu »
+  quand le motif verbe+préposition complet ne matche pas.
+- **Encodage javac** : `-encoding UTF-8` ajouté aux trois `build.sh` Android
+  (`CybelVisitorKioskTest`, `CybelFaceBridge`, `CybelTTSBridge`) — sans elle,
+  javac lisait les sources en Cp1252 sous Windows et corrompait tout littéral
+  accentué (grammaire du mot d'éveil illisible en mémoire).
+
+#### Corrections terrain
+
+- **TTS épelait les majuscules** : les runs de 2+ majuscules (POI type
+  `PORTE-LABO`, sigles comme `HESTIM`) déclenchaient l'épellation lettre par
+  lettre du moteur TTS Android. Corrigé par `_tts_friendly()` (titre-casse
+  avant synthèse, jamais à l'affichage écran).
+- **Faux positifs FAQ** : seuil `score < 2.0` de `backend/services/
+  knowledge_service.py` absent du portage `cybel_lite.py` — un mot générique
+  suffisait à matcher n'importe quelle question. Aligné.
+- **Chevauchement TTS/écoute** : le mot d'éveil se réarmait immédiatement
+  après transcription, avant même que la réponse (potentiellement longue —
+  une FAQ) commence à être prononcée ; sans annulation d'écho sur ce matériel,
+  le micro captait sa propre voix, écrasant parfois un affichage FAQ correct
+  par un « non compris » pendant que la réponse finissait de se lire.
+  `CybelVoiceBridge.resumeWakeListening()` : le JS relance l'écoute
+  explicitement une fois la durée de parole estimée écoulée (filet natif à
+  6 s si jamais appelé).
+
+#### Dialogue proactif — proposition de visite
+
+- Après l'accueil (reconnaissance faciale **ou** détection de présence
+  châssis — un seul déclencheur suffit désormais, cooldown partagé), le
+  robot demande « Voulez-vous faire une visite ? », puis « un point précis ou
+  la visite complète ? » selon la réponse — dialogue enchaîné sans repasser
+  par le bouton micro entre chaque tour de parole (`speakAndListen()`,
+  estimation de durée de parole avant réouverture du micro).
+- Fonctionne pour n'importe quel visiteur, identifié ou non.
+
+#### Reconnaissance faciale — modèle réel vendorisé
+
+- **FaceNet** (davidsandberg/facenet, code MIT), poids CASIA-WebFace/VGGFace2
+  — **pas** MS-Celeb-1M. Provenance documentée dans
+  `android/CybelFaceBridge/README.md` après recherche des alternatives
+  (aucune option prête à l'emploi avec provenance irréprochable trouvée).
+  Extrait et vérifié (SHA256) depuis une release Android open-source publique
+  via `fetch_face_model.sh`, dans le même esprit que `fetch_vosk_model.sh`.
+  Prétraitement `(pixel − 127.5) / 128.0`, entrée 160×160, vérifié dans la
+  source amont.
+- **Validé terrain** : enrôlement + identification continue fonctionnels de
+  bout en bout sur le châssis réel (premier test réussi avec un modèle réel,
+  après plusieurs sessions bloquées sur l'absence de modèle).
+
+#### Interface opérateur — gestion des visiteurs
+
+- Nouvel onglet **Visiteurs** (`frontend/`) : enrôlement à distance (relais
+  `backend/` → `cybel_lite.py` via `kiosk_backend_url`, `am broadcast` local
+  côté tablette), statut de détection en direct sans transmission d'image
+  (WebSocket direct vers le kiosque, `{type: "face_status"}`), liste des
+  visiteurs enrôlés avec suppression.
+
+#### Tests
+
+- 154 → 159 tests unitaires (vocabulaire STT, filet de secours navigation,
+  relais d'enrôlement à distance) ; `tsc`/`npm run build` verts sur
+  `frontend/` et `frontend-kiosk/`.
+
 ## [0.3.6] — 2026-07-15
 
 ### Chatbot vocal — parler au robot (branche `feature/face-presence`)

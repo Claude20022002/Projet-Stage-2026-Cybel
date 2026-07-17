@@ -614,8 +614,15 @@ WebSocket {type: "people", people: [{distance, ...}]}
     ↓
 frontend-kiosk handlePresenceWelcome()
     si distance ≤ 3 m et écran veille :
-        → écran accueil + POST /api/speech/say
+        → tryGreetAndOfferTour()
 ```
+
+`tryGreetAndOfferTour()` (`frontend-kiosk/src/app.ts`) est le **point d'entrée
+unique** de l'accueil, partagé avec la reconnaissance faciale (§7.10) — cooldown
+commun (`lastGreetAt`), pour ne saluer qu'une fois si les deux systèmes
+détectent la même personne à quelques instants d'écart. Accueille (personnalisé
+si visiteur identifié, générique sinon) puis enchaîne sur la proposition de
+visite (`speakAndListen`, voir [VOICE_CHATBOT.md](VOICE_CHATBOT.md)).
 
 ### 7.8 Observation MQTT (opérateur)
 

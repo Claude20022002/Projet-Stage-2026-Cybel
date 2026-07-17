@@ -25,8 +25,9 @@ Légende : ✅ Fait · ⚠️ Partiel · ❌ Non fait · 🔜 Planifié
 | Retour base | Opérateur uniquement | Auto batterie basse | ⚠️ |
 | Assistance humaine | Bouton kiosque | Réception | ⚠️ |
 | Animations | CSS pulse/bob | Riches | ⚠️ |
-| Reconnaissance faciale | `CybelFaceBridge` + `/api/visitors/*` | `WelcomeManager` | ⚠️ (caméra/détection validées terrain ; identification avec vrai modèle restante) |
-| Chatbot vocal (STT) | Vosk + `/api/voice` + bouton 🎤 | Iflytek ASR | ⚠️ (moteur NLU + UI + APK validés ; STT micro réel à tester) |
+| Reconnaissance faciale | `CybelFaceBridge` + `/api/visitors/*` | `WelcomeManager` | ✅ (modèle réel FaceNet vendorisé, enrôlement + identification continue validés terrain) |
+| Chatbot vocal (STT) | Vosk + `/api/voice` + bouton 🎤 + mot d'éveil | Iflytek ASR | ✅ (grammaire fermée dynamique, mot d'éveil « Hé si belle », validés terrain) |
+| Dialogue proactif visite | Robot propose une visite après accueil, oui/non puis point précis/visite complète | — | ✅ |
 | Météo / vidéo | — | Fragments dédiés | ❌ |
 
 ## Backend / robot
@@ -49,5 +50,7 @@ Légende : ✅ Fait · ⚠️ Partiel · ❌ Non fait · 🔜 Planifié
 | Téléopération | ✅ |
 | Diagnostics | ✅ |
 | Patrouille UI | ✅ |
+| Gestion visiteurs (enrôlement à distance + statut détection live) | ✅ |
+| Aide contrôleur (liens documentation) | ✅ |
 
-Dernière mise à jour : refonte kiosque juin 2026.
+Dernière mise à jour : validation terrain chatbot vocal + reconnaissance faciale, 17 juillet 2026.
