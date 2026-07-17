@@ -61,7 +61,11 @@ fi
 
 echo "== 3/8 Compiling Java sources =="
 # Séparateur ';' pour javac.exe natif Windows (collision avec la lettre de lecteur sinon).
-javac -source 8 -target 8 \
+# -encoding UTF-8 : sans elle, javac lit les .java avec l'encodage plateforme
+# (souvent Cp1252 sous Windows) et corrompt les littéraux accentués (« hé cybel »
+# devenait « hÃ© cybel » dans le .class — constaté sur le robot réel, grammaire
+# Vosk du mot d'éveil illisible).
+javac -source 8 -target 8 -encoding UTF-8 \
   -cp "$ANDROID_JAR;$VOSK_JAR" \
   -d "$OUT/obj" \
   "$OUT/gen/com/cybel/visitorkiosk/test/R.java" \

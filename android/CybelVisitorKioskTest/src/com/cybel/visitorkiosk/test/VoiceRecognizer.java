@@ -37,9 +37,17 @@ public class VoiceRecognizer {
     // Grammaire dédiée au mot d'éveil — volontairement minuscule et distincte
     // de celle des commandes : la détection doit rester très spécifique pour
     // ne pas se déclencher sur une conversation ambiante non adressée au robot.
+    //
+    // « Cybel » seul échoue systématiquement (constaté sur le robot réel, sur
+    // 10+ min d'écoute continue) : ce n'est pas un mot du dictionnaire français,
+    // et le modèle Vosk « small » n'a pas de repli phonétique (G2P) pour les mots
+    // hors-vocabulaire — il « aimante » le son vers un mot réel proche (« est »).
+    // Contournement : « si belle » (/si bɛl/) est la prononciation française la
+    // plus proche de « Cybel », composée de deux mots réels déjà dans le
+    // dictionnaire du modèle — pas besoin de deviner leur prononciation.
     private static final String WAKE_GRAMMAR_JSON =
-            "[\"hé cybel\", \"eh cybel\", \"salut cybel\", \"cybel\", \"[unk]\"]";
-    private static final String WAKE_TOKEN = "cybel";
+            "[\"salut si belle\", \"eh si belle\", \"si belle\", \"cybel\", \"[unk]\"]";
+    private static final String[] WAKE_TRIGGERS = {"si belle", "cybel"};
 
     public interface Callback {
         /** Résultat final du STT. `ok=false` si erreur/timeout sans texte. */
@@ -105,7 +113,7 @@ public class VoiceRecognizer {
                 public void onResult(String hypothesis) {
                     Log.i(TAG, "Wake onResult brut : " + hypothesis);
                     String text = stripUnknownTokens(extractText(hypothesis, "text"));
-                    if (text != null && text.contains(WAKE_TOKEN)) {
+                    if (text != null && containsWakeTrigger(text)) {
                         Log.i(TAG, "Mot d'éveil détecté : \"" + text + "\"");
                         stopWakeLoop();
                         onWake.onWakeDetected();
@@ -330,6 +338,15 @@ public class VoiceRecognizer {
             return null;
         }
         return text.replace("[unk]", "").replaceAll("\\s+", " ").trim();
+    }
+
+    private static boolean containsWakeTrigger(String text) {
+        for (String trigger : WAKE_TRIGGERS) {
+            if (text.contains(trigger)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
