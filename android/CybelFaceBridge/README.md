@@ -10,32 +10,43 @@ robot**, topic ROS `/detected_people_array`) — ce bridge utilise la caméra de
 **tablette** elle-même, car la WebView Android 7.1/Chrome 49 du kiosque ne peut pas
 exécuter de ML en JavaScript.
 
-## ⚠️ Modèle requis (non fourni)
+## Modèle vendorisé — FaceNet (David Sandberg), CASIA-WebFace/VGGFace2
 
-`assets/face_embedding.tflite` **doit être ajouté manuellement** avant de builder —
-`build.sh` refuse de tourner sans lui. Aucun modèle pré-entraîné n'est téléchargé ou
-embarqué automatiquement par cet outillage.
+`assets/face_embedding.tflite` est récupéré au build par `fetch_face_model.sh`
+(comme le modèle Vosk du kiosque) — non committé dans git (23 Mo).
 
-**Pourquoi ce choix délibéré :** les modèles de reconnaissance faciale (embeddings
-type MobileFaceNet/FaceNet/ArcFace) qui circulent publiquement en `.tflite` ont
-souvent une provenance de licence et de dataset d'entraînement floue. Plusieurs
-tracent leur lignée jusqu'à **MS-Celeb-1M**, un dataset que Microsoft a retiré en
-2019 après des controverses sur le consentement des personnes photographiées. Pour
-un projet qui documente déjà ses choix éthiques (rétro-ingénierie, RGPD visiteurs —
-voir `docs/ARCHITECTURE_LOGICIELLE.md` §6.3), le choix du modèle doit rester une
-décision consciente de la personne qui déploie l'app, pas un défaut silencieux.
+**Provenance (décision consciente, prise le 2026-07-17 avec l'équipe projet)** :
+les modèles de reconnaissance faciale qui circulent publiquement ont presque
+toujours une provenance de dataset discutable. Plusieurs tracent leur lignée
+jusqu'à **MS-Celeb-1M**, un dataset que Microsoft a retiré en 2019 après des
+controverses sur le consentement des personnes photographiées. Après recherche,
+aucune alternative *prête à l'emploi* avec provenance irréprochable n'a été
+trouvée : les jeux de données entièrement synthétiques (ex. `DigiFace-1M` de
+Microsoft, créé en réponse directe à la controverse MS-Celeb-1M) existent mais
+nécessitent d'entraîner soi-même un modèle — un chantier ML à part entière, pas
+un fichier à télécharger.
 
-**Ce qu'il faut fournir** :
-- `assets/face_embedding.tflite` — un modèle d'embedding de visage avec une licence
-  claire et une provenance de données d'entraînement documentée.
-- `assets/face_embedding_config.json` — déjà présent avec des valeurs par défaut
-  courantes (MobileFaceNet-style) ; à ajuster selon le modèle réellement utilisé :
+Le modèle retenu ici est **FaceNet** ([davidsandberg/facenet](https://github.com/davidsandberg/facenet),
+code sous licence MIT), avec les poids pré-entraînés sur **CASIA-WebFace** ou
+**VGGFace2** — **pas** MS-Celeb-1M. Ce sont aussi des jeux de données collectés
+sans consentement individuel explicite (constat général du domaine, pas
+spécifique à ce choix), mais leur provenance est au moins documentée et connue,
+contrairement à beaucoup de conversions `.tflite` qui circulent sans aucune
+traçabilité. La conversion `.tflite` elle-même n'est pas publiée comme fichier
+autonome ; `fetch_face_model.sh` l'extrait d'une release publique open-source
+([shubham0204/OnDevice-Face-Recognition-Android](https://github.com/shubham0204/OnDevice-Face-Recognition-Android),
+elle-même sourcée depuis la bibliothèque [`deepface`](https://github.com/serengil/deepface),
+MIT), avec vérification SHA256.
+
+**Prétraitement vérifié dans le code source amont** (`facenet.py`,
+« fixed image standardization ») : `(pixel - 127.5) / 128.0` — reflété dans
+`assets/face_embedding_config.json` :
 
 ```json
 {
-  "input_size": 112,
+  "input_size": 160,
   "mean": 127.5,
-  "std": 127.5,
+  "std": 128.0,
   "output_dim": 128,
   "quantized": false,
   "l2_normalize": true
@@ -45,6 +56,10 @@ décision consciente de la personne qui déploie l'app, pas un défaut silencieu
 Le code (`FaceEmbedder.java`) lit les formes de tenseurs directement sur
 l'interpréteur TFLite plutôt que de les coder en dur — seuls `mean`/`std`/
 `quantized`/`l2_normalize` (non déductibles du modèle) viennent de ce fichier.
+
+**Si vous préférez un autre modèle** (ex. un modèle entraîné en interne sur des
+visiteurs consentants), remplacez simplement `assets/face_embedding.tflite` et
+ajustez `face_embedding_config.json` en conséquence — rien d'autre à changer.
 
 ## Architecture
 

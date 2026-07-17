@@ -13,10 +13,12 @@ if command -v cygpath >/dev/null 2>&1; then
 fi
 OUT="$DIR/out"
 
+echo "== 0/8 Modèle d'embedding facial (télécharge si absent) =="
+bash "$DIR/fetch_face_model.sh"
+
 if [ ! -f "$DIR/assets/face_embedding.tflite" ]; then
   echo "ERREUR: assets/face_embedding.tflite manquant."
-  echo "Ce build refuse de continuer sans modèle fourni — voir README.md"
-  echo "(aucun modèle pré-entraîné n'est téléchargé automatiquement par ce script)."
+  echo "Voir README.md § Modèle vendorisé."
   exit 1
 fi
 
@@ -56,7 +58,10 @@ echo "== 1/8 Linking resources + manifest + assets =="
 echo "== 2/8 Compiling Java sources =="
 # Séparateur ';' (Windows javac.exe) — un classpath ':' entrerait en collision avec
 # la lettre de lecteur (C:\...) une fois qu'on a plus d'une entrée de classpath.
-javac -source 8 -target 8 \
+# -encoding UTF-8 : sans elle, javac lit les .java avec l'encodage plateforme
+# (Cp1252 sous Windows) et corrompt les littéraux accentués des logs (« Modèle
+# chargé » devenait « ModÃ¨le chargÃ© » — même bug que CybelVisitorKioskTest).
+javac -source 8 -target 8 -encoding UTF-8 \
   -cp "$ANDROID_JAR;$TFLITE_JAR" \
   -d "$OUT/obj" \
   "$OUT/gen/com/cybel/facebridge/R.java" \
