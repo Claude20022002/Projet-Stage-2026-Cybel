@@ -80,6 +80,7 @@ public class VoiceRecognizer {
                 @Override
                 public void onResult(String hypothesis) {
                     // Fin d'un énoncé : on récupère le texte et on arrête.
+                    Log.i(TAG, "Vosk onResult brut : " + hypothesis);
                     String text = extractText(hypothesis, "text");
                     if (text != null && !text.isEmpty()) {
                         finish(text, true, callback);
@@ -88,13 +89,16 @@ public class VoiceRecognizer {
 
                 @Override
                 public void onFinalResult(String hypothesis) {
+                    Log.i(TAG, "Vosk onFinalResult brut : " + hypothesis);
                     String text = extractText(hypothesis, "text");
                     finish(text == null ? "" : text, text != null && !text.isEmpty(), callback);
                 }
 
                 @Override
                 public void onPartialResult(String hypothesis) {
-                    // Ignoré (on ne renvoie que le résultat final).
+                    // Debug uniquement : confirme que le micro capte de l'audio en direct
+                    // même si le résultat final échoue ensuite.
+                    Log.d(TAG, "Vosk partiel : " + hypothesis);
                 }
 
                 @Override

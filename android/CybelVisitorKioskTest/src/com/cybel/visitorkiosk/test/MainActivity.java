@@ -397,6 +397,9 @@ public class MainActivity extends Activity {
 
     /** Renvoie le transcript au JS sur le thread UI (WebView non thread-safe). */
     private void deliverVoiceResult(final String transcript, final boolean ok) {
+        // Journalisation explicite : seul moyen de diagnostiquer la qualité du STT
+        // sur le terrain (pas d'UI de debug). adb logcat -s CybelKioskTest:*
+        Log.i(TAG, "Transcript Vosk : \"" + transcript + "\" (ok=" + ok + ")");
         final String safe = transcript == null ? "" : transcript
                 .replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ");
         runOnUiThread(new Runnable() {

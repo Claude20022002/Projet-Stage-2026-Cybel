@@ -6,6 +6,7 @@ import asyncio
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -231,7 +232,30 @@ def pick_speech(action: dict, lang: str) -> str | None:
     return action.get("speech")
 
 
+_ALLCAPS_RUN = re.compile(r"\b[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ]{2,}\b")
+
+
+def _tts_friendly(text: str) -> str:
+    """Convertit les suites de 2+ majuscules (noms de POI 'PORTE-LABO', sigles
+    comme 'HESTIM') en casse normale avant envoi au TTS.
+
+    De nombreux moteurs TextToSpeech (dont celui utilisé ici) épellent lettre
+    par lettre tout mot tout-en-majuscules qui n'est pas reconnu comme un mot
+    du dictionnaire — constaté sur le robot réel : « HESTIM » lu « H-E-S-T-I-M »
+    au lieu du mot. Les noms de POI (convention Deployment Tool : tout majuscule,
+    voir sdk/poi_names.py) sont exactement dans ce cas et seraient tout autant
+    affectés. On ne touche que le texte envoyé au TTS, jamais l'affichage écran.
+    """
+
+    def _title(match: "re.Match[str]") -> str:
+        word = match.group(0)
+        return word[0] + word[1:].lower()
+
+    return _ALLCAPS_RUN.sub(_title, text)
+
+
 def speak_local(text: str) -> bool:
+    text = _tts_friendly(text)
     escaped = text.replace("'", "'\\''")
     broadcast = (
         f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} --es text '{escaped}'"
