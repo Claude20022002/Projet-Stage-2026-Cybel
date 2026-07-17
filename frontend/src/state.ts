@@ -160,6 +160,17 @@ export function setWsConnected(connected: boolean): void {
   notify();
 }
 
+export function setVisitors(visitors: VisitorPublic[]): void {
+  state.visitors = visitors;
+  notify();
+}
+
+export function setFaceStatus(status: FaceStatusEvent | null): void {
+  state.faceStatus = status;
+  state.faceStatusAt = status ? Date.now() : null;
+  notify();
+}
+
 export function pushEvent(message: string): void {
   const time = new Date().toLocaleTimeString("fr-FR");
   state.events = [`${time} — ${message}`, ...state.events].slice(0, MAX_EVENTS);

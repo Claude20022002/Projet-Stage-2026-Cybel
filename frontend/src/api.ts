@@ -13,6 +13,7 @@ import type {
   PatrolTaskData,
   TourStatus,
   TourStopData,
+  VisitorPublic,
 } from "./types";
 
 export interface AddPointCommand {
@@ -169,4 +170,15 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(config),
     }),
+  getVisitors: () => request<VisitorPublic[]>("/api/visitors"),
+  deleteVisitor: (visitorId: string) =>
+    request<{ ok: boolean }>(`/api/visitors/${encodeURIComponent(visitorId)}`, {
+      method: "DELETE",
+    }),
+  triggerEnrollment: (name: string, civility: string) =>
+    request<{ ok: boolean; name?: string; window_seconds?: number; error?: string }>(
+      "/api/visitors/enroll-trigger",
+      { method: "POST", body: JSON.stringify({ name, civility }) }
+    ),
+  getKioskStatusUrl: () => request<{ ws_url: string | null }>("/api/visitors/kiosk-status-url"),
 };
