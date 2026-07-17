@@ -2,6 +2,7 @@ import type {
   AppPage,
   AppState,
   DetectedPerson,
+  FaceStatusEvent,
   LabTourData,
   LidarPoint,
   MapData,
@@ -14,6 +15,7 @@ import type {
   TourStatus,
   PatrolStatus,
   PatrolTaskData,
+  VisitorPublic,
 } from "./types";
 
 type Listener = () => void;
@@ -42,6 +44,9 @@ export const state: AppState = {
   wsConnected: false,
   voiceListening: false,
   speech: null,
+  visitors: [],
+  faceStatus: null,
+  faceStatusAt: null,
 };
 
 const listeners = new Set<Listener>();
