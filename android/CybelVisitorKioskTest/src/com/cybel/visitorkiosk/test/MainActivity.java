@@ -74,7 +74,14 @@ public class MainActivity extends Activity {
         // Pont vocal : la WebView (JS) peut déclencher le STT natif Vosk.
         voiceRecognizer = new VoiceRecognizer(this);
         if (hasRecordAudioPermission()) {
-            voiceRecognizer.prepareAsync();
+            voiceRecognizer.prepareAsync(new Runnable() {
+                @Override
+                public void run() {
+                    // Thread d'arrière-plan (chargement du modèle) : démarre
+                    // directement la boucle d'éveil, pas besoin du thread UI.
+                    startWakeLoop();
+                }
+            });
         } else {
             Log.w(TAG, "Permission RECORD_AUDIO absente — accordez-la : "
                     + "adb shell pm grant " + getPackageName() + " android.permission.RECORD_AUDIO");
@@ -376,16 +383,7 @@ public class MainActivity extends Activity {
     private final class CybelVoiceBridge {
         @JavascriptInterface
         public void startListening(final String lang) {
-            if (voiceRecognizer == null || !hasRecordAudioPermission()) {
-                deliverVoiceResult("", false);
-                return;
-            }
-            voiceRecognizer.listen(new VoiceRecognizer.Callback() {
-                @Override
-                public void onResult(String transcript, boolean ok) {
-                    deliverVoiceResult(transcript, ok);
-                }
-            });
+            startCommandListening();
         }
 
         @JavascriptInterface
@@ -393,6 +391,46 @@ public class MainActivity extends Activity {
             return voiceRecognizer != null && voiceRecognizer.isReady()
                     && hasRecordAudioPermission();
         }
+    }
+
+    /**
+     * Capture une commande (déclenchée par le bouton micro ou par le mot
+     * d'éveil) puis relance la boucle d'éveil une fois le résultat livré, pour
+     * que « Hé Cybel » reste actif entre deux commandes.
+     */
+    private void startCommandListening() {
+        if (voiceRecognizer == null || !hasRecordAudioPermission()) {
+            deliverVoiceResult("", false);
+            return;
+        }
+        voiceRecognizer.listen(new VoiceRecognizer.Callback() {
+            @Override
+            public void onResult(String transcript, boolean ok) {
+                deliverVoiceResult(transcript, ok);
+                startWakeLoop();
+            }
+        });
+    }
+
+    /** Démarre (ou relance) l'écoute d'arrière-plan du mot d'éveil « Hé Cybel ». */
+    private void startWakeLoop() {
+        if (voiceRecognizer == null || !hasRecordAudioPermission()) {
+            return;
+        }
+        voiceRecognizer.startWakeLoop(new VoiceRecognizer.WakeListener() {
+            @Override
+            public void onWakeDetected() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        webView.evaluateJavascript(
+                                "window.__cybelWakeDetected && window.__cybelWakeDetected();",
+                                null);
+                    }
+                });
+                startCommandListening();
+            }
+        });
     }
 
     /** Renvoie le transcript au JS sur le thread UI (WebView non thread-safe). */

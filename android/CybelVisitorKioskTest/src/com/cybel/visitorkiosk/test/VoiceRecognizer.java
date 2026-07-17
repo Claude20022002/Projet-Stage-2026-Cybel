@@ -34,35 +34,118 @@ public class VoiceRecognizer {
     private static final float SAMPLE_RATE = 16000.0f;
     private static final int LISTEN_TIMEOUT_MS = 8000;
 
+    // Grammaire dédiée au mot d'éveil — volontairement minuscule et distincte
+    // de celle des commandes : la détection doit rester très spécifique pour
+    // ne pas se déclencher sur une conversation ambiante non adressée au robot.
+    private static final String WAKE_GRAMMAR_JSON =
+            "[\"hé cybel\", \"eh cybel\", \"salut cybel\", \"cybel\", \"[unk]\"]";
+    private static final String WAKE_TOKEN = "cybel";
+
     public interface Callback {
         /** Résultat final du STT. `ok=false` si erreur/timeout sans texte. */
         void onResult(String transcript, boolean ok);
     }
 
+    public interface WakeListener {
+        /** Appelé quand « Hé Cybel » est détecté ; l'écoute d'éveil est déjà arrêtée. */
+        void onWakeDetected();
+    }
+
     private final Context context;
     private Model model;
     private SpeechService speechService;
+    private SpeechService wakeService;
     private volatile boolean modelReady;
     private volatile boolean listening;
+    private volatile boolean wakeActive;
     private volatile String grammarJson;
 
     public VoiceRecognizer(Context context) {
         this.context = context.getApplicationContext();
     }
 
-    /** Copie/charge le modèle en arrière-plan. À appeler tôt (onCreate). */
-    public void prepareAsync() {
+    /** Copie/charge le modèle en arrière-plan. À appeler tôt (onCreate).
+     * `onReady` (thread d'arrière-plan, pas UI) est appelé une fois le modèle
+     * chargé — sert par ex. à démarrer la boucle d'écoute du mot d'éveil. */
+    public void prepareAsync(final Runnable onReady) {
         new Thread(() -> {
             try {
                 File modelDir = ensureModelUnpacked();
                 model = new Model(modelDir.getAbsolutePath());
                 modelReady = true;
                 Log.i(TAG, "Modèle Vosk prêt : " + modelDir.getAbsolutePath());
+                if (onReady != null) {
+                    onReady.run();
+                }
             } catch (Throwable t) {
                 Log.e(TAG, "Chargement du modèle Vosk impossible — STT désactivé", t);
             }
         }, "VoskModelInit").start();
         loadVocabularyAsync();
+    }
+
+    /**
+     * Démarre l'écoute continue du mot d'éveil « Hé Cybel » en arrière-plan.
+     * Sans effet si le modèle n'est pas prêt, si l'écoute d'éveil tourne déjà,
+     * ou si une capture de commande est en cours (le micro est déjà utilisé).
+     */
+    public synchronized void startWakeLoop(final WakeListener onWake) {
+        if (!modelReady || model == null || wakeActive || listening) {
+            Log.i(TAG, "startWakeLoop ignoré (modelReady=" + modelReady + " wakeActive="
+                    + wakeActive + " listening=" + listening + ")");
+            return;
+        }
+        try {
+            Recognizer recognizer = new Recognizer(model, SAMPLE_RATE, WAKE_GRAMMAR_JSON);
+            wakeService = new SpeechService(recognizer, SAMPLE_RATE);
+            wakeActive = true;
+            Log.i(TAG, "Boucle mot d'éveil démarrée (grammaire : " + WAKE_GRAMMAR_JSON + ")");
+            wakeService.startListening(new RecognitionListener() {
+                @Override
+                public void onResult(String hypothesis) {
+                    Log.i(TAG, "Wake onResult brut : " + hypothesis);
+                    String text = stripUnknownTokens(extractText(hypothesis, "text"));
+                    if (text != null && text.contains(WAKE_TOKEN)) {
+                        Log.i(TAG, "Mot d'éveil détecté : \"" + text + "\"");
+                        stopWakeLoop();
+                        onWake.onWakeDetected();
+                    }
+                }
+
+                @Override
+                public void onFinalResult(String hypothesis) {
+                    Log.i(TAG, "Wake onFinalResult brut : " + hypothesis);
+                }
+
+                @Override
+                public void onPartialResult(String hypothesis) {
+                    Log.d(TAG, "Wake partiel : " + hypothesis);
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    Log.w(TAG, "Erreur écoute mot d'éveil", e);
+                }
+
+                @Override
+                public void onTimeout() {
+                    Log.d(TAG, "Wake onTimeout");
+                }
+            });
+        } catch (Throwable t) {
+            Log.e(TAG, "Démarrage écoute mot d'éveil impossible", t);
+            wakeActive = false;
+        }
+    }
+
+    /** Arrête l'écoute du mot d'éveil (libère le micro pour une capture de commande). */
+    public synchronized void stopWakeLoop() {
+        if (wakeService != null) {
+            wakeService.stop();
+            wakeService.shutdown();
+            wakeService = null;
+        }
+        wakeActive = false;
     }
 
     /**
@@ -155,6 +238,7 @@ public class VoiceRecognizer {
         if (listening) {
             return;
         }
+        stopWakeLoop();
         try {
             String grammar = grammarJson;
             Recognizer recognizer = grammar != null
@@ -219,6 +303,7 @@ public class VoiceRecognizer {
     }
 
     public void shutdown() {
+        stopWakeLoop();
         if (speechService != null) {
             speechService.shutdown();
             speechService = null;

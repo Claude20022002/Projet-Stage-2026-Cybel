@@ -36,6 +36,7 @@ declare global {
   interface Window {
     CybelVoice?: CybelVoiceBridge;
     __cybelVoiceResult?: (transcript: string, ok: boolean) => void;
+    __cybelWakeDetected?: () => void;
   }
 }
 
@@ -490,18 +491,13 @@ async function runAssistance(): Promise<void> {
   }
 }
 
-function startVoice(): void {
-  if (busy || voiceState !== "idle") return;
-  if (!voiceAvailable()) {
-    showToast(tr().voiceUnavailable);
-    return;
-  }
+/** Bascule l'UI en état d'écoute + garde-fou 12 s si l'app native ne rappelle jamais. */
+function enterListeningState(): void {
   touch();
   voiceTranscript = "";
   voiceReply = "";
   voiceState = "listening";
   render();
-  // Garde-fou : si l'app native ne rappelle jamais, on ferme après 12 s.
   if (voiceTimer !== null) window.clearTimeout(voiceTimer);
   voiceTimer = window.setTimeout(() => {
     if (voiceState === "listening") {
@@ -510,6 +506,15 @@ function startVoice(): void {
       render();
     }
   }, 12000);
+}
+
+function startVoice(): void {
+  if (busy || voiceState !== "idle") return;
+  if (!voiceAvailable()) {
+    showToast(tr().voiceUnavailable);
+    return;
+  }
+  enterListeningState();
   try {
     window.CybelVoice?.startListening(lang);
   } catch {
@@ -517,6 +522,13 @@ function startVoice(): void {
     voiceState = "answer";
     render();
   }
+}
+
+/** Appelé par l'app native quand « Hé Cybel » est détecté ; la capture de la
+ * commande a déjà démarré côté natif, on bascule juste l'UI en écoute. */
+function onWakeDetected(): void {
+  if (busy || voiceState !== "idle") return;
+  enterListeningState();
 }
 
 function closeVoice(): void {
@@ -622,6 +634,10 @@ export async function initApp(): Promise<void> {
   // Callback global invoqué par l'app native (CybelVisitorKioskTest) après STT Vosk.
   window.__cybelVoiceResult = (transcript: string, ok: boolean) => {
     void onVoiceTranscript(transcript, ok);
+  };
+  // Callback global invoqué par l'app native quand « Hé Cybel » est détecté.
+  window.__cybelWakeDetected = () => {
+    onWakeDetected();
   };
   render();
   startClock();
