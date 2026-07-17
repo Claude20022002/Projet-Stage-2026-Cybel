@@ -3,17 +3,21 @@ package com.cybel.visitorkiosk.test;
 import android.content.Context;
 import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.vosk.Model;
 import org.vosk.Recognizer;
 import org.vosk.android.RecognitionListener;
 import org.vosk.android.SpeechService;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -40,6 +44,7 @@ public class VoiceRecognizer {
     private SpeechService speechService;
     private volatile boolean modelReady;
     private volatile boolean listening;
+    private volatile String grammarJson;
 
     public VoiceRecognizer(Context context) {
         this.context = context.getApplicationContext();
@@ -57,6 +62,84 @@ public class VoiceRecognizer {
                 Log.e(TAG, "Chargement du modèle Vosk impossible — STT désactivé", t);
             }
         }, "VoskModelInit").start();
+        loadVocabularyAsync();
+    }
+
+    /**
+     * Récupère le vocabulaire fermé (actions, POI, mots-clés FAQ) depuis le
+     * backend et construit la grammaire Vosk correspondante, en tâche de fond.
+     * Le dictaphone générique ne connaît pas les noms propres du site
+     * (« HESTIM », noms de salles) — contraindre la reconnaissance à ce
+     * périmètre au lieu de la dictée libre corrige ces confusions. Échec
+     * silencieux : sans grammaire, `listen()` retombe sur la dictée libre.
+     */
+    private void loadVocabularyAsync() {
+        new Thread(() -> {
+            String body = fetchVocabularyJson();
+            if (body == null) {
+                Log.w(TAG, "Vocabulaire STT indisponible — reconnaissance en dictée libre");
+                return;
+            }
+            try {
+                JSONArray words = new JSONObject(body).optJSONArray("words");
+                if (words == null || words.length() == 0) {
+                    return;
+                }
+                JSONArray grammar = new JSONArray();
+                for (int i = 0; i < words.length(); i++) {
+                    grammar.put(words.getString(i));
+                }
+                grammar.put("[unk]");
+                grammarJson = grammar.toString();
+                Log.i(TAG, "Vocabulaire STT chargé (" + words.length() + " mots)");
+            } catch (Exception e) {
+                Log.w(TAG, "Vocabulaire STT : réponse invalide", e);
+            }
+        }, "VoiceVocabularyFetch").start();
+    }
+
+    private static String fetchVocabularyJson() {
+        String[] hosts = {"127.0.0.1", BackendStarter.getWlanIp()};
+        for (String host : hosts) {
+            if (host == null || host.isEmpty()) {
+                continue;
+            }
+            String result = httpGet("http://" + host + ":" + BackendStarter.BACKEND_PORT
+                    + "/api/voice/vocabulary");
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    private static String httpGet(String urlStr) {
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(urlStr);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(3000);
+            connection.setReadTimeout(3000);
+            connection.setRequestMethod("GET");
+            int code = connection.getResponseCode();
+            if (code < 200 || code >= 300) {
+                return null;
+            }
+            InputStream is = connection.getInputStream();
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] chunk = new byte[4096];
+            int read;
+            while ((read = is.read(chunk)) != -1) {
+                buffer.write(chunk, 0, read);
+            }
+            return buffer.toString("UTF-8");
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
     }
 
     public boolean isReady() {
@@ -73,7 +156,10 @@ public class VoiceRecognizer {
             return;
         }
         try {
-            Recognizer recognizer = new Recognizer(model, SAMPLE_RATE);
+            String grammar = grammarJson;
+            Recognizer recognizer = grammar != null
+                    ? new Recognizer(model, SAMPLE_RATE, grammar)
+                    : new Recognizer(model, SAMPLE_RATE);
             speechService = new SpeechService(recognizer, SAMPLE_RATE);
             listening = true;
             speechService.startListening(new RecognitionListener() {
@@ -81,7 +167,7 @@ public class VoiceRecognizer {
                 public void onResult(String hypothesis) {
                     // Fin d'un énoncé : on récupère le texte et on arrête.
                     Log.i(TAG, "Vosk onResult brut : " + hypothesis);
-                    String text = extractText(hypothesis, "text");
+                    String text = stripUnknownTokens(extractText(hypothesis, "text"));
                     if (text != null && !text.isEmpty()) {
                         finish(text, true, callback);
                     }
@@ -90,7 +176,7 @@ public class VoiceRecognizer {
                 @Override
                 public void onFinalResult(String hypothesis) {
                     Log.i(TAG, "Vosk onFinalResult brut : " + hypothesis);
-                    String text = extractText(hypothesis, "text");
+                    String text = stripUnknownTokens(extractText(hypothesis, "text"));
                     finish(text == null ? "" : text, text != null && !text.isEmpty(), callback);
                 }
 
@@ -150,6 +236,15 @@ public class VoiceRecognizer {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Retire les jetons "[unk]" (hors grammaire) qu'une reconnaissance
+     * contrainte peut renvoyer à la place d'un mot non reconnu. */
+    private static String stripUnknownTokens(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.replace("[unk]", "").replaceAll("\\s+", " ").trim();
     }
 
     /**

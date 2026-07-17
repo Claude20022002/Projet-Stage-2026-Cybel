@@ -102,3 +102,47 @@ def match_point_navigation(text: str, point_names: list[str]) -> str | None:
             return original
 
     return None
+
+
+# Verbes/prépositions de déplacement, orthographe française réelle (accents
+# conservés) — utilisés pour le vocabulaire STT, pas pour le matching NLU
+# (qui, lui, passe par normalize_text et tolère l'absence d'accents).
+_NAV_WORDS_FR = [
+    "va", "vas", "aller", "allez", "aille", "emmène", "emmenez", "conduis",
+    "conduisez", "amène", "amenez", "déplace", "déplacez", "dirige", "dirigez",
+    "rends", "rendez", "toi", "vous", "moi", "au", "aux", "à", "vers", "en",
+    "dans", "jusqu",
+]
+
+_WORD_RE = re.compile(r"[a-zà-ÿ]+")
+
+
+def _stt_tokens(text: str) -> list[str]:
+    """Découpe en mots pour le vocabulaire STT — conserve les accents
+    (contrairement à normalize_text) car le dictionnaire du moteur de
+    reconnaissance vocale attend l'orthographe française réelle, pas la forme
+    sans accent utilisée pour le matching NLU."""
+    return _WORD_RE.findall(text.lower())
+
+
+def build_vocabulary(
+    point_names: list[str] | None = None,
+    extra_phrases: list[str] | None = None,
+) -> list[str]:
+    """Construit un vocabulaire fermé (mots triés, sans doublons) pour
+    contraindre un moteur STT à ce que le backend est effectivement capable de
+    comprendre : actions connues, POI actuellement déployés, questions/mots-clés
+    FAQ. Un dictaphone généraliste ne connaît pas les noms propres du site
+    (« HESTIM », noms de salles) — restreindre son vocabulaire à ce périmètre
+    réduit ces confusions au lieu de les corriger après coup.
+    """
+    words: set[str] = set()
+    for phrase in VOICE_COMMAND_MAP:
+        words.update(_stt_tokens(phrase))
+    words.update(_NAV_WORDS_FR)
+    for name in point_names or []:
+        words.update(_stt_tokens(name))
+    for phrase in extra_phrases or []:
+        words.update(_stt_tokens(phrase))
+    words.discard("")
+    return sorted(words)

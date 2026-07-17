@@ -1956,6 +1956,25 @@ async def voice_command(request: Request) -> JSONResponse:
     return JSONResponse(result)
 
 
+async def voice_vocabulary(_: Request) -> JSONResponse:
+    """GET /api/voice/vocabulary — vocabulaire fermé pour contraindre le STT
+    embarqué (grammaire Vosk) aux mots que ce backend comprend réellement :
+    actions connues, POI actuellement déployés, questions/mots-clés FAQ.
+    Calculé à la volée (pas de cache) pour rester en phase avec les POI et la
+    base de connaissances actuels sans nécessiter de rebuild APK."""
+    voice = _get_voice_commands()
+    point_names = [str(p.get("name", "")) for p in load_points() if p.get("name")]
+    extra_phrases = [str(entry.get("question_fr", "")) for entry in load_faq()]
+    try:
+        engine = _get_knowledge_engine()
+        for lab_entry in engine.list_lab_entries():
+            extra_phrases.extend(str(k) for k in lab_entry.get("keywords") or [])
+    except Exception:
+        pass
+    words = voice.build_vocabulary(point_names=point_names, extra_phrases=extra_phrases)
+    return JSONResponse({"words": words})
+
+
 async def robot_status(_: Request) -> JSONResponse:
     snap = await fetch_robot_snapshot()
     return JSONResponse(robot_status_payload(snap))
@@ -2187,6 +2206,7 @@ def build_app() -> Starlette:
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/voice", voice_command, methods=["POST"]),
+        Route("/api/voice/vocabulary", voice_vocabulary, methods=["GET"]),
         Route("/api/reception/voice", voice_command, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
         Route("/api/robot/people", robot_people, methods=["GET"]),

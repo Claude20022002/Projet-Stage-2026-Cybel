@@ -2,6 +2,7 @@
 
 from sdk.voice_commands import (
     VOICE_COMMAND_MAP,
+    build_vocabulary,
     match_point_navigation,
     match_voice_command,
     normalize_text,
@@ -73,3 +74,37 @@ def test_reception_actions_reexports_still_work() -> None:
     assert reexport_cmd("stop") == "stop_all"
     assert _normalize_text("Café") == "cafe"
     assert reexport_nav("va au poste machine", ["POSTE-MACHINE"]) == "POSTE-MACHINE"
+
+
+def test_build_vocabulary_includes_command_words() -> None:
+    words = build_vocabulary()
+    assert "visite" in words
+    assert "guidée" in words
+    assert "accueil" in words
+    assert "à" in words  # préposition de _NAV_WORDS_FR, accent conservé
+
+
+def test_build_vocabulary_includes_point_names_and_extra_phrases() -> None:
+    words = build_vocabulary(
+        point_names=["PORTE-LABO", "CNC ROUTEUR"],
+        extra_phrases=["Qu'est-ce que HESTIM ?"],
+    )
+    assert "porte" in words
+    assert "labo" in words
+    assert "cnc" in words
+    assert "routeur" in words
+    assert "hestim" in words
+    assert "qu" in words or "est" in words  # tokenisation basique sur l'apostrophe
+
+
+def test_build_vocabulary_sorted_and_deduplicated() -> None:
+    words = build_vocabulary(point_names=["ACCUEIL"])
+    assert words == sorted(set(words))
+    # "accueil" apparaît à la fois dans VOICE_COMMAND_MAP et point_names -> une seule fois
+    assert words.count("accueil") == 1
+
+
+def test_build_vocabulary_empty_inputs_still_returns_base_words() -> None:
+    words = build_vocabulary(point_names=[], extra_phrases=[])
+    assert len(words) > 0
+    assert "stop" in words
