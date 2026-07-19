@@ -325,6 +325,60 @@ def _service_succeeded(response: dict) -> bool:
     return True
 
 
+# /velocity_control (constructeur, non documenté officiellement) — reverse-engineering
+# terrain, voir docs/movement-audit/ROS_COMMUNICATION.md §4 : plages de cmd groupées
+# par palier (0-2 sécurité, 3-5 équilibre, 6-8 efficacité). On utilise la première
+# valeur de chaque plage comme commande canonique de réglage — confirmé en direct
+# le 2026-07-17 : cmd 99 (GET) sur le robot au réglage par défaut usine ("équilibre")
+# renvoie bien info="3", cohérent avec cette hypothèse.
+VELOCITY_PROFILE_CMD = {"safety": 0, "balance": 3, "efficiency": 6}
+VELOCITY_PROFILE_MPS = {"safety": 0.3, "balance": 0.5, "efficiency": 0.8}
+
+
+def _velocity_level_from_cmd(cmd: int) -> str | None:
+    if 0 <= cmd <= 2:
+        return "safety"
+    if 3 <= cmd <= 5:
+        return "balance"
+    if 6 <= cmd <= 8:
+        return "efficiency"
+    return None
+
+
+async def get_velocity_profile() -> dict:
+    """Lit le profil de vitesse actuel du châssis (cmd 99 = GET, sans effet)."""
+    try:
+        response = await ros_call_service("/velocity_control", {"cmd": 99})
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    raw = response.get("info") if isinstance(response, dict) else None
+    try:
+        raw_cmd = int(raw)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "Réponse /velocity_control inattendue", "raw": response}
+    level = _velocity_level_from_cmd(raw_cmd)
+    return {
+        "ok": True,
+        "level": level,
+        "raw_cmd": raw_cmd,
+        "max_speed_mps": VELOCITY_PROFILE_MPS.get(level) if level else None,
+    }
+
+
+async def set_velocity_profile(level: str) -> dict:
+    """Change le profil de vitesse max du châssis (service constructeur /velocity_control)."""
+    cmd = VELOCITY_PROFILE_CMD.get(level)
+    if cmd is None:
+        return {"ok": False, "error": f"Niveau de vitesse inconnu : {level}"}
+    try:
+        response = await ros_call_service("/velocity_control", {"cmd": cmd})
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    if not _service_succeeded(response):
+        return {"ok": False, "error": "Service /velocity_control refusé", "raw": response}
+    return {"ok": True, "level": level, "max_speed_mps": VELOCITY_PROFILE_MPS[level]}
+
+
 async def ros_call_service_first(
     candidates: list[tuple[str, dict]],
     *,
@@ -2177,6 +2231,26 @@ async def speech_status(_: Request) -> JSONResponse:
     )
 
 
+async def velocity_profile_get(_: Request) -> JSONResponse:
+    result = await get_velocity_profile()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 502)
+
+
+async def velocity_profile_set(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    level = str(body.get("level", "")).strip()
+    if level not in VELOCITY_PROFILE_CMD:
+        return JSONResponse(
+            {"ok": False, "error": f"Niveau invalide (attendu : {', '.join(VELOCITY_PROFILE_CMD)})"},
+            status_code=400,
+        )
+    result = await set_velocity_profile(level)
+    return JSONResponse(result, status_code=200 if result.get("ok") else 502)
+
+
 async def _people_listener_loop() -> None:
     """Écoute /detected_people_array (caméra robot) pour présence visiteur."""
     global _detected_people
@@ -2305,6 +2379,8 @@ def build_app() -> Starlette:
         Route("/api/charge/go-home", charge_go_home, methods=["POST"]),
         Route("/api/diagnostics", kiosk_diagnostics, methods=["GET"]),
         Route("/api/speech/status", speech_status, methods=["GET"]),
+        Route("/api/settings/velocity", velocity_profile_get, methods=["GET"]),
+        Route("/api/settings/velocity", velocity_profile_set, methods=["POST"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),
         Route("/api/tour/full", tour_full, methods=["GET"]),

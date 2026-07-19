@@ -104,6 +104,10 @@ ok "frontend-kiosk/dist (bouton micro + overlay)"
 # FAQ statique (contenu, pas d'état device)
 push_root "$REPO/data/hestim_knowledge_base.json" "$CYBEL_TREE/data"
 ok "base de connaissances FAQ"
+# Registre d'actions (VOICE_COMMAND_MAP y pointe — oublié ici, une action
+# reconnue par le NLU renvoie "Action inconnue" au lieu de s'exécuter).
+push_root "$REPO/scripts/termux/actions.json" "$CYBEL_TREE/scripts/termux"
+ok "actions.json"
 
 # ---- 3. Redémarrage backend --------------------------------------------------
 step "3. Redémarrage backend test (stop → ensure)"
