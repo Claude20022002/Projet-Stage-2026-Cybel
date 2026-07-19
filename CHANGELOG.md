@@ -1,5 +1,35 @@
 # Changelog CYBEL
 
+## [0.4.1] — 2026-07-19
+
+### Réactivité navigation + salutations vocales (branche `feature/nav-performance`)
+
+- **Court-circuit navigation** : `ensure_auto_navigation()` et
+  `recover_navigation_state()` (`cybel_lite.py`) annulaient systématiquement
+  toute navigation et redemandaient le mode automatique à *chaque* commande,
+  même quand le robot était déjà prêt (601/603) et déjà en mode auto — deux
+  aller-retours ROS + 0,5 s payés pour rien dans le cas majoritaire. Les deux
+  fonctions court-circuitent maintenant si le robot est déjà prêt **et** déjà
+  en mode auto (dérivé de `control_state`, pas seulement du champ `nav_mode`
+  brut, pour ne pas rater un passage en manuel/téléop). Confirmé plus rapide
+  en test réel.
+- **Réponse aux salutations** : nouvelle action `greeting` (parlée
+  uniquement, sans `target_point`) déclenchée par « bonjour », « salut »,
+  « coucou », « bonsoir », « hello » après le mot d'éveil ou le bouton micro.
+- **`/velocity_control` câblé** (service constructeur documenté mais jamais
+  exposé — voir `docs/movement-audit/CYBEL_GAP_ANALYSIS.md`, item P2) :
+  `GET`/`POST /api/settings/velocity` pour lire et changer le profil de
+  vitesse max du châssis (sécurité/équilibre/efficacité, 0.3/0.5/0.8 m/s).
+  Lecture validée en direct (confirme le réglage usine « équilibre ») ;
+  écriture implémentée, validation terrain en direct restante.
+- **Bug de déploiement corrigé** : `actions.json` n'était jamais poussé par
+  `scripts/deploy_voice_face.sh`, faisant échouer silencieusement toute
+  nouvelle action ajoutée à `VOICE_COMMAND_MAP` (« Action inconnue »).
+- Article scientifique (`paper/`) retargeté de ROSCon Korea 2027 vers
+  **IEEE ICRA 2027** (Séoul, deadline 2026-09-15) ; titre raccourci, sections
+  chatbot vocal/reconnaissance faciale mises à jour pour refléter la
+  validation terrain — voir `paper/icra_2027/`.
+
 ## [0.4.0] — 2026-07-17
 
 ### Validation terrain complète — chatbot vocal + reconnaissance faciale (branche `feature/face-presence`)

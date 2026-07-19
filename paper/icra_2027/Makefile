@@ -1,4 +1,4 @@
-# ROSCon Korea 2027 paper — CYBEL
+# IEEE ICRA 2027 paper — CYBEL
 MAIN = main
 LATEX = pdflatex
 BIBTEX = bibtex
