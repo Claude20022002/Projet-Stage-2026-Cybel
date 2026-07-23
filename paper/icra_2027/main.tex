@@ -197,12 +197,12 @@ The CIOT TY1251D-03195 combines:
 \item \textbf{Head:} Android~7.1 (RK3399, 2\,GB RAM) - 15.6'' touchscreen, cameras, speakers, vendor apps.
 \end{itemize}
 
-\cybel{} never obtains shell access on the chassis (SSH locked; brute-force triggers lockout) --- a deliberate choice explained by principle P4 in Section~\ref{sec:re}, not a limitation discovered after the fact.
+\cybel{} never obtains shell access on the chassis (SSH locked; brute-force triggers lockout). This is a deliberate choice explained by principle P4 in Section~\ref{sec:re}, not a limitation discovered after the fact.
 Usable channels: WebSocket \rosbridge{} on port~9090 and MQTT on 1883 (observation only).
 
 \subsection{Triple network segment}
 
-Mapping revealed three distinct segments (Fig.~\ref{fig:network}) a first reverse-engineering result in its own right: no vendor documentation exists, and nothing in the Android application code indicates that the head and the chassis sit on different subnets.
+Mapping revealed three distinct segments (Fig.~\ref{fig:network}), a first reverse-engineering result in its own right: no vendor documentation exists, and nothing in the Android application code indicates that the head and the chassis sit on different subnets.
 
 \begin{figure}[!t]
 \centering
@@ -253,7 +253,7 @@ Mapping revealed three distinct segments (Fig.~\ref{fig:network}) a first revers
 \item \textbf{Lab Wi-Fi:} head \texttt{172.16.0.x} (DHCP); PC uses ADB for deployment.
 \end{itemize}
 
-Vendor packages identified via ADB: \texttt{com.ciot.welcomepatrol} (welcome UI), \texttt{com.ciot.sentrymove} (Deployment Tool), shared library \texttt{selfchassislibrary} treated as \emph{de facto} protocol specification after JADX audit --- the empirical basis for hypothesis H1.
+Vendor packages identified via ADB: \texttt{com.ciot.welcomepatrol} (welcome UI), \texttt{com.ciot.sentrymove} (Deployment Tool), shared library \texttt{selfchassislibrary} treated as \emph{de facto} protocol specification after JADX audit, providing the empirical basis for hypothesis H1.
 
 %==============================================================================
 \section{Reverse Engineering Methodology}
@@ -311,7 +311,7 @@ Rejected hypotheses (documented, not silently discarded): legacy teleop topic \t
 \subsection{Reverse-engineering effort}
 \label{sec:re-effort}
 
-Table~\ref{tab:re-effort} reports the quantitative effort behind the pipeline above, addressing directly how much work the methodology actually required a question the earlier internal report left unanswered.
+Table~\ref{tab:re-effort} reports the quantitative effort behind the pipeline above, addressing directly how much work the methodology actually required, a question the earlier internal report left unanswered.
 
 \begin{table}[!t]
 \caption{Reverse-engineering effort (case study)}
@@ -343,11 +343,11 @@ The following difficulties are structural properties of closed Android-\ros{} se
 
 \textbf{Why MQTT was a plausible but false lead (H2).} The chassis exposes an MQTT broker on port~1883, and MQTT is a common command-and-telemetry bus in commercial IoT/robotics stacks, making it a reasonable first hypothesis. JADX audit later showed the vendor uses MQTT purely as a one-way telemetry export (for fleet dashboards), with all control logic hard-wired to \rosbridge{}; without that audit, this would have appeared as an intermittent, unexplained non-responsiveness rather than a structurally closed channel.
 
-\textbf{Why multiple IPs appear for what looks like one robot.} The Android head and the \ros{} chassis are two independent Linux network stacks bridged by an internal Ethernet link (Fig.~\ref{fig:network}), and the head additionally joins the lab Wi-Fi for deployment. A robot marketed and documented as a single product is, at the network layer, at least two hosts; conflating the head's DHCP address with the chassis's static address is the single most common operator error we observed and is why we document all three segments explicitly rather than a single "robot IP."
+\textbf{Why multiple IPs appear for what looks like one robot.} The Android head and the \ros{} chassis are two independent Linux network stacks bridged by an internal Ethernet link (Fig.~\ref{fig:network}), and the head additionally joins the lab Wi-Fi for deployment. A robot marketed and documented as a single product is, at the network layer, at least two hosts; conflating the head's DHCP address with the chassis's static address is the single most common operator error we observed and is why we document all three segments explicitly rather than a single ``robot IP.''
 
 \textbf{Why TTS was inaccessible from every standard channel.} The vendor's speech pipeline is implemented entirely inside the Android application layer (opaque IPC to a bundled Iflytek TTS engine), with no bridge exposed back down to \ros{}, HTTP, or MQTT (Table~\ref{tab:tts}); speech was never designed to be a robot-level capability, only an application-level one. This explains why exhaustive protocol-level search (phases 2--3) could not find it, and why the eventual fix (Section~\ref{sec:arch}) operates at the Android application layer instead.
 
-\textbf{Why every navigation command paid a fixed reactivity cost.} A field complaint of general sluggishness led to code inspection: two readiness helpers chained on every navigation call each \emph{unconditionally} canceled any in-progress navigation and re-issued the \texttt{/change\_location\_mode} auto-mode service before checking whether either action was needed, adding two \rosbridge{} round-trips and a fixed sleep even when the robot was already idle and localized, the majority case in normal kiosk operation. \emph{Fix:} both helpers now short-circuit when the reported navigation status is already ready \emph{and} the control-state field (not only the coarser mode flag, to avoid masking an undetected manual/teleop override) already reads automatic --- H4's discipline applied in reverse: do not re-issue a command whose effect telemetry already confirms.
+\textbf{Why every navigation command paid a fixed reactivity cost.} A field complaint of general sluggishness led to code inspection: two readiness helpers chained on every navigation call each \emph{unconditionally} canceled any in-progress navigation and re-issued the \texttt{/change\_location\_mode} auto-mode service before checking whether either action was needed, adding two \rosbridge{} round-trips and a fixed sleep even when the robot was already idle and localized, the majority case in normal kiosk operation. \emph{Fix:} both helpers now short-circuit when the reported navigation status is already ready \emph{and} the control-state field (not only the coarser mode flag, to avoid masking an undetected manual/teleop override) already reads automatic. This applies H4's discipline in reverse: do not re-issue a command whose effect telemetry already confirms.
 
 %==============================================================================
 \section{\rosbridge{} Protocol Reconstruction}
@@ -368,7 +368,7 @@ APK-confirmed topic (H1):
 The command sequence is: \texttt{advertise} followed by periodic \texttt{publish} at ${\sim}10$\,Hz.
 Sentrymove ramps linear velocity $\pm 0.025$/100\,ms with $\omega_z \times 0.8$ scaling.
 
-\textbf{Gap E1:} early \cybel{} builds blocked teleop unless manual mode was active (\texttt{control\_state==30}); Sentrymove does not require this step because it always sets the mode implicitly on session start a vendor convention discoverable only via APK audit (H1), not via wire traffic alone.
+\textbf{Gap E1:} early \cybel{} builds blocked teleop unless manual mode was active (\texttt{control\_state==30}); Sentrymove does not require this step because it always sets the mode implicitly on session start, a vendor convention discoverable only via APK audit (H1), not via wire traffic alone.
 \textbf{Fix:} auto-enable manual mode on first \texttt{move()}.
 
 \subsection{Autonomous navigation}
@@ -477,9 +477,9 @@ am broadcast -n com.cybel.ttsbridge/.SpeakReceiver
 \end{verbatim}
 \end{footnotesize}
 
-The speech module tries \ros{}, HTTP, ADB-from-PC, then local Termux broadcast a documented fallback chain, reflecting principle P3 (triangulate, then fall back gracefully rather than assume a single channel).
+The speech module tries \ros{}, HTTP, ADB-from-PC, then local Termux broadcast, a documented fallback chain reflecting principle P3 (triangulate, then fall back gracefully rather than assume a single channel).
 
-\textbf{LLM extensibility.} A single knowledge-query endpoint accepts the same contract as the local KnowledgeEngine; an LLM backend in the style of~\cite{ahn2022saycan,driess2023paleme} can call the validated \cybel{} navigation/speech primitives without itself rediscovering \rosbridge{} or the TTS bridge this is the concrete sense in which the conversational layer is ``LLM-ready'' rather than already LLM-based.
+\textbf{LLM extensibility.} A single knowledge-query endpoint accepts the same contract as the local KnowledgeEngine; an LLM backend in the style of~\cite{ahn2022saycan,driess2023paleme} can call the validated \cybel{} navigation/speech primitives without itself rediscovering \rosbridge{} or the TTS bridge. This is the concrete sense in which the conversational layer is ``LLM-ready'' rather than already LLM-based.
 
 \subsubsection{Offline voice interface}
 
@@ -545,7 +545,7 @@ Sentrymove & same as S3 & Reference baseline (vendor app) \\
 \end{tabular}
 \end{table}
 
-\textbf{Benchmark pitfall (H4).} A raw \rosbridge{} script that fires \texttt{/tag\_manager/navi} and reads \texttt{nav\_status} within ${<}1$\,s may report code 603 from the \emph{previous} navigation without any new motion this is a measurement artifact, not evidence that the service is absent on the firmware.
+\textbf{Benchmark pitfall (H4).} A raw \rosbridge{} script that fires \texttt{/tag\_manager/navi} and reads \texttt{nav\_status} within ${<}1$\,s may report code 603 from the \emph{previous} navigation without any new motion. This is a measurement artifact, not evidence that the service is absent on the firmware.
 
 \subsection{Reverse-engineering and field metrics}
 
@@ -622,6 +622,7 @@ LLM-backend ready & $\times$ & \checkmark (API contract) \\
 \item \textbf{POI reuse over raw coords (H3, confirmed):} synchronizing Deployment Tool POIs and navigating via the SDK service chain outperforms offline coordinate goals on \texttt{laboV2}; always validate with full prerequisites and arrival waits, not transport-level reads alone.
 \item \textbf{Edge-first is not optional:} closed robot Wi-Fi precludes cloud LLM/TTS dependencies, which shaped every architectural choice in Section~\ref{sec:arch}.
 \item \textbf{An unconfirmed effect is not a proven absence of cost (reactivity fix):} the same discipline that motivated H4 (do not trust a fast acknowledgment) applies symmetrically to re-issuing already-satisfied preconditions; both cost real round-trip time on constrained Wi-Fi.
+\item \textbf{A shared RPC message type does not imply shared semantics (H4, in our own code):} three unrelated chassis services, \texttt{/global\_locate}, \texttt{/change\_location\_mode}, and \texttt{/start\_recharge}, all use the same vendor-defined message type (\texttt{yutong\_assistance/cmd}, a single integer \texttt{cmd} field), each with a meaning private to that service. Calling one with empty or guessed arguments returned a positive acknowledgment while either doing nothing or producing the opposite of the intended effect, a failure found only by re-applying the same \rosapi{} introspection used for H1--H4 to our own reverse-engineered calls rather than to the vendor's.
 \item \textbf{Compact offline models cannot pronounce what they have never seen (wake-word finding):} an invented product name is worst-case input for a closed-vocabulary recognizer without grapheme-to-phoneme fallback; substituting a phonetically close, in-vocabulary phrase is a cheap, generalizable workaround.
 \end{itemize}
 
@@ -637,7 +638,11 @@ Facial recognition (Section~\ref{sec:face}) raised a separate provenance questio
 
 \subsection{Limitations}
 
-Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; the guided-tour completion rate and Termux autonomous uptime figures in Table~\ref{tab:metrics} come from a single 0.6-hour, 3-tour session and should not be read as a long-run endurance result. The recognizer remains inconsistent on open-ended FAQ questions: a controlled offline measurement (12 canonical questions, 4 paraphrases each, keyword-matching engine of Section~\ref{sec:conv}) found a 56.2\% repeat-question success rate (27/48 trials) --- most failures were near-miss keyword overlaps matched to the wrong entry rather than outright non-matches, indicating the closed keyword scorer needs a wider synonym set or a semantic fallback; the facial-recognition threshold is uncalibrated across multiple concurrently enrolled visitors; and the wake-word grammar occasionally triggers on ambient speech, a precision/recall trade-off of a real-language substitute phrase that field logging (10 wake events, 0.3\,h) recorded as $0\%$ false triggers --- too small a sample to claim a real rate, and the detection heuristic (silence/timeout after wake vs.\ any transcribed text) cannot distinguish a genuinely misheard ambient phrase from a short garbled transcript, so this likely understates the true rate.
+Several limitations remain. The chassis shell is inaccessible, there is no native \ros{} TTS, the Android~7.1 WebView imposes constraints, and the head's DHCP address varies between sessions. The vendor comparison in Table~\ref{tab:compare} is feature-level rather than a controlled user study, and the guided-tour completion rate and Termux autonomous uptime in Table~\ref{tab:metrics} come from a single 0.6-hour, three-tour session, so they should not be read as a long-run endurance result.
+
+The recognizer also remains inconsistent on open-ended FAQ questions. A controlled offline measurement (12 canonical questions, four paraphrases each, using the keyword-matching engine of Section~\ref{sec:conv}) found a 56.2\% repeat-question success rate (27 of 48 trials). Most failures were near-miss keyword overlaps matched to the wrong entry rather than outright non-matches, which suggests the closed keyword scorer needs a wider synonym set or a semantic fallback. The facial-recognition threshold is likewise uncalibrated across multiple concurrently enrolled visitors.
+
+Finally, the wake-word grammar occasionally triggers on ambient speech, a precision/recall trade-off inherent to the real-language substitute phrase described in Section~\ref{sec:conv}. Field logging recorded zero false triggers across ten wake events over 0.3 hours, but the sample is too small to claim a real rate, and the detection heuristic (silence or timeout after the wake word versus any transcribed text) cannot distinguish a genuinely misheard ambient phrase from a short, garbled transcript, so this figure likely understates the true rate.
 
 %==============================================================================
 \section{Conclusion}
