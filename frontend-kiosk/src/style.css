@@ -59,6 +59,20 @@ body {
     flex-shrink: 0;
 }
 
+/* ── Retour tactile générique (écran tactile kiosque) ───────
+   Filet de sécurité pour tout bouton sans effet :active dédié ; les classes
+   qui définissent déjà le leur (action-card, dest-card, featured-chip,
+   voice-button, btn-primary…) restent prioritaires (spécificité de classe). */
+
+button:not(:disabled) {
+    transition: transform 0.08s ease, filter 0.08s ease, opacity 0.08s ease;
+}
+
+button:not(:disabled):active {
+    transform: scale(0.93);
+    filter: brightness(0.92);
+}
+
 /* ── Header / status ───────────────────────────────────────── */
 
 .kiosk-header {
