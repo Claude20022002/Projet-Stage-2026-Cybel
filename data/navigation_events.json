@@ -167,8 +167,44 @@
       "nav_status": 602,
       "detail": "",
       "at": "2026-07-15T21:38:32.802811+00:00"
+    },
+    {
+      "id": "0567195d-1f1d-4617-9d72-670e189f5d76",
+      "kind": "navigate_point",
+      "success": true,
+      "point_name": "POINT-RECHARGE",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 602,
+      "detail": "",
+      "at": "2026-07-23T10:46:40.035135+00:00"
+    },
+    {
+      "id": "78d75e37-d1e7-4635-8f4b-840450fa37cf",
+      "kind": "navigate_point",
+      "success": true,
+      "point_name": "POINT-RECHARGE",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 602,
+      "detail": "",
+      "at": "2026-07-23T10:46:41.439734+00:00"
+    },
+    {
+      "id": "2771957f-6508-4456-8630-69a2d27e4c10",
+      "kind": "navigate_point",
+      "success": true,
+      "point_name": "POINT-RECHARGE",
+      "x": null,
+      "y": null,
+      "theta": null,
+      "nav_status": 602,
+      "detail": "",
+      "at": "2026-07-23T10:46:58.895686+00:00"
     }
   ],
   "version": 1,
-  "updated_at": "2026-07-15T21:38:32.802834+00:00"
+  "updated_at": "2026-07-23T10:46:58.895707+00:00"
 }
