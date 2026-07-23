@@ -146,9 +146,11 @@ NAV_STATUS_LABELS = {
 CHARGE_HOME_TOPIC = "/charge_server/home_pose"
 START_RECHARGE_SERVICE = "/start_recharge"
 # yutong_assistance/cmd (via /rosapi/service_request_details) — champ "cmd"
-# (int32) requis, pas un service vide/texte. Sans lui le châssis ne se dirige
-# jamais vers la borne (observé : "ok":true renvoyé, aucun mouvement réel).
-START_RECHARGE_CMD_START = 1
+# (int32) requis, pas un service vide/texte. cmd=Stop annule bien le
+# comportement de charge en cours (confirmé en direct sur le robot,
+# 2026-07-23) ; cmd=Start ne déclenche PAS un retour à la borne (testé en
+# direct : fait au contraire quitter la borne) — voir go_home() qui utilise
+# la navigation POI standard à la place.
 START_RECHARGE_CMD_STOP = 2
 
 GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
@@ -1235,36 +1237,30 @@ async def wait_for_navigation_arrival(
 
 
 async def go_home() -> bool:
-    """Retour borne de recharge (SelfChassis.sendGoHome)."""
+    """Retour borne de recharge.
+
+    /start_recharge cmd=Start (1) a été essayé en direct sur le robot le
+    2026-07-23 : le service répond "succès" mais fait en réalité *quitter*
+    la borne (probablement un service d'enregistrement de trajet, pas un
+    déclencheur de navigation retour — sémantique "cmd" propre à chaque
+    service chez ce vendeur, cf. GLOBAL_LOCATE_ARGS). On utilise à la place
+    la navigation POI standard vers le point de retour du tour
+    (`return_point`, ex. "POINT-RECHARGE"), déjà validée à 100% (3/3 essais)
+    par la visite guidée.
+    """
     snap = await ensure_leave_charge_if_needed(timeout=3.0)
     if int(snap.get("nav_status") or 0) == _tour_navigation.CHARGING_NAV_STATUS:
         return True
-    await cancel_navigation_full(
-        point_name=str(snap.get("navigating_to") or "") or None
-    )
+
+    tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    # Repli défensif : si data/lab_tour.json n'a pas (encore) été synchronisé
+    # avec return_point (cause racine réelle rencontrée le 2026-07-23 — le
+    # fichier sur la tablette était périmé), on retombe sur le nom de POI
+    # connu pour ce déploiement plutôt que d'échouer silencieusement.
+    return_point = getattr(tour, "return_point", None) or "POINT-RECHARGE"
     try:
-        await ros_call_service("/change_location_mode", {"mode": 1})
-    except Exception:
-        pass
-    try:
-        uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
-        async with websockets.connect(uri, open_timeout=4) as ws:
-            await ws.send(
-                json.dumps(
-                    {
-                        "op": "publish",
-                        "topic": CHARGE_HOME_TOPIC,
-                        "msg": {"data": True},
-                    }
-                )
-            )
-    except Exception:
-        pass
-    try:
-        response = await ros_call_service(
-            START_RECHARGE_SERVICE, {"cmd": START_RECHARGE_CMD_START}, timeout=8.0
-        )
-        return response.get("result", True) is not False
+        await navigate_to_point(str(return_point))
+        return True
     except Exception:
         return False
 

@@ -1156,8 +1156,17 @@ class RealRobot:
         self.status.charge_state_label = charge_state_label(self.status.charge_state)
         await self._emit("status", self.status.model_dump())
 
+    # Nom du POI de retour borne pour ce déploiement (labo_v2), aligné sur
+    # data/lab_tour.json:return_point. /start_recharge cmd=Start (1) a été
+    # testé en direct sur le robot le 2026-07-23 : le service répond
+    # "succès" mais fait en réalité *quitter* la borne (sémantique "cmd"
+    # propre à chaque service chez ce vendeur — cf. GLOBAL_LOCATE_ARGS dans
+    # scripts/termux/cybel_lite.py). On utilise donc la navigation POI
+    # standard, déjà validée à 100% (3/3 essais) par la visite guidée.
+    CHARGE_RETURN_POINT = "POINT-RECHARGE"
+
     async def go_home(self) -> bool:
-        """Retour manuel vers la borne de recharge (APK SelfChassis.sendGoHome)."""
+        """Retour vers la borne de recharge via navigation POI standard."""
         if not self._client.connected:
             return False
 
@@ -1177,24 +1186,12 @@ class RealRobot:
         except Exception as exc:
             logger.warning("Publish charge_home_pose échoué : %s", exc)
 
-        response: dict[str, Any] = {}
-        try:
-            # yutong_assistance/cmd requiert un champ "cmd" (int32) explicite —
-            # 1 = Start (via /rosapi/service_request_details). Un appel avec
-            # args={} est accepté sans erreur mais ne déclenche aucun retour
-            # réel à la borne (observé sur le robot le 2026-07-23).
-            response = await self._client.call_service(
-                ROS_SERVICES["start_recharge"], {"cmd": 1}, timeout=8.0
-            )
-        except Exception as exc:
-            logger.warning("Service start_recharge échoué : %s", exc)
-
-        ok = response.get("result", True) is not False
+        ok = await self.navigate_to_point(self.CHARGE_RETURN_POINT)
         await self._emit(
             "event",
             {
-                "message": "Retour borne de recharge lancé" if ok else "Retour borne — service refusé",
-                "method": ROS_SERVICES["start_recharge"],
+                "message": "Retour borne de recharge lancé" if ok else "Retour borne — navigation refusée",
+                "method": "navigate_to_point",
             },
         )
         return ok

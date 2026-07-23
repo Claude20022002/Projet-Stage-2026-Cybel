@@ -95,6 +95,9 @@ L'app ne s'ouvre pas ou écran blanc ?
 | « Synchronisation POI impossible » | Robot éteint ou pas joignable | Allumer le robot, vérifier Sentrymove |
 | « Point inconnu » pendant la visite | Nom POI différent entre robot et CYBEL | Voir [GUIDE_CONTROLEUR_POI.md](GUIDE_CONTROLEUR_POI.md) §1 et §7 |
 | Aucune tablette ADB | USB ou autorisation débogage | Rebrancher câble, accepter débogage USB |
+| Le robot ne bouge pas après "aller à…"/"visite guidée"/"stop" alors que l'app dit que ça a marché | `nav_status` bloqué sur un code inhabituel (600 après redémarrage backend, ou autre) — le robot n'exécute pas alors que le service ROS répond "succès" | **Ouvrir l'app constructeur Deployment Tool** et relocaliser/déplacer manuellement depuis là — méthode fiable confirmée en direct le 2026-07-23, plus sûre que de réessayer depuis l'app CYBEL |
+| Le kiosque affiche encore l'ancienne interface après une mise à jour | La WebView garde l'ancien code en mémoire ; pousser `dist/` ne suffit pas | Forcer l'arrêt et relancer l'app (`am force-stop com.cybel.visitorkiosk.test` puis relancer), pas juste redémarrer le backend |
+| `adb forward` ne répond plus après avoir débranché/rebranché l'USB | Le tunnel ne survit pas à une reconnexion USB | Relancer `adb forward tcp:18001 tcp:8001` (le script `kiosk_test.ps1` le refait automatiquement) |
 
 ---
 
