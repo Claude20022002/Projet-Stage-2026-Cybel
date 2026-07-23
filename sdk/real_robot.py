@@ -589,8 +589,10 @@ class RealRobot:
     async def ensure_adb_tts(self) -> dict[str, Any]:
         return await self._speech.ensure_adb_connected()
 
-    async def speak(self, text: str, interrupt: bool = True, priority: str = "normal") -> dict:
-        return await self._speech.speak(text, interrupt=interrupt, priority=priority)
+    async def speak(
+        self, text: str, interrupt: bool = True, priority: str = "normal", lang: str = "fr"
+    ) -> dict:
+        return await self._speech.speak(text, interrupt=interrupt, priority=priority, lang=lang)
 
     async def wait_for_speech(self, text: str) -> None:
         await self._speech.wait_for_completion(text)

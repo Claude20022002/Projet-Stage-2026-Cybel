@@ -1293,7 +1293,7 @@ async def execute_action(action_id: str, lang: str) -> dict:
 
     speech = pick_speech(action, lang)
     if speech:
-        if speak_local(speech):
+        if speak_local(speech, lang):
             events.append(f"Annonce : {speech} (local-broadcast)")
         else:
             events.append("TTS échoué")
@@ -1349,7 +1349,8 @@ def build_tour_engine(tracer=None, available_poi: set[str] | None = None) -> Tou
         tour = filter_tour_by_poi(tour, available_poi)
 
     async def speak(text: str) -> None:
-        await speak_local_and_wait(text)
+        tour_lang = _tour_engine.get_status().lang if _tour_engine else "fr"
+        await speak_local_and_wait(text, tour_lang)
 
     async def navigate(stop, index: int) -> None:
         snap_before = await fetch_robot_snapshot()
@@ -1589,9 +1590,10 @@ async def say(request: Request) -> JSONResponse:
     except json.JSONDecodeError:
         return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
     text = str(body.get("text", "")).strip()
+    lang = str(body.get("lang", "fr"))
     if not text:
         return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
-    if speak_local(text):
+    if speak_local(text, lang):
         return JSONResponse({"ok": True, "method": "local-broadcast", "text": text})
     return JSONResponse({"ok": False, "error": "TTS échoué"}, status_code=400)
 
@@ -1940,7 +1942,7 @@ async def go_destination(request: Request) -> JSONResponse:
         else f"Bienvenue ! Je vous accompagne vers {point_name}. Suivez-moi."
     )
     events = [f"Accueil : {welcome}"]
-    if speak_local(welcome):
+    if speak_local(welcome, lang):
         events.append("TTS local OK")
     else:
         events.append("TTS échoué")
@@ -1975,7 +1977,7 @@ async def _voice_navigate(point_name: str, lang: str) -> dict:
         if lang == "en"
         else f"Je vous accompagne vers {point_name}. Suivez-moi."
     )
-    speak_local(welcome)
+    speak_local(welcome, lang)
     try:
         await navigate_to_point(point_name)
     except Exception as exc:
@@ -2038,7 +2040,7 @@ async def handle_voice_command(text: str, lang: str) -> dict:
         match = None
     if match and getattr(match, "answer", ""):
         answer = str(match.answer)
-        speak_local(answer)
+        speak_local(answer, lang)
         response = {"ok": True, "understood": True, "kind": "faq",
                     "transcript": cleaned, "reply": answer}
         # Si l'entrée pointe vers un lieu, on peut aussi y naviguer.
@@ -2056,7 +2058,7 @@ async def handle_voice_command(text: str, lang: str) -> dict:
              if lang == "fr" else
              "I didn't understand. You can ask for a destination, the guided "
              "tour, or a question about HESTIM.")
-    speak_local(reply)
+    speak_local(reply, lang)
     return {"ok": False, "understood": False, "kind": "unknown",
             "transcript": cleaned, "reply": reply}
 

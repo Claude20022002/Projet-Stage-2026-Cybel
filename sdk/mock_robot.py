@@ -194,8 +194,10 @@ class MockRobot:
     def get_speech_status(self) -> SpeechStatus:
         return self._speech.get_status()
 
-    async def speak(self, text: str, interrupt: bool = True, priority: str = "normal") -> dict:
-        return await self._speech.speak(text, interrupt=interrupt, priority=priority)
+    async def speak(
+        self, text: str, interrupt: bool = True, priority: str = "normal", lang: str = "fr"
+    ) -> dict:
+        return await self._speech.speak(text, interrupt=interrupt, priority=priority, lang=lang)
 
     async def wait_for_speech(self, text: str) -> None:
         await self._speech.wait_for_completion(text)
