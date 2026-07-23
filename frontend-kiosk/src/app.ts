@@ -393,11 +393,17 @@ async function resolveDestinationByVoice(text: string): Promise<string | null> {
   return null;
 }
 
+/** Vrai si le capteur de présence châssis (distance réelle, contrairement à la
+ * reconnaissance faciale qui n'a aucune notion de distance) voit quelqu'un à
+ * portée — sert de garde-fou anti faux-positifs pour les deux déclencheurs. */
+function isSomeoneNearby(): boolean {
+  const maxDist = config?.presence_max_distance_m ?? 3.0;
+  return detectedPeople.some((p) => p.distance <= maxDist);
+}
+
 function handlePresenceWelcome(): void {
   if (!config?.presence_welcome_enabled) return;
-  const maxDist = config.presence_max_distance_m ?? 3.0;
-  const nearby = detectedPeople.filter((p) => p.distance <= maxDist);
-  if (!nearby.length) return;
+  if (!isSomeoneNearby()) return;
   tryGreetAndOfferTour();
 }
 
@@ -432,7 +438,11 @@ function startTelemetry(): void {
     },
     onVisitorIdentified: (visitor) => {
       identifiedVisitor = { visitor, at: Date.now() };
-      if (config?.face_recognition_enabled) tryGreetAndOfferTour();
+      // La reconnaissance faciale n'a aucune notion de distance : on exige que
+      // le capteur de présence châssis confirme aussi quelqu'un à portée,
+      // sinon un visage reconnu au loin (visiteur juste de passage) déclenche
+      // le salut à tort.
+      if (config?.face_recognition_enabled && isSomeoneNearby()) tryGreetAndOfferTour();
     },
     onVoice: (event) => {
       // Diffusion serveur : utile si un autre client (ex. opérateur) parle au robot.
