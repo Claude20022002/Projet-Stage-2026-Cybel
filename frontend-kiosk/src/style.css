@@ -51,6 +51,14 @@ body {
         var(--bg);
 }
 
+/* ── Icônes SVG (icons.ts) ─────────────────────────────────── */
+
+.icon {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
 /* ── Header / status ───────────────────────────────────────── */
 
 .kiosk-header {
@@ -387,7 +395,11 @@ body {
 }
 
 .action-card__icon {
-    font-size: 36px;
+    color: var(--text-muted);
+}
+
+.action-card--primary .action-card__icon {
+    color: var(--primary);
 }
 
 .action-card__title {
@@ -553,7 +565,7 @@ body {
 }
 
 .dest-card__icon {
-    font-size: 40px;
+    color: var(--primary);
 }
 
 .dest-card__name {
@@ -912,7 +924,6 @@ body {
 }
 
 .voice-button__icon {
-    font-size: 34px;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -1040,4 +1051,17 @@ body {
     font-size: 18px;
     font-weight: 700;
     cursor: pointer;
+}
+
+/* ── Accessibilité : réduire les animations en boucle ──────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

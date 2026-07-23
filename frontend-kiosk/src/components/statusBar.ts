@@ -62,7 +62,7 @@ export function renderStatusBar(
         <span class="kiosk-header__title">Fablab</span>
         <div class="battery ${batteryClass}" aria-label="${labels.statusBattery} ${battery}%">
           ${charging ? `<span class="battery__charge">${labels.statusCharging}</span>` : ""}
-          <span class="battery__icon" aria-hidden="true">⚡</span>
+          <span class="battery__icon" aria-hidden="true">${icons.battery("icon", 16)}</span>
           <span class="battery__value">${battery}%</span>
         </div>
         <button id="btn-lang" class="kiosk-lang" type="button" ${busy ? "disabled" : ""}>
