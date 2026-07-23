@@ -178,20 +178,6 @@ export function phaseLabel(phase: string, lang: keyof typeof t): string {
   }
 }
 
-const POINT_ICONS: Record<string, string> = {
-  charging: "🔌",
-  gate: "🚪",
-  access: "🚪",
-  ride: "🛗",
-  wait: "⏳",
-  stop: "🛑",
-  label: "🏷️",
-  common: "📍",
-};
-
-export function pointIcon(type: string): string {
-  return POINT_ICONS[type] ?? POINT_ICONS.common;
-}
 
 export function formatClock(date: Date, lang: keyof typeof t): string {
   return date.toLocaleTimeString(lang === "fr" ? "fr-FR" : "en-GB", {

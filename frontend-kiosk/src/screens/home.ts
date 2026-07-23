@@ -1,4 +1,5 @@
-import { pointIcon, t } from "../i18n";
+import { icons, pointIconSvg } from "../icons";
+import { t } from "../i18n";
 import type {
   KioskConfig,
   KioskDestination,
@@ -64,7 +65,7 @@ export function renderWelcome(
         voiceAvailable
           ? `
         <button id="btn-voice" class="voice-button" type="button" ${busy ? "disabled" : ""}>
-          <span class="voice-button__icon" aria-hidden="true">🎤</span>
+          <span class="voice-button__icon" aria-hidden="true">${icons.mic("icon", 22)}</span>
           <span class="voice-button__text">
             <strong>${labels.voiceButton}</strong>
             <span>${labels.voiceButtonHint}</span>
@@ -84,7 +85,7 @@ export function renderWelcome(
               .map(
                 (dest) => `
               <button class="featured-chip" type="button" data-dest="${dest.name}" ${busy ? "disabled" : ""}>
-                <span aria-hidden="true">${pointIcon(dest.type)}</span>
+                <span aria-hidden="true">${pointIconSvg(dest.type, "icon", 16)}</span>
                 <span>${dest.name}</span>
               </button>
             `
@@ -119,17 +120,17 @@ export function renderWelcome(
 
       <section class="action-grid">
         <button id="btn-mode-dest" class="action-card action-card--primary" type="button" ${busy ? "disabled" : ""}>
-          <span class="action-card__icon" aria-hidden="true">📍</span>
+          <span class="action-card__icon" aria-hidden="true">${icons.mapPin("icon", 26)}</span>
           <strong class="action-card__title">${labels.modeDestinations}</strong>
           <span class="action-card__hint">${labels.modeDestinationsHint}</span>
         </button>
         <button id="btn-mode-tour" class="action-card" type="button" ${busy ? "disabled" : ""}>
-          <span class="action-card__icon" aria-hidden="true">🗺️</span>
+          <span class="action-card__icon" aria-hidden="true">${icons.map("icon", 26)}</span>
           <strong class="action-card__title">${labels.modeTour}</strong>
           <span class="action-card__hint">${labels.modeTourHint}</span>
         </button>
         <button id="btn-assistance" class="action-card action-card--ghost" type="button" ${busy ? "disabled" : ""}>
-          <span class="action-card__icon" aria-hidden="true">🙋</span>
+          <span class="action-card__icon" aria-hidden="true">${icons.helpCircle("icon", 26)}</span>
           <strong class="action-card__title">${labels.assistance}</strong>
           <span class="action-card__hint">${labels.assistanceHint}</span>
         </button>
@@ -177,7 +178,7 @@ export function renderVoiceOverlay(
   let body = "";
   if (state === "listening") {
     body = `
-      <div class="voice-overlay__mic voice-overlay__mic--pulse" aria-hidden="true">🎤</div>
+      <div class="voice-overlay__mic voice-overlay__mic--pulse" aria-hidden="true">${icons.mic("icon", 36)}</div>
       <p class="voice-overlay__status">${labels.voiceListening}</p>
       <p class="voice-overlay__hint">${labels.voiceListeningHint}</p>
     `;
@@ -196,7 +197,7 @@ export function renderVoiceOverlay(
           : ""
       }
       <div class="voice-overlay__bubble">
-        <span class="voice-overlay__bubble-icon" aria-hidden="true">🤖</span>
+        <span class="voice-overlay__bubble-icon" aria-hidden="true">${icons.robot("icon", 22)}</span>
         <p>${reply || labels.voiceError}</p>
       </div>
       <button id="btn-voice-close" class="voice-overlay__close" type="button">${labels.voiceClose}</button>
@@ -238,7 +239,7 @@ export function renderDestinations(
         <h1 class="destinations-head__title">${labels.destinationsTitle}</h1>
         <p class="destinations-head__hint">${labels.destinationsHint}</p>
         <label class="search">
-          <span class="search__icon" aria-hidden="true">🔍</span>
+          <span class="search__icon" aria-hidden="true">${icons.search("icon", 18)}</span>
           <input
             id="dest-search"
             class="search__input"
@@ -265,7 +266,7 @@ export function renderDestinations(
               data-dest="${dest.name}"
               ${busy ? "disabled" : ""}
             >
-              <span class="dest-card__icon" aria-hidden="true">${pointIcon(dest.type)}</span>
+              <span class="dest-card__icon" aria-hidden="true">${pointIconSvg(dest.type, "icon", 24)}</span>
               <span class="dest-card__name">${dest.name}</span>
             </button>
           `
@@ -301,7 +302,7 @@ export function renderTraveling(
   return `
     <main class="screen screen--traveling">
       <div class="traveling__anim" aria-hidden="true">
-        <div class="traveling__robot">🤖</div>
+        <div class="traveling__robot">${icons.robot("icon", 48)}</div>
         <div class="traveling__path"></div>
       </div>
 
@@ -352,7 +353,7 @@ export function renderCompleted(
   if (mode === "destination") {
     return `
       <main class="screen screen--arrival">
-        <div class="arrival__icon" aria-hidden="true">${failed ? "⚠️" : "✅"}</div>
+        <div class="arrival__icon" aria-hidden="true">${failed ? icons.alertTriangle("icon", 48) : icons.checkCircle("icon", 48)}</div>
         <h1 class="arrival__title">${failed ? labels.destError : labels.destCompleted}</h1>
         <p class="arrival__hint">${failed ? labels.destErrorHint : labels.destCompletedHint}</p>
         <button id="btn-restart" class="btn-primary" type="button">${labels.newDestination}</button>
@@ -372,7 +373,7 @@ export function renderCompleted(
 
   return `
     <main class="screen screen--arrival">
-      <div class="arrival__icon" aria-hidden="true">${tourState === "error" ? "⚠️" : "✅"}</div>
+      <div class="arrival__icon" aria-hidden="true">${tourState === "error" ? icons.alertTriangle("icon", 48) : icons.checkCircle("icon", 48)}</div>
       <h1 class="arrival__title">${title}</h1>
       <p class="arrival__hint">${hint}</p>
       <button id="btn-restart" class="btn-primary" type="button">${labels.newTour}</button>

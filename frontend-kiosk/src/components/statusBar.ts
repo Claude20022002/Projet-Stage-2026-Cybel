@@ -1,3 +1,4 @@
+import { icons } from "../icons";
 import { formatClock, t } from "../i18n";
 import type { Lang, RobotStatus, SpeechStatus } from "../types";
 
@@ -49,6 +50,7 @@ export function renderStatusBar(
   return `
     <header class="kiosk-header">
       <div class="kiosk-header__left">
+        <img class="kiosk-header__logo" src="/kiosk/hestim-logo.png" alt="HESTIM" />
         ${variantLabel ? `<span class="variant-pill">${variantLabel}</span>` : ""}
         <span class="status-pill ${statusClass}">${statusLabel}</span>
         <span class="status-net ${connected ? "status-net--on" : "status-net--off"}" title="${connected ? labels.statusConnected : labels.statusOffline}"></span>
@@ -57,6 +59,7 @@ export function renderStatusBar(
         <time class="kiosk-clock" id="kiosk-clock">${formatClock(new Date(), lang)}</time>
       </div>
       <div class="kiosk-header__right">
+        <span class="kiosk-header__title">Fablab</span>
         <div class="battery ${batteryClass}" aria-label="${labels.statusBattery} ${battery}%">
           ${charging ? `<span class="battery__charge">${labels.statusCharging}</span>` : ""}
           <span class="battery__icon" aria-hidden="true">⚡</span>

@@ -70,6 +70,12 @@ body {
     gap: 10px;
 }
 
+.kiosk-header__logo {
+    height: 32px;
+    width: auto;
+    display: block;
+}
+
 .kiosk-header__center {
     text-align: center;
 }
@@ -79,6 +85,13 @@ body {
     align-items: center;
     justify-content: flex-end;
     gap: 12px;
+}
+
+.kiosk-header__title {
+    font-size: clamp(15px, 2vw, 18px);
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.02em;
 }
 
 .kiosk-clock {
