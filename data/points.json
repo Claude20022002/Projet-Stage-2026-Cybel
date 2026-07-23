@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-23T11:13:46.375552+00:00",
+  "updated_at": "2026-07-23T11:23:53.223625+00:00",
   "points": [
     {
       "id": "m2",
@@ -11,7 +11,7 @@
       "theta": -0.0698130774081258,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m0",
@@ -22,7 +22,7 @@
       "theta": 0.7504915324327277,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m4",
@@ -33,7 +33,7 @@
       "theta": 2.583087227293057,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m6",
@@ -44,7 +44,7 @@
       "theta": -2.40855443299144,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m7",
@@ -55,7 +55,7 @@
       "theta": -0.4886921021621723,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m8",
@@ -66,7 +66,7 @@
       "theta": 0.12217298440954116,
       "floor": "0",
       "kiosk_visible": false,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m1",
@@ -77,7 +77,7 @@
       "theta": 0.6632250694881756,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m10",
@@ -88,7 +88,7 @@
       "theta": -2.4958208360336616,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m9",
@@ -99,7 +99,7 @@
       "theta": -1.7104227348582817,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m3",
@@ -110,7 +110,7 @@
       "theta": 2.8274333592554166,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     },
     {
       "id": "m5",
@@ -121,7 +121,7 @@
       "theta": 0.4712390106391636,
       "floor": "0",
       "kiosk_visible": true,
-      "source": "ros"
+      "source": "merged"
     }
   ]
 }

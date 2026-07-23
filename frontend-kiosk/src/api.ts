@@ -67,9 +67,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
-  voice: (text: string, lang: Lang) =>
+  voice: (text: string, lang: Lang, sttEndMs?: number) =>
     request<VoiceResult>("/api/voice", {
       method: "POST",
-      body: JSON.stringify({ text, lang }),
+      body: JSON.stringify({ text, lang, stt_end_ms: sttEndMs }),
+    }),
+  wakeEvent: (confirmed: boolean) =>
+    request<{ ok: boolean }>("/api/voice/wake-event", {
+      method: "POST",
+      body: JSON.stringify({ confirmed }),
     }),
 };

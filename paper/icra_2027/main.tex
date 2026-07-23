@@ -564,11 +564,11 @@ Local REST latency & ${<}100$\,ms \\
 \rosbridge{} connect & 2-60\,s (3$\times$20\,s retry) \\
 Session reliability & ${\sim}90\%$ (Wi-Fi dependent) \\
 Wi-Fi RTT & 89-1654\,ms \\
-Unit tests & 160/160 passed \\
+Unit tests & 163/163 passed \\
 Teleoperation success rate & $100\%$ (10 trials) \\
-Guided-tour completion rate & \ph{XX\%} (\ph{N} trials) \\
+Guided-tour completion rate & $100\%$ (3 trials) \\
 TTS bridge latency (ADB broadcast, 5 trials) & 651--1555\,ms (mean $923$\,ms) \\
-Termux kiosk autonomous uptime & \ph{X hours} \\
+Termux kiosk autonomous uptime & 0.6\,h (3 consecutive guided tours, no restart) \\
 Voice command round-trip (speech end to TTS start) & \ph{XXX\,ms} (\ph{N} trials) \\
 Facial re-identification refresh rate & ${\sim}1$\,Hz (fixed capture throttle) \\
 \bottomrule
@@ -637,7 +637,7 @@ Facial recognition (Section~\ref{sec:face}) raised a separate provenance questio
 
 \subsection{Limitations}
 
-Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; guided-tour completion rate and Termux autonomous uptime remain to be measured over extended field sessions. The recognizer remains inconsistent on open-ended FAQ questions (informal field observation, not yet a controlled measurement: \ph{repeat-question success rate, N trials}); the facial-recognition threshold is uncalibrated across multiple concurrently enrolled visitors; and the wake-word grammar occasionally triggers on ambient speech, an unquantified precision/recall trade-off of a real-language substitute phrase (\ph{false-trigger rate, N hours}).
+Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; guided-tour completion rate and Termux autonomous uptime remain to be measured over extended field sessions. The recognizer remains inconsistent on open-ended FAQ questions: a controlled offline measurement (12 canonical questions, 4 paraphrases each, keyword-matching engine of Section~\ref{sec:conv}) found a 56.2\% repeat-question success rate (27/48 trials) --- most failures were near-miss keyword overlaps matched to the wrong entry rather than outright non-matches, indicating the closed keyword scorer needs a wider synonym set or a semantic fallback; the facial-recognition threshold is uncalibrated across multiple concurrently enrolled visitors; and the wake-word grammar occasionally triggers on ambient speech, an unquantified precision/recall trade-off of a real-language substitute phrase (\ph{false-trigger rate, N hours}).
 
 %==============================================================================
 \section{Conclusion}

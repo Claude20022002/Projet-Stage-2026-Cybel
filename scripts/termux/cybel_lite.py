@@ -167,6 +167,7 @@ _people_utils_module = None
 _visitor_utils_module = None
 _voice_commands_module = None
 _knowledge_engine = None
+_voice_logger = None
 _current_identified_visitor: dict | None = None
 _current_identified_at: float = 0.0
 VISITOR_IDENTITY_TTL_SECONDS = 120.0
@@ -207,6 +208,16 @@ def _get_knowledge_engine():
         module = _load_sdk_module_from_file("knowledge_engine")
         _knowledge_engine = module.KnowledgeEngine(CYBEL_HOME / "data")
     return _knowledge_engine
+
+
+def _get_voice_logger():
+    """Journal JSONL des échanges vocaux (latence, déclenchements mot d'éveil)
+    — alimente scripts/measure_voice_latency.py (métriques papier ICRA 2027)."""
+    global _voice_logger
+    if _voice_logger is None:
+        module = _load_sdk_module_from_file("voice_trace")
+        _voice_logger = module.VoiceSessionLogger(log_dir=CYBEL_HOME / "data" / "logs" / "voice")
+    return _voice_logger
 
 
 def get_detected_people() -> list[dict]:
@@ -2045,10 +2056,31 @@ async def voice_command(request: Request) -> JSONResponse:
         return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
     text = str(body.get("text", "")).strip()
     lang = str(body.get("lang", "fr"))
+    stt_end_ms = body.get("stt_end_ms")
     if not text:
         return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
 
     result = await handle_voice_command(text, lang)
+
+    # Latence bout-en-bout (fin de parole détectée côté app native -> réponse
+    # prête ici, TTS déjà déclenché par handle_voice_command/speak_local) —
+    # même horloge système que le client puisque le kiosque et ce backend
+    # tournent sur le même appareil (Termux). Métrique papier ICRA 2027.
+    latency_ms: int | None = None
+    if isinstance(stt_end_ms, (int, float)) and stt_end_ms > 0:
+        latency_ms = round(time.time() * 1000 - stt_end_ms)
+
+    try:
+        _get_voice_logger().record(
+            "voice_exchange",
+            transcript=result.get("transcript", text),
+            kind=result.get("kind", "unknown"),
+            ok=bool(result.get("ok")),
+            latency_ms=latency_ms,
+        )
+    except Exception:
+        pass
+
     # Diffuse l'échange au kiosque (bulle transcript + réponse, TTS déjà déclenché).
     await _broadcast_to_telemetry({
         "type": "voice",
@@ -2056,11 +2088,29 @@ async def voice_command(request: Request) -> JSONResponse:
         "reply": result.get("reply", ""),
         "kind": result.get("kind", "unknown"),
         "ok": bool(result.get("ok")),
+        "latency_ms": latency_ms,
     })
     # La visite guidée a besoin de l'objet Request (tour_start) — enchaînement ici.
     if result.get("start_tour"):
         await tour_start(request)
     return JSONResponse(result)
+
+
+async def voice_wake_event(request: Request) -> JSONResponse:
+    """POST /api/voice/wake-event — journalise un déclenchement du mot d'éveil
+    (confirmed=true si une commande a bien suivi, false si écoute restée
+    silencieuse) pour mesurer le taux de faux déclenchements (métrique papier
+    ICRA 2027, cf. scripts/measure_voice_latency.py)."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    confirmed = bool(body.get("confirmed"))
+    try:
+        _get_voice_logger().record("wake_trigger", confirmed=confirmed)
+    except Exception:
+        pass
+    return JSONResponse({"ok": True})
 
 
 async def voice_vocabulary(_: Request) -> JSONResponse:
@@ -2364,6 +2414,7 @@ def build_app() -> Starlette:
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/voice", voice_command, methods=["POST"]),
+        Route("/api/voice/wake-event", voice_wake_event, methods=["POST"]),
         Route("/api/voice/vocabulary", voice_vocabulary, methods=["GET"]),
         Route("/api/reception/voice", voice_command, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
