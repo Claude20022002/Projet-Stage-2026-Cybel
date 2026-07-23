@@ -147,6 +147,18 @@ CHARGE_HOME_TOPIC = "/charge_server/home_pose"
 START_RECHARGE_SERVICE = "/start_recharge"
 
 GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
+# yutong_assistance/GlobalLocate.cmd (via /rosapi/service_request_details) —
+# /global_locate n'est PAS un service vide : sans "cmd" explicite le châssis ne
+# répond jamais (observé : timeout, aucune rotation réelle malgré le faux
+# "succès" du repli /global_localization, lui authentiquement std_srvs/Empty).
+GLOBAL_LOCATE_ARGS = {
+    "/global_locate": {
+        "cmd": 0,  # GLOBAL
+        "search_step_linear": 0.0,
+        "search_step_angular": 0.0,
+        "search_boundary": {},
+    },
+}
 
 TELEOP_TOPIC = "/cmd_vel_mux/input/teleop"
 TWIST_TYPE = "geometry_msgs/Twist"
@@ -677,7 +689,7 @@ async def ensure_global_localization(
     if loc is not None and loc >= target and nav_status_now != 600:
         return True, snap
     service, _ = await ros_call_service_first(
-        [(name, {}) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
+        [(name, GLOBAL_LOCATE_ARGS.get(name, {})) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
         timeout=8.0,
     )
     if not service:
