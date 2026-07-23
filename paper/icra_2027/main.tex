@@ -568,8 +568,8 @@ Unit tests & 163/163 passed \\
 Teleoperation success rate & $100\%$ (10 trials) \\
 Guided-tour completion rate & $100\%$ (3 trials) \\
 TTS bridge latency (ADB broadcast, 5 trials) & 651--1555\,ms (mean $923$\,ms) \\
-Termux kiosk autonomous uptime & 0.6\,h (3 consecutive guided tours, no restart) \\
-Voice command round-trip (speech end to TTS start) & \ph{XXX\,ms} (\ph{N} trials) \\
+Termux kiosk autonomous uptime & 0.6\,h (3 tours) \\
+Voice round-trip (speech end to TTS start) & \ph{XXX\,ms} (\ph{N} trials) \\
 Facial re-identification refresh rate & ${\sim}1$\,Hz (fixed capture throttle) \\
 \bottomrule
 \end{tabular}
@@ -580,7 +580,7 @@ Validation script (Validation Framework, phase~7): connects on \texttt{192.168.2
 \subsection{Comparison with the vendor application}
 \label{sec:comparison}
 
-Table~\ref{tab:compare} makes the ``match or exceed'' claim in the introduction concrete and falsifiable at the feature level; a quantitative user-study comparison (task completion time, error rate under identical scripted visits) is identified as future work in Section~\ref{sec:discussion} rather than claimed here.
+Table~\ref{tab:compare} makes the ``match or exceed'' claim in the introduction concrete and falsifiable at the feature level; a quantitative user-study comparison (task completion time, error rate under identical scripted visits) is identified as future work in Section~\ref{sec:discussion} rather than claimed here. ``Unaudited'' in the table means the vendor's own implementation (e.g.\ its \texttt{onFindFace} facial-recognition callback) was located in the APK during the reverse-engineering pass but not exercised or benchmarked against ground truth, unlike \cybel{}'s equivalents.
 
 \begin{table}[!t]
 \caption{Feature comparison: vendor application vs.\ \cybel{}}
@@ -595,8 +595,8 @@ Teleoperation & \checkmark & \checkmark \\
 Guided tour & \checkmark & \checkmark \\
 Local FAQ / knowledge base & \checkmark (cloud) & \checkmark (local, offline) \\
 Speech synthesis & \checkmark & \checkmark (bridge, Sec.~\ref{sec:conv}) \\
-Speech recognition & unaudited & \checkmark (on-device, closed vocab.) \\
-Facial recognition & \checkmark (\texttt{onFindFace}, not audited) & \checkmark (on-device embedding) \\
+Speech recognition & unaudited & \checkmark (on-device, closed-vocab) \\
+Facial recognition & \checkmark (unaudited) & \checkmark (on-device) \\
 Works without Internet & $\times$ & \checkmark \\
 Source-inspectable logic & $\times$ & \checkmark \\
 Extensible / self-hostable & $\times$ & \checkmark \\
