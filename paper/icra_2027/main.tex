@@ -569,7 +569,7 @@ Teleoperation success rate & $100\%$ (10 trials) \\
 Guided-tour completion rate & $100\%$ (3 trials) \\
 TTS bridge latency (ADB broadcast, 5 trials) & 651--1555\,ms (mean $923$\,ms) \\
 Termux kiosk autonomous uptime & 0.6\,h (3 tours) \\
-Voice round-trip (speech end to TTS start) & \ph{XXX\,ms} (\ph{N} trials) \\
+Voice round-trip (speech$\to$TTS) & 979--23046\,ms (mean 3833, $N{=}12$) \\
 Facial re-identification refresh rate & ${\sim}1$\,Hz (fixed capture throttle) \\
 \bottomrule
 \end{tabular}
@@ -637,7 +637,7 @@ Facial recognition (Section~\ref{sec:face}) raised a separate provenance questio
 
 \subsection{Limitations}
 
-Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; guided-tour completion rate and Termux autonomous uptime remain to be measured over extended field sessions. The recognizer remains inconsistent on open-ended FAQ questions: a controlled offline measurement (12 canonical questions, 4 paraphrases each, keyword-matching engine of Section~\ref{sec:conv}) found a 56.2\% repeat-question success rate (27/48 trials) --- most failures were near-miss keyword overlaps matched to the wrong entry rather than outright non-matches, indicating the closed keyword scorer needs a wider synonym set or a semantic fallback; the facial-recognition threshold is uncalibrated across multiple concurrently enrolled visitors; and the wake-word grammar occasionally triggers on ambient speech, an unquantified precision/recall trade-off of a real-language substitute phrase (\ph{false-trigger rate, N hours}).
+Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; the guided-tour completion rate and Termux autonomous uptime figures in Table~\ref{tab:metrics} come from a single 0.6-hour, 3-tour session and should not be read as a long-run endurance result. The recognizer remains inconsistent on open-ended FAQ questions: a controlled offline measurement (12 canonical questions, 4 paraphrases each, keyword-matching engine of Section~\ref{sec:conv}) found a 56.2\% repeat-question success rate (27/48 trials) --- most failures were near-miss keyword overlaps matched to the wrong entry rather than outright non-matches, indicating the closed keyword scorer needs a wider synonym set or a semantic fallback; the facial-recognition threshold is uncalibrated across multiple concurrently enrolled visitors; and the wake-word grammar occasionally triggers on ambient speech, a precision/recall trade-off of a real-language substitute phrase that field logging (10 wake events, 0.3\,h) recorded as $0\%$ false triggers --- too small a sample to claim a real rate, and the detection heuristic (silence/timeout after wake vs.\ any transcribed text) cannot distinguish a genuinely misheard ambient phrase from a short garbled transcript, so this likely understates the true rate.
 
 %==============================================================================
 \section{Conclusion}
