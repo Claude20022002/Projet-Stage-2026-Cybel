@@ -145,6 +145,11 @@ NAV_STATUS_LABELS = {
 
 CHARGE_HOME_TOPIC = "/charge_server/home_pose"
 START_RECHARGE_SERVICE = "/start_recharge"
+# yutong_assistance/cmd (via /rosapi/service_request_details) — champ "cmd"
+# (int32) requis, pas un service vide/texte. Sans lui le châssis ne se dirige
+# jamais vers la borne (observé : "ok":true renvoyé, aucun mouvement réel).
+START_RECHARGE_CMD_START = 1
+START_RECHARGE_CMD_STOP = 2
 
 GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
 # yutong_assistance/GlobalLocate.cmd (via /rosapi/service_request_details) —
@@ -579,7 +584,7 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
         and not _tour_navigation.parse_charger_flag(snap.get("charger"))
     ):
         try:
-            await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+            await ros_call_service(START_RECHARGE_SERVICE, {"cmd": START_RECHARGE_CMD_STOP})
         except Exception:
             pass
     await _cancel_and_mode(snap)
@@ -650,7 +655,7 @@ async def ensure_leave_charge_if_needed(timeout: float = 15.0) -> dict:
         except Exception:
             pass
     try:
-        await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+        await ros_call_service(START_RECHARGE_SERVICE, {"cmd": START_RECHARGE_CMD_STOP})
     except Exception:
         pass
     try:
@@ -1256,7 +1261,9 @@ async def go_home() -> bool:
     except Exception:
         pass
     try:
-        response = await ros_call_service(START_RECHARGE_SERVICE, {}, timeout=8.0)
+        response = await ros_call_service(
+            START_RECHARGE_SERVICE, {"cmd": START_RECHARGE_CMD_START}, timeout=8.0
+        )
         return response.get("result", True) is not False
     except Exception:
         return False

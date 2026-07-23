@@ -1179,7 +1179,13 @@ class RealRobot:
 
         response: dict[str, Any] = {}
         try:
-            response = await self._client.call_service(ROS_SERVICES["start_recharge"], {}, timeout=8.0)
+            # yutong_assistance/cmd requiert un champ "cmd" (int32) explicite —
+            # 1 = Start (via /rosapi/service_request_details). Un appel avec
+            # args={} est accepté sans erreur mais ne déclenche aucun retour
+            # réel à la borne (observé sur le robot le 2026-07-23).
+            response = await self._client.call_service(
+                ROS_SERVICES["start_recharge"], {"cmd": 1}, timeout=8.0
+            )
         except Exception as exc:
             logger.warning("Service start_recharge échoué : %s", exc)
 
