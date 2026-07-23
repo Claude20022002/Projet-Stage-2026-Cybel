@@ -1,531 +1,176 @@
-# Projet-Stage-2026-Cybel
+# CYBEL — Plateforme de commande pour le robot de réception CIOT TY1251D-03195
 
-# CYBEL - Plateforme de Commande Robot CIOT TY1251D
+Reverse-engineering non destructif d'un robot de réception commercial fermé (châssis ROS +
+tête Android), puis reconstruction d'une plateforme ouverte offrant les mêmes fonctionnalités
+que l'application constructeur (voire davantage) : téléopération, navigation autonome, visite
+guidée, chatbot vocal hors-ligne et reconnaissance faciale sur l'appareil.
 
-## Documentation
+Ce dépôt contient le SDK Python, le backend FastAPI, l'interface opérateur, le kiosque visiteur
+(déployable en autonome sur la tête Android via Termux), et l'article scientifique associé
+(IEEE ICRA 2027).
 
-**Index complet : [docs/README.md](docs/README.md)**
-
-| Parcours | Lien |
-|----------|------|
-| Démarrage dev | [docs/guides/DEMARRAGE-RAPIDE.md](docs/guides/DEMARRAGE-RAPIDE.md) |
-| Session labo | [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) · `scripts/preflight_labo.ps1` |
-| Kiosque visiteur | [docs/kiosque/README.md](docs/kiosque/README.md) |
-| Robot / ROS | [docs/robot/README.md](docs/robot/README.md) |
-| Conception | [docs/cybel-conception/README.md](docs/cybel-conception/README.md) |
-| Carte doc | [docs/STRUCTURE.md](docs/STRUCTURE.md) |
+**Index complet de la documentation : [docs/README.md](docs/README.md)**
 
 ---
 
-## Vue d'ensemble
+## Fonctionnalités
 
-Plateforme de commande complète pour le robot de réception mobile CIOT (modèle TY1251D-03195),
-basée sur le protocole rosbridge WebSocket et MQTT. Cette plateforme permet le contrôle en temps
-réel, la navigation autonome et le monitoring du robot via une interface web.
+Statut détaillé et comparaison avec l'application constructeur :
+**[FEATURES_STATUS.md](FEATURES_STATUS.md)**.
 
----
-
-## Architecture de communication (découverte par reverse engineering)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PLATEFORME CYBEL                         │
-│                                                             │
-│   SDK Python (robot_client.py)                             │
-│   Interface Web (React + Vite)                             │
-│   API Backend (FastAPI)                                    │
-└──────────┬──────────────────────┬──────────────────────────┘
-           │                      │
-     WebSocket                  MQTT
-     rosbridge                  paho
-     :9090                      :1883
-           │                      │
-┌──────────▼──────────────────────▼──────────────────────────┐
-│              CHÂSSIS CIOT - 10.42.0.1                      │
-│              WiFi : TY1251D-03195                          │
-│              Mot de passe : 123456789                      │
-│                                                            │
-│  OS : Linux embarqué (ROS Noetic/Melodic)                  │
-│  Upper body : Android 7.1 (RK3399) - 172.16.0.88          │
-├────────────────────────────────────────────────────────────┤
-│  PORTS OUVERTS                                             │
-│  :1883  MQTT broker                                        │
-│  :8082  Interface web déploiement (Vue.js)                 │
-│  :8088  Interface debug CSST (chinois)                     │
-│  :9090  rosbridge WebSocket (ROS)                          │
-│  :21    FTP                                                │
-│  :22    SSH (verrouillé)                                   │
-└────────────────────────────────────────────────────────────┘
-```
+| Domaine | Fonctionnalité | Statut |
+|---------|----------------|--------|
+| Robot | Téléopération, navigation POI/coordonnées, visite guidée multi-arrêts | ✅ Validé terrain |
+| Robot | Retour à la borne de recharge | ⚠️ Navigation vers le point de charge validée ; accostage précis non confirmé |
+| Robot | Réglage du profil de vitesse (sécurité/équilibre/efficacité) | ✅ |
+| Voix | Chatbot vocal hors-ligne (STT Vosk, vocabulaire fermé, mot d'éveil) | ✅ Validé terrain |
+| Voix | Dialogue proactif (proposition de visite après accueil) | ✅ |
+| Voix | Synthèse vocale bilingue FR/EN (locale correcte selon la langue) | ✅ |
+| Vision | Reconnaissance faciale sur l'appareil (embeddings, jamais d'image transmise) | ✅ Validé terrain |
+| Vision | Enrôlement de visiteur à distance depuis l'interface opérateur | ✅ |
+| Kiosque | Interface visiteur tactile (accueil, sélection destination, recherche, favoris) | ✅ |
+| Kiosque | Déploiement autonome sur la tête Android (Termux, sans PC) | ✅ |
+| Opérateur | Dashboard, carte SLAM, téléopération, diagnostics, patrouille | ✅ |
+| Opérateur | Gestion visiteurs (liste live, suppression), aide contrôleur | ✅ |
+| Recherche | Méthodologie de reverse-engineering documentée, 4 hypothèses testées | ✅ Voir `paper/icra_2027/` |
 
 ---
 
-## Protocole de communication
+## Démarrage rapide (développement, sans robot)
 
-### 1. rosbridge WebSocket (principal)
-
-**Endpoint** : `ws://10.42.0.1:9090`
-**Protocole** : rosbridge v2.0 (JSON)
-
-#### Topics SUBSCRIBE (lecture)
-
-| Topic                                 | Type ROS              | Description                   | Fréquence |
-| ------------------------------------- | --------------------- | ----------------------------- | --------- |
-| `/robot_pose`                         | custom                | Position `{x, y, theta}`      | ~10 Hz    |
-| `/robot_status`                       | custom                | État complet du robot         | ~2 Hz     |
-| `/scan_filter`                        | sensor_msgs/LaserScan | Données LiDAR filtrées        | ~25 Hz    |
-| `/mobile_base/sensors/imu_data_raw`   | sensor_msgs/Imu       | Données IMU                   | ~10 Hz    |
-| `/navi_status`                        | std_msgs/String       | État navigation               | ~2 Hz     |
-| `/map_metadata`                       | nav_msgs/MapMetaData  | Métadonnées carte             | on change |
-| `/detected_people_array`              | custom                | Personnes détectées           | ~5 Hz     |
-| `/waypoints`                          | custom                | Points de navigation          | on change |
-| `/get_current_map`                    | custom                | Carte courante                | on change |
-| `/mobile_base/debug/raw_data_command` | std_msgs/String       | Commandes binaires bas niveau | ~10 Hz    |
-
-#### Topics PUBLISH (commandes)
-
-| Topic                            | Type ROS            | Description                          | Format payload                                    |
-| -------------------------------- | ------------------- | ------------------------------------ | ------------------------------------------------- |
-| `/mobile_base/commands/velocity` | geometry_msgs/Twist | **COMMANDE DE MOUVEMENT PRINCIPALE** | `{linear: {x, y:0, z:0}, angular: {x:0, y:0, z}}` |
-| `/set_init_pose`                 | custom              | Définir position initiale            | `{x, y, theta}`                                   |
-| `/path_follower/cancel`          | custom              | Annuler navigation en cours          | `{}`                                              |
-
-#### Services ROS (call_service)
-
-| Service                               | Type                         | Description                 | Args connues                   |
-| ------------------------------------- | ---------------------------- | --------------------------- | ------------------------------ |
-| `/rosapi/topics`                      | rosapi                       | Lister tous les topics      | `{}`                           |
-| `/rosapi/services`                    | rosapi                       | Lister tous les services    | `{}`                           |
-| `/rosapi/message_details`             | rosapi                       | Détails d'un type           | `{type: "..."}`                |
-| `/poi`                                | yutong_assistance/poiRequest | Navigation vers point nommé | À déterminer par introspection |
-| `/global_localization`                | std_srvs/Empty               | Localisation globale        | `{}`                           |
-| `/change_location_mode`               | yutong_assistance/cmdRequest | Changer mode contrôle       | À déterminer                   |
-| `/marker_manager/control`             | custom                       | Contrôle marqueurs          | À déterminer                   |
-| `/marker_manager/get_markers_details` | custom                       | Obtenir points enregistrés  | `{}`                           |
-| `/move_base/NavfnROS/make_plan`       | nav_msgs                     | Planifier trajectoire       | `{start, goal}`                |
-| `/calculate_distance`                 | custom                       | Calculer distance           | À déterminer                   |
-
-#### Format des messages rosbridge
-
-```json
-// SUBSCRIBE
-{"op": "subscribe", "topic": "/robot_pose", "throttle_rate": 200}
-
-// UNSUBSCRIBE
-{"op": "unsubscribe", "topic": "/robot_pose"}
-
-// PUBLISH
-{
-  "op": "publish",
-  "topic": "/mobile_base/commands/velocity",
-  "msg": {
-    "linear":  {"x": 0.15, "y": 0.0, "z": 0.0},
-    "angular": {"x": 0.0,  "y": 0.0, "z": 0.0}
-  }
-}
-
-// CALL SERVICE
-{"op": "call_service", "service": "/rosapi/topics", "args": {}}
+```powershell
+python --version    # 3.11+
+node --version      # 18+
+pip install -r requirements.txt
+cd frontend && npm install
+cd ../frontend-kiosk && npm install
 ```
 
-### 2. MQTT
-
-**Broker** : `10.42.0.1:1883`
-**Authentification** : aucune
-
-| Topic      | Description     | Format                        |
-| ---------- | --------------- | ----------------------------- |
-| `test_mul` | Odométrie brute | `TY1251D-03195,X,Y,Z,vitesse` |
-
-### 3. Structure du robot_status
-
-```json
-{
-  "current_building_name": "robotics lab",
-  "soft_estop": false,
-  "hard_estop": false,
-  "battery": 46,
-  "charger": 0,
-  "nav_status": 600,
-  "velocity": [linear, angular],
-  "patrol_status": 0,
-  "nav_mode": "auto_navi",
-  "current_floor_name": "0",
-  "current_goal_coordinate": {"y": 0.0, "x": 0.0, "theta": 0.0},
-  "nav_internal_status": 600,
-  "control_state": 30
-}
+```powershell
+# Depuis la racine du dépôt — lance backend + opérateur + kiosque ensemble
+python scripts/dev.py
 ```
 
-**Codes nav_status connus** :
+| Service | URL |
+|---------|-----|
+| Backend API | http://127.0.0.1:8000 |
+| Interface opérateur | http://127.0.0.1:5173 |
+| Kiosque visiteur | http://127.0.0.1:5174/kiosk/ |
 
-- `600` : Initializing / non localisé
-- À documenter : idle, navigating, arrived, error
+Mode simulation par défaut (`ROBOT_MOCK=true`). Pour se connecter au robot réel, créer un
+fichier **`.env` à la racine du dépôt** (pas dans `backend/`) avec au minimum :
 
-**Codes control_state connus** :
-
-- `30` : mode auto_navi (navigation autonome)
-- À documenter : mode téléopération
-
----
-
-## Spécifications hardware du robot
-
-| Paramètre                     | Valeur                                  |
-| ----------------------------- | --------------------------------------- |
-| Modèle                        | CIOT Mobile Reception Robot             |
-| Châssis                       | TY1251D-03195                           |
-| OS Upper body                 | Android 7.1                             |
-| CPU                           | RK3399                                  |
-| RAM                           | 2 GB                                    |
-| ROM                           | 16 GB                                   |
-| Réseau                        | 4G / WiFi                               |
-| Batterie                      | 24V, 20Ah                               |
-| Autonomie                     | 8h                                      |
-| Vitesse max                   | 0.8 m/s                                 |
-| Vitesse défaut                | 0.5 m/s                                 |
-| Précision positionnement      | ±5 cm                                   |
-| Capteurs                      | LiDAR, RGBD, ultrason, gyroscope 6 axes |
-| Écran                         | 15.6 pouces tactile, 1920×1080          |
-| Caméra reconnaissance faciale | 2M pixels, 0.5–3m                       |
-| Caméras surveillance          | 4× 4.2M pixels IR                       |
-
----
-
-## Architecture de la plateforme à développer
-
-### Stack technologique recommandée
-
-#### Backend
-
-```
-Python 3.11+
-FastAPI          → API REST + WebSocket relay
-websockets       → connexion rosbridge
-paho-mqtt        → connexion MQTT broker
-uvicorn          → serveur ASGI
-asyncio          → gestion concurrence
-pydantic         → validation données
+```env
+ROBOT_MOCK=false
+ROBOT_HOST=10.42.0.1
+ROBOT_WS_PORT=9090
 ```
 
-#### Frontend
+Tests unitaires :
 
-```
-React 18 + TypeScript
-Vite             → bundler
-Tailwind CSS     → styling
-shadcn/ui        → composants UI
-react-use-websocket → WebSocket hook
-leaflet / pixi.js   → affichage carte robot
-nipplejs         → joystick virtuel tactile
-recharts         → graphiques temps réel
-zustand          → state management
-```
-
-#### Infrastructure
-
-```
-Docker + docker-compose   → containerisation
-nginx                     → reverse proxy
+```powershell
+python -m pytest tests/unit -q
 ```
 
 ---
 
-## Structure du projet
+## Démarrage sur le robot (session labo / kiosque terrain)
+
+Procédure détaillée, pas à pas : **[docs/labo/DEMARRAGE_ET_DEPANNAGE.md](docs/labo/DEMARRAGE_ET_DEPANNAGE.md)**
+(rédigée pour un contrôleur non-développeur) et **[docs/labo/TERRAIN.md](docs/labo/TERRAIN.md)**
+(procédure complète avec commandes).
+
+Résumé de l'ordre de démarrage habituel sur la tête Android du robot :
+
+1. **Deployment Tool** (app constructeur) — vérifier que le châssis répond.
+2. **Termux** — démarre le backend embarqué (`.\scripts\kiosk_test.ps1 demarrer` depuis le PC,
+   ou automatique si déjà configuré au démarrage).
+3. **CYBEL Accueil** — lancer l'app kiosque visiteur.
+4. Si le robot ne semble pas localisé (`nav_status` bloqué, ne bouge pas alors que l'app dit
+   que ça a marché) : **relocaliser depuis Deployment Tool**, pas depuis l'app CYBEL — voir
+   [dépannage](#dépannage-rapide) ci-dessous.
+
+```powershell
+.\scripts\kiosk_test.ps1 demarrer     # tout enchaîner automatiquement
+.\scripts\kiosk_test.ps1 status       # juste vérifier l'état
+.\scripts\kiosk_test.ps1 logs         # voir ce qui se passe
+```
+
+---
+
+## Dépannage rapide
+
+Guide complet avec arbre de décision : **[docs/labo/DEMARRAGE_ET_DEPANNAGE.md](docs/labo/DEMARRAGE_ET_DEPANNAGE.md)**.
+
+| Symptôme | Cause probable | Action |
+|----------|----------------|--------|
+| « Backend ne répond pas » dans l'app | Le moteur web (port 8001) est arrêté | `.\scripts\kiosk_test.ps1 redemarrer` |
+| Toujours en panne après redémarrage | Dépendances Python manquantes sur la tablette | `.\scripts\kiosk_test.ps1 reparer` puis `demarrer` |
+| L'app dit "succès" mais le robot ne bouge pas (navigation, retour borne, relocalisation) | `nav_status` bloqué sur un code inhabituel | **Ouvrir Deployment Tool** et relocaliser/déplacer manuellement — méthode fiable confirmée en direct |
+| Le kiosque garde l'ancienne interface après une mise à jour | La WebView garde l'ancien code en mémoire | Forcer l'arrêt de l'app puis la relancer (pas juste redémarrer le backend) |
+| Tunnel `adb forward` mort après avoir débranché/rebranché l'USB | Le tunnel ne survit pas à une reconnexion | Relancer `adb forward tcp:18001 tcp:8001` (`kiosk_test.ps1` le refait automatiquement) |
+| Robot mal prononcé en anglais | — (corrigé) | Locale TTS fr/en désormais correcte de bout en bout |
+| Aucune tablette détectée en USB | Câble ou autorisation débogage | Rebrancher, accepter "Débogage USB" sur la tablette |
+
+---
+
+## Architecture (résumé)
+
+```
+┌───────────────────────────────────────────────────────────┐
+│  PC (dev/opérateur)              Tête Android (embarqué)  │
+│  ┌─────────────┐                 ┌──────────────────────┐ │
+│  │ backend/    │  rosbridge:9090 │ Termux (cybel_lite)   │ │
+│  │ (FastAPI)   │◄───────────────►│ + CybelVisitorKiosk   │ │
+│  │ frontend/   │       MQTT:1883 │ + CybelFaceBridge     │ │
+│  │ (opérateur) │                 │ + CybelTTSBridge      │ │
+│  └─────────────┘                 └──────────────────────┘ │
+└───────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+        ┌───────────────────────────┐
+        │ Châssis CIOT (ROS)        │
+        │ 10.42.0.1 (Wi-Fi robot)   │
+        │ 192.168.20.22 (interne)   │
+        └───────────────────────────┘
+```
+
+Détails complets (protocole rosbridge, topics/services découverts, schémas) :
+**[docs/ARCHITECTURE_LOGICIELLE.md](docs/ARCHITECTURE_LOGICIELLE.md)** ·
+**[docs/ROBOT_CONNECTION.md](docs/ROBOT_CONNECTION.md)** ·
+identifiants Wi-Fi du robot : voir [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md).
+
+## Structure du dépôt
 
 ```
 cybel/
-├── README.md
-├── .gitignore
-├── docs/                         # Documentation constructeur
-│
-├── sdk/                          # Couche robot (réutilisable)
-│   ├── __init__.py
-│   ├── models.py                 # Modèles Pydantic partagés
-│   ├── constants.py              # Topics ROS, services, codes
-│   ├── rosbridge.py              # Client WebSocket rosbridge
-│   ├── map_utils.py              # Parse cartes OccupancyGrid
-│   ├── mock_map.py               # Carte simulée
-│   ├── mock_robot.py             # Simulateur (hors robot)
-│   └── real_robot.py             # Adaptateur robot réel
-│
-├── backend/                      # API REST + WebSocket
-│   ├── main.py                   # Point d'entrée FastAPI
-│   ├── config.py                 # Variables d'environnement
-│   ├── requirements.txt
-│   ├── routers/
-│   │   ├── robot.py              # /api/robot/*
-│   │   ├── navigation.py         # /api/navigation/*
-│   │   ├── map.py                # /api/map/*
-│   │   ├── reception.py         # /api/reception/*
-│   │   ├── tour.py              # /api/tour/* (visite guidée)
-│   │   └── settings.py          # /api/settings
-│   ├── services/
-│   │   └── robot_service.py      # Façade mock / réel
-│   └── websocket/
-│       └── manager.py            # Broadcast télémétrie
-│
-├── frontend/                     # Interface opérateur (Vite + TS)
-│   └── src/
-│       ├── app.ts                # Routeur pages
-│       ├── api.ts                # Client REST
-│       ├── state.ts              # État global
-│       ├── telemetry.ts          # WebSocket temps réel
-│       ├── icons/                # Icônes SVG inline
-│       ├── components/           # UI (layout, carte, contrôles…)
-│       └── pages/
-│           └── settings.ts       # Page paramètres
-│
-└── scripts/                      # Outils reverse-engineering
-    ├── robot_move.py
-    ├── robot_status.py
-    ├── ros_explore.py
-    ├── mqtt_listen.py
-    └── api_discover.py
+├── sdk/              # Couche robot réutilisable (rosbridge, MQTT, mock/réel)
+├── backend/          # API REST + WebSocket (FastAPI)
+├── frontend/         # Interface opérateur (dashboard, carte, téléop)
+├── frontend-kiosk/   # Interface visiteur (kiosque tactile)
+├── android/          # Apps Android embarquées (kiosque, TTS, reconnaissance faciale)
+├── scripts/          # Outils de dev, déploiement Termux, reverse-engineering
+├── docs/             # Documentation détaillée — voir docs/README.md
+├── paper/            # Article scientifique (IEEE ICRA 2027)
+└── tests/            # Tests unitaires (pytest)
 ```
 
----
+## Documentation
 
-## Phase A - SDK Python (RobotClient)
+**[docs/README.md](docs/README.md)** est l'index complet (session labo, kiosque, protocole
+robot, conception, rapport de stage). Points d'entrée fréquents :
 
-### Interface publique de la classe RobotClient
-
-```python
-class RobotClient:
-    # Connexion
-    def __init__(self, host="10.42.0.1", ws_port=9090, mqtt_port=1883)
-    async def connect() -> bool
-    async def disconnect()
-
-    # Mouvement
-    async def move(linear_x: float, angular_z: float, duration: float = None)
-    async def stop()
-    async def forward(speed: float = 0.15, duration: float = 1.0)
-    async def backward(speed: float = 0.15, duration: float = 1.0)
-    async def rotate(angular_z: float, duration: float = 1.0)
-    async def rotate_left(speed: float = 0.5, duration: float = 1.0)
-    async def rotate_right(speed: float = 0.5, duration: float = 1.0)
-
-    # Télémétrie
-    async def get_pose() -> Pose           # {x, y, theta}
-    async def get_status() -> RobotStatus  # état complet
-    async def get_battery() -> int         # pourcentage
-    async def get_velocity() -> tuple      # (linear, angular)
-
-    # Navigation
-    async def navigate_to_point(point_name: str) -> bool
-    async def navigate_to_coord(x: float, y: float, theta: float) -> bool
-    async def cancel_navigation() -> bool
-    async def get_navigation_status() -> str
-
-    # Carte & Points
-    async def get_points() -> list[Point]
-    async def get_map_metadata() -> MapMetadata
-
-    # Localisation
-    async def global_localization() -> bool
-    async def set_init_pose(x: float, y: float, theta: float) -> bool
-
-    # Callbacks (temps réel)
-    def on_pose_update(callback: Callable)
-    def on_status_update(callback: Callable)
-    def on_people_detected(callback: Callable)
-
-    # Urgence
-    async def emergency_stop()
-    async def release_emergency_stop()
-```
-
----
-
-## Phase B - Interface web
-
-### Pages et fonctionnalités
-
-#### Dashboard (page principale)
-
-- Barre de statut en temps réel (batterie, état, mode, matching degree)
-- Carte 2D avec position du robot en temps réel
-- Joystick virtuel (tactile + clavier)
-- Visualisation LiDAR overlay sur la carte
-- Bouton E-Stop rouge proéminent
-- Panneau vitesse et orientation
-
-#### Navigation
-
-- Liste des points enregistrés
-- Envoi vers un point en un clic
-- Suivi de trajectoire en temps réel
-- Historique des navigations
-
-#### Monitoring
-
-- Graphiques temps réel (vitesse, batterie)
-- Log des événements
-- Statut des capteurs
-
-#### Settings
-
-- Configuration vitesse
-- Mode de déplacement (sécurité/balance/efficacité)
-- Paramètres réseau
-
-### API Backend endpoints
-
-```
-GET  /api/robot/status          → état complet
-GET  /api/robot/pose            → position actuelle
-POST /api/robot/move            → {linear_x, angular_z, duration}
-POST /api/robot/stop            → arrêt immédiat
-POST /api/robot/emergency_stop  → E-Stop
-
-GET  /api/navigation/points     → liste des points nommés
-POST /api/navigation/goto       → {point_name}
-POST /api/navigation/goto_coord → {x, y, theta}
-POST /api/navigation/cancel     → annuler navigation
-
-GET  /api/map/current           → carte courante
-GET  /api/map/metadata          → métadonnées carte
-
-WS   /ws/telemetry              → stream temps réel (pose, status, lidar)
-```
-
----
-
-## Phase C - Navigation autonome
-
-### Service /poi - Navigation par point nommé
-
-Le service ROS `/poi` accepte des requêtes de type `yutong_assistance/poiRequest`.
-Les champs exacts sont à déterminer via introspection :
-
-```python
-await call_service(ws, "/rosapi/message_details",
-                   {"type": "yutong_assistance/poiRequest"})
-```
-
-### Récupération des points enregistrés
-
-```python
-await call_service(ws, "/marker_manager/get_markers_details", {})
-```
-
-### Flux de navigation complet
-
-```
-1. get_points()              → récupérer liste points disponibles
-2. navigate_to_point(name)   → appel service /poi
-3. subscribe /navi_status    → suivre progression
-4. subscribe /robot_pose     → afficher position en temps réel
-5. on_arrived callback       → notification arrivée
-```
-
----
-
-## Variables d'environnement
-
-```env
-ROBOT_HOST=10.42.0.1
-ROBOT_WS_PORT=9090
-ROBOT_MQTT_PORT=1883
-ROBOT_WIFI_SSID=TY1251D-03195
-ROBOT_WIFI_PASSWORD=123456789
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
-```
-
----
-
-## Contraintes et points d'attention
-
-1. **Connexion WiFi obligatoire** : se connecter au réseau `TY1251D-03195` avant tout
-2. **control_state 30** : en mode `auto_navi`, les commandes `/cmd_vel` sont ignorées.
-   Utiliser `/mobile_base/commands/velocity` + toggle "Télécommande manuelle" activé
-3. **Matching degree** : en dessous de ~80%, la localisation est instable.
-   Lancer `/global_localization` si matching < 60%
-4. **Throttle rate** : limiter les subscriptions à 200ms minimum pour ne pas saturer le rosbridge
-5. **E-Stop** : toujours implémenter et tester en premier
-6. **Latence WiFi** : prévoir une latence variable 7–1654ms sur le réseau du robot
-7. **Batterie** : robot actuellement à ~43%. Prévoir reconnexion auto si déconnexion
-
----
-
-## Documentation (détail)
-
-Guides opérationnels et index par thème : **[docs/README.md](docs/README.md)**
-
-| Guide | Fichier |
-|-------|---------|
-| Interface opérateur | [docs/INTERFACE.md](docs/INTERFACE.md) |
-| Déploiement Termux | [docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md) · [docs/kiosque/](docs/kiosque/) |
-| Kiosque visiteur | [docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md) |
-
-## Documentation (index GitHub)
-
-**[docs/README.md](docs/README.md)** — index complet de la documentation.
-
-| Section | Lien |
-|---------|------|
-| **Session labo** | [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) |
-| Preflight auto | `.\scripts\preflight_labo.ps1` |
-| Kiosque A/B | [docs/labo/KIOSK_AB_COMPARISON.md](docs/labo/KIOSK_AB_COMPARISON.md) |
-| Sync POI | [docs/SENTRYMOVE_POI_SYNC.md](docs/SENTRYMOVE_POI_SYNC.md) |
+| Besoin | Document |
+|--------|----------|
+| Débuter sur le projet | [docs/guides/DEMARRAGE-RAPIDE.md](docs/guides/DEMARRAGE-RAPIDE.md) |
+| Session labo / terrain | [docs/labo/TERRAIN.md](docs/labo/TERRAIN.md) |
+| Kiosque visiteur (démarrage + dépannage) | [docs/labo/DEMARRAGE_ET_DEPANNAGE.md](docs/labo/DEMARRAGE_ET_DEPANNAGE.md) |
 | Chatbot vocal | [docs/VOICE_CHATBOT.md](docs/VOICE_CHATBOT.md) |
 | Reconnaissance faciale | [docs/FACE_PRESENCE.md](docs/FACE_PRESENCE.md) |
-
-## Déploiement kiosque sur Termux (tête Android)
-
-Backend + interface visiteur embarqués sur la tablette (`ssh -p 8022`) :
-
-- **[docs/TERMUX_DEPLOY.md](docs/TERMUX_DEPLOY.md)** — procédure, scripts, dépannage
-- **[docs/VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md)** — interface visiteur, app Android, problèmes rencontrés
-
-**État (17 juillet 2026)** : backend lite et kiosque **opérationnels** sur Termux ;
-visite guidée labo (10 arrêts) ; contrôle opérateur avec arrêt d'urgence ;
-chatbot vocal (STT + mot d'éveil) et reconnaissance faciale validés terrain.
-Voir [VISITOR_KIOSK.md](docs/VISITOR_KIOSK.md).
-
-## Commandes de démarrage rapide
-
-```bash
-# Connexion WiFi (Windows)
-netsh wlan connect name="TY1251D-03195"
-
-# Test de connexion
-ping 10.42.0.1
-
-# Lancer le SDK (test connexion rosbridge)
-cd cybel
-python scripts\robot_status.py
-
-# Lancer le backend + le frontend en une seule commande (depuis la racine)
-python scripts/dev.py
-
-# --- Ou séparément ---
-
-# Lancer le backend
-cd backend
-uvicorn main:app --reload --port 8000
-
-# Lancer le frontend
-cd frontend
-npm run dev
-```
+| Synthèse vocale (TTS) | [docs/TTS_BRIDGE.md](docs/TTS_BRIDGE.md) |
+| Audit APK constructeur (JADX) | [docs/cybel-conception/AUDIT_APK_CONSTRUCTEUR.md](docs/cybel-conception/AUDIT_APK_CONSTRUCTEUR.md) |
+| Historique des changements | [CHANGELOG.md](CHANGELOG.md) |
 
 ---
 
-## Fichiers de référence (reverse engineering)
-
-```
-scripts/mqtt_listen.py        → découverte MQTT
-scripts/ros_explore.py        → liste topics/services ROS
-scripts/joystick_capture.py   → capture commandes joystick
-scripts/robot_move.py         → test mouvement (VALIDÉ ✅)
-scripts/robot_status.py       → monitoring état robot
-scripts/introspect.py         → introspection types ROS
-```
-
----
-
-_Projet CYBEL - Robot CIOT TY1251D-03195_
-_Protocole validé le 10/06/2026_
+_Projet CYBEL — Robot CIOT TY1251D-03195 — HESTIM_
