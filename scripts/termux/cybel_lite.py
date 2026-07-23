@@ -112,6 +112,7 @@ _tour_navigation = _load_tour_navigation_module()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
 filter_tour_by_poi = _lab_tour.filter_tour_by_poi
+reorder_stops_nearest_first = _lab_tour.reorder_stops_nearest_first
 load_tour_data = _lab_tour.load_tour_data
 save_tour_data = _lab_tour.save_tour_data
 validate_stop_dict = _lab_tour.validate_stop_dict
@@ -1346,10 +1347,25 @@ def _tour_log_dir() -> Path:
     return path
 
 
-def build_tour_engine(tracer=None, available_poi: set[str] | None = None) -> TourEngine:
+def build_tour_engine(
+    tracer=None,
+    available_poi: set[str] | None = None,
+    start_xy: tuple[float, float] | None = None,
+) -> TourEngine:
     tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
     if available_poi is not None:
         tour = filter_tour_by_poi(tour, available_poi)
+    if start_xy is not None:
+        # Réordonne du plus proche au plus proche depuis la position actuelle
+        # du robot plutôt que de suivre l'ordre fixe du fichier — réduit la
+        # distance/temps de trajet total (demande utilisateur : visite ~11-14
+        # min jugée trop longue).
+        point_coords = {
+            str(p.get("name")): (float(p["x"]), float(p["y"]))
+            for p in load_points()
+            if p.get("name") and p.get("x") is not None and p.get("y") is not None
+        }
+        tour = reorder_stops_nearest_first(tour, start_xy, point_coords)
 
     async def speak(text: str) -> None:
         tour_lang = _tour_engine.get_status().lang if _tour_engine else "fr"
@@ -1440,6 +1456,13 @@ async def tour_start(request: Request) -> JSONResponse:
             {"ok": False, "error": "Impossible d'activer le mode navigation automatique"},
             status_code=409,
         )
+    # Visite guidée mesurée à ~11-14 min sur le terrain (jugée trop longue) —
+    # profil de vitesse max pour ce trajet, best-effort (n'empêche pas la
+    # visite de démarrer si le service refuse).
+    try:
+        await set_velocity_profile("efficiency")
+    except Exception:
+        pass
     tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
     _active_tracer = _tour_trace.TourSessionLogger(
         tour_id=tour.id,
@@ -1447,7 +1470,12 @@ async def tour_start(request: Request) -> JSONResponse:
     )
     _active_tracer.robot_snapshot("tour_start_pose", prereq_snap)
     available_poi = {str(p.get("name")) for p in load_points() if p.get("name")}
-    _tour_engine = build_tour_engine(tracer=_active_tracer, available_poi=available_poi)
+    start_xy = None
+    if prereq_snap.get("x") is not None and prereq_snap.get("y") is not None:
+        start_xy = (float(prereq_snap["x"]), float(prereq_snap["y"]))
+    _tour_engine = build_tour_engine(
+        tracer=_active_tracer, available_poi=available_poi, start_xy=start_xy
+    )
     try:
         result = await _tour_engine.start(lang)
     except Exception as exc:

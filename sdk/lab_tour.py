@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import re
 import unicodedata
 from dataclasses import dataclass, replace
@@ -205,6 +206,57 @@ def filter_tour_by_poi(tour: LabTour, available_names: set[str]) -> LabTour:
                 continue
         kept.append(stop)
     return replace(tour, stops=kept)
+
+
+def reorder_stops_nearest_first(
+    tour: LabTour,
+    start_xy: tuple[float, float],
+    point_coords: dict[str, tuple[float, float]],
+) -> LabTour:
+    """Réordonne les arrêts du plus proche au plus proche (glouton, style plus-proche-voisin),
+    en partant de la position actuelle du robot, au lieu de l'ordre fixe défini dans le
+    fichier de la visite. Réduit la distance totale parcourue (donc la durée de la visite)
+    sans changer le contenu présenté.
+
+    `point_coords` : nom de POI → (x, y), résolu par l'appelant (ex. depuis data/points.json)
+    car ce module reste agnostique du mécanisme de résolution des POI. Les arrêts dont les
+    coordonnées ne peuvent pas être résolues (POI inconnu, pas de x/y direct) sont ajoutés
+    à la fin dans leur ordre d'origine plutôt que de faire échouer tout le réordonnancement.
+    """
+
+    def _coords(stop: TourStop) -> tuple[float, float] | None:
+        if stop.target_point and stop.target_point in point_coords:
+            return point_coords[stop.target_point]
+        if stop.has_coordinates():
+            return (float(stop.x), float(stop.y))
+        return None
+
+    remaining = list(tour.stops)
+    ordered: list[TourStop] = []
+    cx, cy = start_xy
+
+    while remaining:
+        best_index: int | None = None
+        best_dist = math.inf
+        best_coords: tuple[float, float] | None = None
+        for i, stop in enumerate(remaining):
+            coords = _coords(stop)
+            if coords is None:
+                continue
+            dist = math.hypot(coords[0] - cx, coords[1] - cy)
+            if dist < best_dist:
+                best_dist = dist
+                best_index = i
+                best_coords = coords
+        if best_index is None:
+            # Plus aucun arrêt restant n'a de coordonnées résolues — on garde
+            # le reste dans l'ordre d'origine plutôt que d'abandonner.
+            ordered.extend(remaining)
+            break
+        ordered.append(remaining.pop(best_index))
+        cx, cy = best_coords  # type: ignore[misc]
+
+    return replace(tour, stops=ordered)
 
 
 def tour_public_payload(tour: LabTour) -> dict:
