@@ -104,6 +104,31 @@ class VisitorService:
         response.raise_for_status()
         return response.json()
 
+    async def list_remote(self) -> list[dict]:
+        """Liste les visiteurs réellement enrôlés sur le robot (backend embarqué
+        du kiosque) — seule source de vérité, distincte du magasin local
+        (`list_public`) qui ne sert qu'aux tests/scénarios sans robot."""
+        base = settings.kiosk_backend_url.strip().rstrip("/")
+        if not base:
+            raise RuntimeError("kiosk_backend_url non configuré")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{base}/api/visitors")
+        response.raise_for_status()
+        return response.json()
+
+    async def remove_remote(self, visitor_id: str) -> tuple[int, dict]:
+        """Supprime un visiteur sur le robot — relaie vers le backend embarqué."""
+        base = settings.kiosk_backend_url.strip().rstrip("/")
+        if not base:
+            raise RuntimeError("kiosk_backend_url non configuré")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.delete(f"{base}/api/visitors/{visitor_id}")
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        return response.status_code, body
+
     def kiosk_telemetry_ws_url(self) -> str | None:
         """URL WebSocket du backend embarqué (télémétrie live, incl.
         face_status) — dérivée de kiosk_backend_url pour éviter de faire
