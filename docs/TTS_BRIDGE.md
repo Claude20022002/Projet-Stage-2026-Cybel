@@ -325,8 +325,16 @@ Si `speech_adb_serial` est vide, `RobotSpeech` retombe sur la constante
   au moins une fois (et le daemon `adbd` du robot doit être en mode `tcpip`) —
   cet état ne survit pas forcément à un reboot du robot (`adbd` peut revenir
   en mode USB only). Prévoir un script de reconnexion si nécessaire.
-- **Locale figée en français** (`tts.setLanguage(Locale.FRENCH)`) — à adapter
-  si le robot doit parler dans une autre langue.
+- **Locale dynamique fr/en** (corrigé) — l'intent `SPEAK` porte désormais un
+  extra `lang` (`"fr"`/`"en"`), propagé depuis `speak_local(text, lang)`
+  (`cybel_lite.py`) et `RobotSpeech.speak(text, lang=...)` (`sdk/speech.py`)
+  jusqu'à `SpeakService.applyLocale()`, qui appelle `tts.isLanguageAvailable()`
+  avant de basculer sur `Locale.US`, avec repli silencieux sur le français si
+  la voix anglaise n'est pas installée sur l'appareil (aucune garantie a
+  priori — à vérifier sur le terrain). Auparavant la locale était figée en
+  français (`tts.setLanguage(Locale.FRENCH)` à l'init, sans lien avec le
+  texte réellement envoyé), ce qui faisait lire l'anglais avec des règles
+  phonétiques françaises.
 - **Pas de file d'attente** : chaque broadcast utilise `QUEUE_FLUSH`, donc un
   nouveau texte interrompt le précédent (comportement voulu, cohérent avec
   `interrupt=True` côté `RobotSpeech.speak`).
