@@ -45,7 +45,9 @@ class RobotBackend(Protocol):
     ) -> Point: ...
     async def delete_point(self, name: str) -> bool: ...
     def get_speech_status(self) -> SpeechStatus: ...
-    async def speak(self, text: str, interrupt: bool = True) -> dict: ...
+    async def speak(
+        self, text: str, interrupt: bool = True, priority: str = "normal", lang: str = "fr"
+    ) -> dict: ...
     async def wait_for_speech(self, text: str) -> None: ...
     async def stop_speech(self) -> dict: ...
 
@@ -254,8 +256,10 @@ class RobotService:
     def get_speech_status(self) -> SpeechStatus:
         return self._require().get_speech_status()
 
-    async def speak(self, text: str, interrupt: bool = True, priority: str = "normal") -> dict:
-        result = await self._require().speak(text, interrupt=interrupt, priority=priority)
+    async def speak(
+        self, text: str, interrupt: bool = True, priority: str = "normal", lang: str = "fr"
+    ) -> dict:
+        result = await self._require().speak(text, interrupt=interrupt, priority=priority, lang=lang)
         persistence_service.log_speech(
             text=text,
             ok=bool(result.get("ok")),

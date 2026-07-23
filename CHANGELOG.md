@@ -1,5 +1,137 @@
 # Changelog CYBEL
 
+## [0.5.0] — 2026-07-23
+
+### Session de validation terrain complète (branche `feature/nav-performance`) — bugs "commande acquittée mais robot immobile", TTS anglais, données papier, UI kiosque
+
+Journée complète de test en direct sur le châssis CIOT TY1251D-03195 (Wi-Fi
+robot, tunnel `adb forward tcp:18001 tcp:8001` vers le backend Termux).
+Plusieurs bugs réels trouvés et corrigés, tous du même type : rosbridge
+acquitte un appel avec `"result": true` sans que le robot exécute quoi que ce
+soit — le piège "transport ≠ exécution" déjà documenté dans l'article H4,
+retrouvé cette fois dans notre **propre** code, pas seulement chez le
+constructeur.
+
+#### Relocalisation et retour borne — arguments de service manquants
+
+- **`/global_locate`** (`sdk/ros_ops.py`, `scripts/termux/cybel_lite.py`) est
+  un service **typé** `yutong_assistance/GlobalLocate` (champ `cmd` requis,
+  `GLOBAL=0`), pas un service vide. Nos appels envoyaient `args={}` → aucune
+  réponse (timeout), et le code basculait silencieusement sur
+  `/global_localization` (`std_srvs/Empty`, un service de repli qui accuse
+  "succès" sans provoquer de rotation réelle). Découvert via
+  `/rosapi/service_request_details` (méthodologie de triangulation de
+  l'article, appliquée à notre propre stack). Fix : arguments typés corrects
+  envoyés en priorité à `/global_locate`.
+- **`/start_recharge`** est le même genre de service typé
+  (`yutong_assistance/cmd`, énumération générique `Start=1`/`Stop=2` réutilisée
+  par le constructeur sur plusieurs services différents avec un sens propre à
+  chacun). Notre code appelait ce service avec des arguments vides puis, après
+  correction, avec `cmd=1` en supposant que "Start" déclenchait le retour à la
+  borne — **testé en direct : ça fait au contraire quitter la borne**
+  (probablement un service d'enregistrement de trajet de charge, pas un
+  déclencheur de navigation). `go_home()`/`return_charge` utilisent maintenant
+  la **navigation POI standard** vers `return_point` (`data/lab_tour.json`,
+  "POINT-RECHARGE"), déjà validée à 100 % (3/3 essais) par la visite guidée
+  (`scripts/termux/cybel_lite.py`, `sdk/real_robot.py`).
+- **Gap de déploiement corrigé** : `data/lab_tour.json` n'était jamais poussé
+  par `scripts/deploy_voice_face.sh` — la tablette gardait un exemplaire
+  périmé sans `return_point`, faisant échouer silencieusement le retour
+  borne même après le fix ci-dessus. Ajouté au script + repli défensif sur
+  "POINT-RECHARGE" si le champ est absent.
+- `nav_status` inhabituels rencontrés en direct (600 après redémarrage
+  backend, 914 après l'essai `/start_recharge` cmd=1) : notre code de
+  récupération automatique ne les couvre pas encore. **Méthode fiable
+  confirmée en direct : utiliser l'app constructeur Deployment Tool**
+  (relocaliser / déplacer manuellement) plutôt que nos appels ROS
+  reconstruits, le temps d'investiguer plus avant.
+
+#### TTS anglais — bug de locale de bout en bout
+
+- `android/CybelTTSBridge` fixait `tts.setLanguage(Locale.FRENCH)` une seule
+  fois à l'init, sans lien avec la langue du texte reçu — l'anglais était lu
+  avec des règles phonétiques françaises. Le paramètre `lang` (déjà bien geré
+  pour le choix du texte `speech_en`/`reponse_en`) n'était simplement jamais
+  transmis jusqu'au bridge Android. Fix de bout en bout : intent `SPEAK`
+  (`SpeakReceiver`/`SpeakService.applyLocale()`, repli français si la voix
+  anglaise n'est pas installée) ← `speak_local(text, lang)`
+  (`cybel_lite.py`) ← `RobotSpeech.speak(text, lang=...)` (`sdk/speech.py`,
+  `sdk/real_robot.py`, `sdk/mock_robot.py`) ← `POST /api/speech/say`
+  (`lang` ajouté à `SpeechRequest`). Validé en direct : anglais nettement
+  mieux prononcé.
+
+#### Reconnaissance faciale — garde-fou de distance manquant
+
+- Le déclenchement du salut par présence châssis (`onPeople`) filtrait déjà
+  par distance (`presence_max_distance_m`), mais le déclenchement par
+  reconnaissance faciale (`onVisitorIdentified`) saluait dès qu'un visage
+  était reconnu, **sans notion de distance** — un visiteur juste de passage
+  pouvait déclencher le salut à tort. `frontend-kiosk/src/app.ts` exige
+  maintenant que le capteur de présence châssis confirme aussi quelqu'un à
+  portée (`isSomeoneNearby()`) avant de saluer sur reconnaissance faciale.
+
+#### Interface kiosque
+
+- `frontend-kiosk/src/icons.ts` (nouveau) : 13 émojis-icônes remplacés par du
+  SVG inline, cohérent avec `frontend/src/icons/index.ts` (interface
+  opérateur). Effet d'appui tactile générique sur tous les boutons,
+  `prefers-reduced-motion` ajouté. Logo HESTIM + titre "Fablab" dans le
+  header persistant.
+- `GET`/`DELETE /api/visitors` (interface opérateur) lisaient un magasin
+  local jamais synchronisé avec le robot — la liste "Visiteurs enrôlés"
+  pouvait afficher 0 alors que des visiteurs étaient bien reconnus en direct.
+  Relayé vers le backend Termux (même schéma que `enroll-trigger`).
+  `backend/config.py` : bug de résolution `.env` relatif au répertoire de
+  travail (jamais le bon avec `cwd=BACKEND_DIR` dans `scripts/dev.py`) —
+  chemin maintenant ancré sur `ROOT`. `kiosk_backend_url` par défaut corrigé
+  (pointait vers une IP/port périmés).
+
+#### Données terrain pour l'article (`paper/icra_2027/main.tex`)
+
+Les 7 `\ph{}` restants remplacés par des mesures réelles : visite guidée
+100 % (3 essais), uptime Termux 0,6 h, FAQ 56,2 % (48 essais de
+reformulation, `scripts/measure_faq_repeat_rate.py`, nouveau), latence voix
+979–23046 ms/12 essais et faux déclenchements mot d'éveil 0/10 sur 0,3 h
+(`sdk/voice_trace.py` + `scripts/measure_voice_latency.py`, nouveaux,
+instrumentation bout-en-bout). Recompilé : toujours 8 pages, dépassements de
+marge corrigés.
+
+- Bug corrigé dans `scripts/collect_paper_data.py` (`phase_tour`) :
+  `if "error" in st` testait la présence de la clé (toujours vraie, le champ
+  vaut `null` en fonctionnement normal) au lieu de sa valeur — le script
+  bouclait indéfiniment en pensant que chaque sondage de statut échouait,
+  alors que la visite se déroulait normalement.
+
+## [0.4.1] — 2026-07-19
+
+### Réactivité navigation + salutations vocales (branche `feature/nav-performance`)
+
+- **Court-circuit navigation** : `ensure_auto_navigation()` et
+  `recover_navigation_state()` (`cybel_lite.py`) annulaient systématiquement
+  toute navigation et redemandaient le mode automatique à *chaque* commande,
+  même quand le robot était déjà prêt (601/603) et déjà en mode auto — deux
+  aller-retours ROS + 0,5 s payés pour rien dans le cas majoritaire. Les deux
+  fonctions court-circuitent maintenant si le robot est déjà prêt **et** déjà
+  en mode auto (dérivé de `control_state`, pas seulement du champ `nav_mode`
+  brut, pour ne pas rater un passage en manuel/téléop). Confirmé plus rapide
+  en test réel.
+- **Réponse aux salutations** : nouvelle action `greeting` (parlée
+  uniquement, sans `target_point`) déclenchée par « bonjour », « salut »,
+  « coucou », « bonsoir », « hello » après le mot d'éveil ou le bouton micro.
+- **`/velocity_control` câblé** (service constructeur documenté mais jamais
+  exposé — voir `docs/movement-audit/CYBEL_GAP_ANALYSIS.md`, item P2) :
+  `GET`/`POST /api/settings/velocity` pour lire et changer le profil de
+  vitesse max du châssis (sécurité/équilibre/efficacité, 0.3/0.5/0.8 m/s).
+  Lecture validée en direct (confirme le réglage usine « équilibre ») ;
+  écriture implémentée, validation terrain en direct restante.
+- **Bug de déploiement corrigé** : `actions.json` n'était jamais poussé par
+  `scripts/deploy_voice_face.sh`, faisant échouer silencieusement toute
+  nouvelle action ajoutée à `VOICE_COMMAND_MAP` (« Action inconnue »).
+- Article scientifique (`paper/`) retargeté de ROSCon Korea 2027 vers
+  **IEEE ICRA 2027** (Séoul, deadline 2026-09-15) ; titre raccourci, sections
+  chatbot vocal/reconnaissance faciale mises à jour pour refléter la
+  validation terrain — voir `paper/icra_2027/`.
+
 ## [0.4.0] — 2026-07-17
 
 ### Validation terrain complète — chatbot vocal + reconnaissance faciale (branche `feature/face-presence`)

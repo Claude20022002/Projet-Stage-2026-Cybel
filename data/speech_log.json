@@ -23,8 +23,24 @@
       "method": "mock",
       "error": "",
       "at": "2026-07-15T21:38:32.776396+00:00"
+    },
+    {
+      "id": "e4e7efb1-a6e7-45ac-825f-0a7b0693daad",
+      "text": "Bienvenue ! Comment puis-je vous aider ?",
+      "ok": true,
+      "method": "adb-tts",
+      "error": "",
+      "at": "2026-07-23T11:08:47.993691+00:00"
+    },
+    {
+      "id": "b3faccca-f2a8-4673-a4f8-25c9fedfb785",
+      "text": "Bienvenue ! Comment puis-je vous aider ?",
+      "ok": true,
+      "method": "adb-tts",
+      "error": "",
+      "at": "2026-07-23T11:09:04.072928+00:00"
     }
   ],
   "version": 1,
-  "updated_at": "2026-07-15T21:38:32.776415+00:00"
+  "updated_at": "2026-07-23T11:09:04.072963+00:00"
 }

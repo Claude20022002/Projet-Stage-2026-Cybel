@@ -25,7 +25,12 @@ def _current_threshold() -> float:
 
 @router.get("", response_model=list[VisitorPublic])
 async def list_visitors() -> list[VisitorPublic]:
-    return visitor_service.list_public()
+    try:
+        return await visitor_service.list_remote()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Kiosque injoignable : {exc}") from exc
 
 
 @router.get("/current")
@@ -51,10 +56,18 @@ async def enroll_visitor(body: VisitorEnrollRequest) -> VisitorPublic:
 
 @router.delete("/{visitor_id}")
 async def delete_visitor(visitor_id: str) -> dict:
-    removed = visitor_service.remove(visitor_id)
-    if not removed:
-        raise HTTPException(status_code=404, detail=f"Visiteur '{visitor_id}' introuvable")
-    return {"ok": True}
+    try:
+        status_code, body = await visitor_service.remove_remote(visitor_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Kiosque injoignable : {exc}") from exc
+    if status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail=body.get("error", f"Visiteur '{visitor_id}' introuvable"),
+        )
+    return body
 
 
 @router.post("/enroll-trigger")

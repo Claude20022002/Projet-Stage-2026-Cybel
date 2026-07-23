@@ -1,0 +1,345 @@
+{
+  "lang": "fr",
+  "score_threshold": 2.0,
+  "trials": 48,
+  "successes": 27,
+  "success_rate_pct": 56.2,
+  "results": [
+    {
+      "expected_id": "presentation",
+      "text": "C'est quoi HESTIM ?",
+      "matched_id": "presentation",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "presentation",
+      "text": "Pouvez-vous me présenter HESTIM ?",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "presentation",
+      "text": "Parlez-moi de HESTIM",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "presentation",
+      "text": "HESTIM c'est quoi exactement ?",
+      "matched_id": "presentation",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "localisation",
+      "text": "Où est situé le campus ?",
+      "matched_id": "campus",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "localisation",
+      "text": "L'école se trouve où ?",
+      "matched_id": "localisation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "localisation",
+      "text": "Quelle est l'adresse de HESTIM ?",
+      "matched_id": "presentation",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "localisation",
+      "text": "Où se situe HESTIM ?",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "ecoles",
+      "text": "Combien d'écoles y a-t-il à HESTIM ?",
+      "matched_id": "ecoles",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "ecoles",
+      "text": "Quelles sont les écoles de HESTIM ?",
+      "matched_id": "valeurs",
+      "score": 5.7,
+      "success": false
+    },
+    {
+      "expected_id": "ecoles",
+      "text": "HESTIM regroupe quelles écoles ?",
+      "matched_id": "ecoles",
+      "score": 5.7,
+      "success": true
+    },
+    {
+      "expected_id": "ecoles",
+      "text": "Quelles écoles compose HESTIM ?",
+      "matched_id": "ecoles",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "filieres_ingenierie",
+      "text": "Quelles sont les filières d'ingénierie ?",
+      "matched_id": "filieres_ingenierie",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "filieres_ingenierie",
+      "text": "Que peut-on étudier à l'école d'ingénieurs ?",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "filieres_ingenierie",
+      "text": "Les filières de l'école d'ingénierie sont lesquelles ?",
+      "matched_id": "filieres_ingenierie",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "filieres_ingenierie",
+      "text": "Quelles filières d'ingénieur propose HESTIM ?",
+      "matched_id": "filieres_ingenierie",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "filieres_business",
+      "text": "Quelles filières à l'école de commerce ?",
+      "matched_id": "filieres_business",
+      "score": 5.7,
+      "success": true
+    },
+    {
+      "expected_id": "filieres_business",
+      "text": "Que propose la business school ?",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "filieres_business",
+      "text": "Les filières de l'école de commerce sont quoi ?",
+      "matched_id": "filieres_business",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "filieres_business",
+      "text": "Quelles filières de commerce propose HESTIM ?",
+      "matched_id": "filieres_business",
+      "score": 5.7,
+      "success": true
+    },
+    {
+      "expected_id": "direction",
+      "text": "Qui est le directeur de HESTIM ?",
+      "matched_id": "presentation",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "direction",
+      "text": "Qui est à la tête de l'école ?",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "direction",
+      "text": "Qui dirige l'établissement ?",
+      "matched_id": "direction",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "direction",
+      "text": "Qui est le directeur général de HESTIM ?",
+      "matched_id": "presentation",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "valeurs",
+      "text": "Quelles valeurs défend HESTIM ?",
+      "matched_id": "valeurs",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "valeurs",
+      "text": "Les valeurs de l'école sont lesquelles ?",
+      "matched_id": "valeurs",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "valeurs",
+      "text": "HESTIM a quelles valeurs ?",
+      "matched_id": "valeurs",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "valeurs",
+      "text": "Quelles sont les valeurs de l'établissement ?",
+      "matched_id": "valeurs",
+      "score": 5.7,
+      "success": true
+    },
+    {
+      "expected_id": "contact",
+      "text": "Comment puis-je contacter HESTIM ?",
+      "matched_id": "contact",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "contact",
+      "text": "Quel est le numéro pour contacter HESTIM ?",
+      "matched_id": "presentation",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "contact",
+      "text": "Comment joindre l'école ?",
+      "matched_id": "filieres_ingenierie",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "contact",
+      "text": "Comment vous contacter ?",
+      "matched_id": "contact",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "incubateur",
+      "text": "Est-ce que HESTIM aide à entreprendre ?",
+      "matched_id": "presentation",
+      "score": 4.27,
+      "success": false
+    },
+    {
+      "expected_id": "incubateur",
+      "text": "HESTIM a-t-il un incubateur ?",
+      "matched_id": "presentation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "incubateur",
+      "text": "Y a-t-il un accompagnement entrepreneurial à HESTIM ?",
+      "matched_id": "incubateur",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "incubateur",
+      "text": "HESTIM aide-t-il les entrepreneurs ?",
+      "matched_id": "valeurs",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "recherche",
+      "text": "Est-ce que HESTIM fait de la recherche ?",
+      "matched_id": "presentation",
+      "score": 4.27,
+      "success": false
+    },
+    {
+      "expected_id": "recherche",
+      "text": "HESTIM a-t-il un centre de recherche ?",
+      "matched_id": "recherche",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "recherche",
+      "text": "Y a-t-il de la recherche à HESTIM ?",
+      "matched_id": "recherche",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "recherche",
+      "text": "HESTIM fait de la recherche scientifique ?",
+      "matched_id": "recherche",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "international",
+      "text": "Est-ce que HESTIM a des partenariats à l'international ?",
+      "matched_id": "presentation",
+      "score": 4.27,
+      "success": false
+    },
+    {
+      "expected_id": "international",
+      "text": "HESTIM a des partenaires internationaux ?",
+      "matched_id": "international",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "international",
+      "text": "Y a-t-il des échanges internationaux à HESTIM ?",
+      "matched_id": "international",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "international",
+      "text": "HESTIM a-t-il des accords avec des écoles étrangères ?",
+      "matched_id": "ecoles",
+      "score": 2.85,
+      "success": false
+    },
+    {
+      "expected_id": "campus",
+      "text": "Quelle est la taille du campus ?",
+      "matched_id": "campus",
+      "score": 2.85,
+      "success": true
+    },
+    {
+      "expected_id": "campus",
+      "text": "Le campus fait quelle surface ?",
+      "matched_id": "localisation",
+      "score": 1.42,
+      "success": false
+    },
+    {
+      "expected_id": "campus",
+      "text": "Est-ce que le campus est grand ?",
+      "matched_id": "campus",
+      "score": 4.27,
+      "success": true
+    },
+    {
+      "expected_id": "campus",
+      "text": "Le campus est-il spacieux ?",
+      "matched_id": "campus",
+      "score": 2.85,
+      "success": true
+    }
+  ]
+}

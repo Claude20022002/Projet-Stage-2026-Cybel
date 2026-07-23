@@ -145,8 +145,27 @@ NAV_STATUS_LABELS = {
 
 CHARGE_HOME_TOPIC = "/charge_server/home_pose"
 START_RECHARGE_SERVICE = "/start_recharge"
+# yutong_assistance/cmd (via /rosapi/service_request_details) — champ "cmd"
+# (int32) requis, pas un service vide/texte. cmd=Stop annule bien le
+# comportement de charge en cours (confirmé en direct sur le robot,
+# 2026-07-23) ; cmd=Start ne déclenche PAS un retour à la borne (testé en
+# direct : fait au contraire quitter la borne) — voir go_home() qui utilise
+# la navigation POI standard à la place.
+START_RECHARGE_CMD_STOP = 2
 
 GLOBAL_LOCATE_SERVICE_CHAIN = ("/global_locate", "/global_localization")
+# yutong_assistance/GlobalLocate.cmd (via /rosapi/service_request_details) —
+# /global_locate n'est PAS un service vide : sans "cmd" explicite le châssis ne
+# répond jamais (observé : timeout, aucune rotation réelle malgré le faux
+# "succès" du repli /global_localization, lui authentiquement std_srvs/Empty).
+GLOBAL_LOCATE_ARGS = {
+    "/global_locate": {
+        "cmd": 0,  # GLOBAL
+        "search_step_linear": 0.0,
+        "search_step_angular": 0.0,
+        "search_boundary": {},
+    },
+}
 
 TELEOP_TOPIC = "/cmd_vel_mux/input/teleop"
 TWIST_TYPE = "geometry_msgs/Twist"
@@ -167,6 +186,7 @@ _people_utils_module = None
 _visitor_utils_module = None
 _voice_commands_module = None
 _knowledge_engine = None
+_voice_logger = None
 _current_identified_visitor: dict | None = None
 _current_identified_at: float = 0.0
 VISITOR_IDENTITY_TTL_SECONDS = 120.0
@@ -207,6 +227,16 @@ def _get_knowledge_engine():
         module = _load_sdk_module_from_file("knowledge_engine")
         _knowledge_engine = module.KnowledgeEngine(CYBEL_HOME / "data")
     return _knowledge_engine
+
+
+def _get_voice_logger():
+    """Journal JSONL des échanges vocaux (latence, déclenchements mot d'éveil)
+    — alimente scripts/measure_voice_latency.py (métriques papier ICRA 2027)."""
+    global _voice_logger
+    if _voice_logger is None:
+        module = _load_sdk_module_from_file("voice_trace")
+        _voice_logger = module.VoiceSessionLogger(log_dir=CYBEL_HOME / "data" / "logs" / "voice")
+    return _voice_logger
 
 
 def get_detected_people() -> list[dict]:
@@ -257,11 +287,12 @@ def _tts_friendly(text: str) -> str:
     return _ALLCAPS_RUN.sub(_title, text)
 
 
-def speak_local(text: str) -> bool:
+def speak_local(text: str, lang: str = "fr") -> bool:
     text = _tts_friendly(text)
     escaped = text.replace("'", "'\\''")
     broadcast = (
-        f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} --es text '{escaped}'"
+        f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} "
+        f"--es text '{escaped}' --es lang '{lang}'"
     )
     for cmd in (broadcast, f"su -c '{broadcast}'"):
         try:
@@ -323,6 +354,60 @@ def _service_succeeded(response: dict) -> bool:
     if response.get("result") is False:
         return False
     return True
+
+
+# /velocity_control (constructeur, non documenté officiellement) — reverse-engineering
+# terrain, voir docs/movement-audit/ROS_COMMUNICATION.md §4 : plages de cmd groupées
+# par palier (0-2 sécurité, 3-5 équilibre, 6-8 efficacité). On utilise la première
+# valeur de chaque plage comme commande canonique de réglage — confirmé en direct
+# le 2026-07-17 : cmd 99 (GET) sur le robot au réglage par défaut usine ("équilibre")
+# renvoie bien info="3", cohérent avec cette hypothèse.
+VELOCITY_PROFILE_CMD = {"safety": 0, "balance": 3, "efficiency": 6}
+VELOCITY_PROFILE_MPS = {"safety": 0.3, "balance": 0.5, "efficiency": 0.8}
+
+
+def _velocity_level_from_cmd(cmd: int) -> str | None:
+    if 0 <= cmd <= 2:
+        return "safety"
+    if 3 <= cmd <= 5:
+        return "balance"
+    if 6 <= cmd <= 8:
+        return "efficiency"
+    return None
+
+
+async def get_velocity_profile() -> dict:
+    """Lit le profil de vitesse actuel du châssis (cmd 99 = GET, sans effet)."""
+    try:
+        response = await ros_call_service("/velocity_control", {"cmd": 99})
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    raw = response.get("info") if isinstance(response, dict) else None
+    try:
+        raw_cmd = int(raw)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "Réponse /velocity_control inattendue", "raw": response}
+    level = _velocity_level_from_cmd(raw_cmd)
+    return {
+        "ok": True,
+        "level": level,
+        "raw_cmd": raw_cmd,
+        "max_speed_mps": VELOCITY_PROFILE_MPS.get(level) if level else None,
+    }
+
+
+async def set_velocity_profile(level: str) -> dict:
+    """Change le profil de vitesse max du châssis (service constructeur /velocity_control)."""
+    cmd = VELOCITY_PROFILE_CMD.get(level)
+    if cmd is None:
+        return {"ok": False, "error": f"Niveau de vitesse inconnu : {level}"}
+    try:
+        response = await ros_call_service("/velocity_control", {"cmd": cmd})
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    if not _service_succeeded(response):
+        return {"ok": False, "error": "Service /velocity_control refusé", "raw": response}
+    return {"ok": True, "level": level, "max_speed_mps": VELOCITY_PROFILE_MPS[level]}
 
 
 async def ros_call_service_first(
@@ -429,6 +514,14 @@ def _ghost_nav(snap: dict) -> bool:
 async def ensure_auto_navigation() -> bool:
     """Annule la nav en cours, passe en mode auto et attend nav_status prêt (601/603)."""
     snap = await fetch_robot_snapshot(timeout=4.0)
+    nav_status_now = int(snap.get("nav_status") or 0)
+    # Court-circuit : robot déjà prêt et déjà en mode auto — annuler une nav
+    # inexistante et re-demander le mode auto ne fait qu'ajouter deux
+    # aller-retours ROS (et leur latence réseau) à chaque déplacement pour
+    # rien. Sans danger : nav_mode reflète control_state (téléop/joystick),
+    # pas seulement le champ brut nav_mode qui peut être en retard.
+    if nav_status_now in (601, 603) and snap.get("nav_mode") == "auto_navi":
+        return True
     try:
         await cancel_navigation_full(
             point_name=str(snap.get("navigating_to") or "") or None
@@ -480,12 +573,20 @@ async def recover_navigation_state(timeout: float = 12.0) -> dict:
 
     snap = await fetch_robot_snapshot()
     nav_status = int(snap.get("nav_status") or 0)
+    # Court-circuit : déjà prêt et déjà en mode auto, rien à récupérer —
+    # l'appel précédent annulait/changeait de mode sans condition, ajoutant
+    # annulation + changement de mode + 0,5 s à *chaque* déplacement, y
+    # compris quand le robot n'en avait pas besoin (voir ensure_auto_navigation,
+    # appelée juste après dans le même flux de navigation — même tax payée
+    # deux fois de suite).
+    if nav_status in (601, 603) and snap.get("nav_mode") == "auto_navi":
+        return snap
     if (
         nav_status == _tour_navigation.CHARGING_NAV_STATUS
         and not _tour_navigation.parse_charger_flag(snap.get("charger"))
     ):
         try:
-            await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+            await ros_call_service(START_RECHARGE_SERVICE, {"cmd": START_RECHARGE_CMD_STOP})
         except Exception:
             pass
     await _cancel_and_mode(snap)
@@ -556,7 +657,7 @@ async def ensure_leave_charge_if_needed(timeout: float = 15.0) -> dict:
         except Exception:
             pass
     try:
-        await ros_call_service(START_RECHARGE_SERVICE, {"command": "stop"})
+        await ros_call_service(START_RECHARGE_SERVICE, {"cmd": START_RECHARGE_CMD_STOP})
     except Exception:
         pass
     try:
@@ -596,7 +697,7 @@ async def ensure_global_localization(
     if loc is not None and loc >= target and nav_status_now != 600:
         return True, snap
     service, _ = await ros_call_service_first(
-        [(name, {}) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
+        [(name, GLOBAL_LOCATE_ARGS.get(name, {})) for name in GLOBAL_LOCATE_SERVICE_CHAIN],
         timeout=8.0,
     )
     if not service:
@@ -836,12 +937,12 @@ def estimate_speech_seconds(text: str) -> float:
     return _speech_timing.estimate_speech_seconds(text)
 
 
-async def speak_local_and_wait(text: str) -> None:
+async def speak_local_and_wait(text: str, lang: str = "fr") -> None:
     """Envoie le TTS local et attend la fin réelle du service Android."""
     _speech_state["speaking"] = True
     _speech_state["last_text"] = text
     try:
-        if not speak_local(text):
+        if not speak_local(text, lang):
             raise RuntimeError("TTS échoué")
         await _speech_timing.wait_for_tts_completion(
             text,
@@ -866,6 +967,15 @@ def _merge_robot_state(
     loc_msg: dict | None = None,
 ) -> dict:
     localization = _tour_navigation.parse_localization_percent(status_msg, loc_msg)
+    # control_state != 30 signale une prise de contrôle manuelle (joystick/téléop)
+    # même quand le champ nav_mode brut n'a pas encore été remis à jour côté
+    # châssis — même logique que sdk/real_robot.py._handle_status, nécessaire
+    # pour pouvoir se fier à nav_mode et court-circuiter ensure_auto_navigation()
+    # sans risquer de rater un passage en manuel.
+    control_state = int(status_msg.get("control_state") or 30)
+    nav_mode = str(status_msg.get("nav_mode") or "auto_navi")
+    if control_state != 30:
+        nav_mode = "manual"
     state = {
         "x": pose_msg.get("x"),
         "y": pose_msg.get("y"),
@@ -881,11 +991,11 @@ def _merge_robot_state(
         "battery": int(status_msg.get("battery") or 0),
         "charger": _tour_navigation.parse_charger_flag(status_msg.get("charger")),
         "connected": bool(pose_msg or status_msg),
-        "nav_mode_label": "Automatique",
+        "nav_mode_label": "Manuel" if nav_mode == "manual" else "Automatique",
         "navigating_to": status_msg.get("navigating_to"),
         "soft_estop": bool(status_msg.get("soft_estop")),
         "hard_estop": bool(status_msg.get("hard_estop")),
-        "nav_mode": str(status_msg.get("nav_mode") or "auto_navi"),
+        "nav_mode": nav_mode,
     }
     state["nav_status_label"] = NAV_STATUS_LABELS.get(state["nav_status"], "?")
     if state["x"] is not None:
@@ -1127,34 +1237,30 @@ async def wait_for_navigation_arrival(
 
 
 async def go_home() -> bool:
-    """Retour borne de recharge (SelfChassis.sendGoHome)."""
+    """Retour borne de recharge.
+
+    /start_recharge cmd=Start (1) a été essayé en direct sur le robot le
+    2026-07-23 : le service répond "succès" mais fait en réalité *quitter*
+    la borne (probablement un service d'enregistrement de trajet, pas un
+    déclencheur de navigation retour — sémantique "cmd" propre à chaque
+    service chez ce vendeur, cf. GLOBAL_LOCATE_ARGS). On utilise à la place
+    la navigation POI standard vers le point de retour du tour
+    (`return_point`, ex. "POINT-RECHARGE"), déjà validée à 100% (3/3 essais)
+    par la visite guidée.
+    """
     snap = await ensure_leave_charge_if_needed(timeout=3.0)
     if int(snap.get("nav_status") or 0) == _tour_navigation.CHARGING_NAV_STATUS:
         return True
-    await cancel_navigation_full(
-        point_name=str(snap.get("navigating_to") or "") or None
-    )
+
+    tour = load_lab_tour(TOUR_PATH if TOUR_PATH.is_file() else None)
+    # Repli défensif : si data/lab_tour.json n'a pas (encore) été synchronisé
+    # avec return_point (cause racine réelle rencontrée le 2026-07-23 — le
+    # fichier sur la tablette était périmé), on retombe sur le nom de POI
+    # connu pour ce déploiement plutôt que d'échouer silencieusement.
+    return_point = getattr(tour, "return_point", None) or "POINT-RECHARGE"
     try:
-        await ros_call_service("/change_location_mode", {"mode": 1})
-    except Exception:
-        pass
-    try:
-        uri = f"ws://{ROBOT_HOST}:{ROBOT_WS_PORT}"
-        async with websockets.connect(uri, open_timeout=4) as ws:
-            await ws.send(
-                json.dumps(
-                    {
-                        "op": "publish",
-                        "topic": CHARGE_HOME_TOPIC,
-                        "msg": {"data": True},
-                    }
-                )
-            )
-    except Exception:
-        pass
-    try:
-        response = await ros_call_service(START_RECHARGE_SERVICE, {}, timeout=8.0)
-        return response.get("result", True) is not False
+        await navigate_to_point(str(return_point))
+        return True
     except Exception:
         return False
 
@@ -1190,7 +1296,7 @@ async def execute_action(action_id: str, lang: str) -> dict:
 
     speech = pick_speech(action, lang)
     if speech:
-        if speak_local(speech):
+        if speak_local(speech, lang):
             events.append(f"Annonce : {speech} (local-broadcast)")
         else:
             events.append("TTS échoué")
@@ -1246,7 +1352,8 @@ def build_tour_engine(tracer=None, available_poi: set[str] | None = None) -> Tou
         tour = filter_tour_by_poi(tour, available_poi)
 
     async def speak(text: str) -> None:
-        await speak_local_and_wait(text)
+        tour_lang = _tour_engine.get_status().lang if _tour_engine else "fr"
+        await speak_local_and_wait(text, tour_lang)
 
     async def navigate(stop, index: int) -> None:
         snap_before = await fetch_robot_snapshot()
@@ -1486,9 +1593,10 @@ async def say(request: Request) -> JSONResponse:
     except json.JSONDecodeError:
         return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
     text = str(body.get("text", "")).strip()
+    lang = str(body.get("lang", "fr"))
     if not text:
         return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
-    if speak_local(text):
+    if speak_local(text, lang):
         return JSONResponse({"ok": True, "method": "local-broadcast", "text": text})
     return JSONResponse({"ok": False, "error": "TTS échoué"}, status_code=400)
 
@@ -1837,7 +1945,7 @@ async def go_destination(request: Request) -> JSONResponse:
         else f"Bienvenue ! Je vous accompagne vers {point_name}. Suivez-moi."
     )
     events = [f"Accueil : {welcome}"]
-    if speak_local(welcome):
+    if speak_local(welcome, lang):
         events.append("TTS local OK")
     else:
         events.append("TTS échoué")
@@ -1872,7 +1980,7 @@ async def _voice_navigate(point_name: str, lang: str) -> dict:
         if lang == "en"
         else f"Je vous accompagne vers {point_name}. Suivez-moi."
     )
-    speak_local(welcome)
+    speak_local(welcome, lang)
     try:
         await navigate_to_point(point_name)
     except Exception as exc:
@@ -1935,7 +2043,7 @@ async def handle_voice_command(text: str, lang: str) -> dict:
         match = None
     if match and getattr(match, "answer", ""):
         answer = str(match.answer)
-        speak_local(answer)
+        speak_local(answer, lang)
         response = {"ok": True, "understood": True, "kind": "faq",
                     "transcript": cleaned, "reply": answer}
         # Si l'entrée pointe vers un lieu, on peut aussi y naviguer.
@@ -1953,7 +2061,7 @@ async def handle_voice_command(text: str, lang: str) -> dict:
              if lang == "fr" else
              "I didn't understand. You can ask for a destination, the guided "
              "tour, or a question about HESTIM.")
-    speak_local(reply)
+    speak_local(reply, lang)
     return {"ok": False, "understood": False, "kind": "unknown",
             "transcript": cleaned, "reply": reply}
 
@@ -1966,10 +2074,31 @@ async def voice_command(request: Request) -> JSONResponse:
         return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
     text = str(body.get("text", "")).strip()
     lang = str(body.get("lang", "fr"))
+    stt_end_ms = body.get("stt_end_ms")
     if not text:
         return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
 
     result = await handle_voice_command(text, lang)
+
+    # Latence bout-en-bout (fin de parole détectée côté app native -> réponse
+    # prête ici, TTS déjà déclenché par handle_voice_command/speak_local) —
+    # même horloge système que le client puisque le kiosque et ce backend
+    # tournent sur le même appareil (Termux). Métrique papier ICRA 2027.
+    latency_ms: int | None = None
+    if isinstance(stt_end_ms, (int, float)) and stt_end_ms > 0:
+        latency_ms = round(time.time() * 1000 - stt_end_ms)
+
+    try:
+        _get_voice_logger().record(
+            "voice_exchange",
+            transcript=result.get("transcript", text),
+            kind=result.get("kind", "unknown"),
+            ok=bool(result.get("ok")),
+            latency_ms=latency_ms,
+        )
+    except Exception:
+        pass
+
     # Diffuse l'échange au kiosque (bulle transcript + réponse, TTS déjà déclenché).
     await _broadcast_to_telemetry({
         "type": "voice",
@@ -1977,11 +2106,29 @@ async def voice_command(request: Request) -> JSONResponse:
         "reply": result.get("reply", ""),
         "kind": result.get("kind", "unknown"),
         "ok": bool(result.get("ok")),
+        "latency_ms": latency_ms,
     })
     # La visite guidée a besoin de l'objet Request (tour_start) — enchaînement ici.
     if result.get("start_tour"):
         await tour_start(request)
     return JSONResponse(result)
+
+
+async def voice_wake_event(request: Request) -> JSONResponse:
+    """POST /api/voice/wake-event — journalise un déclenchement du mot d'éveil
+    (confirmed=true si une commande a bien suivi, false si écoute restée
+    silencieuse) pour mesurer le taux de faux déclenchements (métrique papier
+    ICRA 2027, cf. scripts/measure_voice_latency.py)."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    confirmed = bool(body.get("confirmed"))
+    try:
+        _get_voice_logger().record("wake_trigger", confirmed=confirmed)
+    except Exception:
+        pass
+    return JSONResponse({"ok": True})
 
 
 async def voice_vocabulary(_: Request) -> JSONResponse:
@@ -2152,6 +2299,26 @@ async def speech_status(_: Request) -> JSONResponse:
     )
 
 
+async def velocity_profile_get(_: Request) -> JSONResponse:
+    result = await get_velocity_profile()
+    return JSONResponse(result, status_code=200 if result.get("ok") else 502)
+
+
+async def velocity_profile_set(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": False, "error": "JSON invalide"}, status_code=400)
+    level = str(body.get("level", "")).strip()
+    if level not in VELOCITY_PROFILE_CMD:
+        return JSONResponse(
+            {"ok": False, "error": f"Niveau invalide (attendu : {', '.join(VELOCITY_PROFILE_CMD)})"},
+            status_code=400,
+        )
+    result = await set_velocity_profile(level)
+    return JSONResponse(result, status_code=200 if result.get("ok") else 502)
+
+
 async def _people_listener_loop() -> None:
     """Écoute /detected_people_array (caméra robot) pour présence visiteur."""
     global _detected_people
@@ -2265,6 +2432,7 @@ def build_app() -> Starlette:
         Route("/api/reception/actions", list_actions, methods=["GET"]),
         Route("/api/reception/actions/{action_id}/execute", run_action, methods=["POST"]),
         Route("/api/voice", voice_command, methods=["POST"]),
+        Route("/api/voice/wake-event", voice_wake_event, methods=["POST"]),
         Route("/api/voice/vocabulary", voice_vocabulary, methods=["GET"]),
         Route("/api/reception/voice", voice_command, methods=["POST"]),
         Route("/api/robot/status", robot_status, methods=["GET"]),
@@ -2280,6 +2448,8 @@ def build_app() -> Starlette:
         Route("/api/charge/go-home", charge_go_home, methods=["POST"]),
         Route("/api/diagnostics", kiosk_diagnostics, methods=["GET"]),
         Route("/api/speech/status", speech_status, methods=["GET"]),
+        Route("/api/settings/velocity", velocity_profile_get, methods=["GET"]),
+        Route("/api/settings/velocity", velocity_profile_set, methods=["POST"]),
         Route("/api/knowledge/faq", get_faq, methods=["GET"]),
         Route("/api/tour", tour_info, methods=["GET"]),
         Route("/api/tour/full", tour_full, methods=["GET"]),

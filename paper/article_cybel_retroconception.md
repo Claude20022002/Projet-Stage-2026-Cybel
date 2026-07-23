@@ -1,8 +1,17 @@
+> **⚠️ Version supplantée (2026-07-19).** Ce brouillon markdown (juin 2026) précède
+> la restructuration en quatre hypothèses H1–H4 et les validations terrain du
+> chatbot vocal et de la reconnaissance faciale. La version maintenue et à jour
+> est désormais l'article LaTeX **[paper/icra_2027/main.tex](icra_2027/main.tex)**
+> (ciblant IEEE ICRA 2027, Séoul — voir [icra_2027/README.md](icra_2027/README.md)),
+> titre : *« A Reverse-Engineered Open Architecture for Closed Service Robots
+> with Voice and Face Interaction »*. Conservé ici pour référence/historique
+> uniquement ; ne pas mettre à jour ce fichier séparément.
+
 # Rétro-conception d'un robot de service Android fermé : intégration rosbridge et couche conversationnelle ouverte sans support constructeur
 
 **Auteurs :** [Nom], [Co-auteur] — HESTIM Engineering & Business School  
 **Projet :** CYBEL — Cas d'étude CIOT TY1251D-03195  
-**Version :** juin 2026 · branche `feature/face-presence`
+**Version :** juin 2026 · branche `feature/face-presence` · **supplantée par [paper/icra_2027/](icra_2027/)**
 
 ---
 

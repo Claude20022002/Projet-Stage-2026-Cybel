@@ -68,7 +68,7 @@ def test_identify_below_threshold_returns_not_ok() -> None:
     assert data["visitor"] is None
 
 
-def test_list_and_current_never_expose_embedding() -> None:
+def test_current_never_exposes_embedding() -> None:
     client.post(
         "/api/visitors/enroll",
         json={"name": "Alice", "civility": "Mme", "embedding": [1.0, 0.0, 0.0], "consent": True},
@@ -78,29 +78,58 @@ def test_list_and_current_never_expose_embedding() -> None:
         json={"embedding": [1.0, 0.0, 0.0], "confidence": 0.9},
     )
 
-    list_response = client.get("/api/visitors")
-    assert "embedding" not in list_response.text
-
     current_response = client.get("/api/visitors/current")
     assert "embedding" not in current_response.text
     assert current_response.json()["visitor"]["name"] == "Alice"
 
 
-def test_delete_unknown_visitor_returns_404() -> None:
+def test_list_relays_to_kiosk_and_never_exposes_embedding(monkeypatch) -> None:
+    async def fake_list_remote() -> list[dict]:
+        return [
+            {
+                "id": "abc",
+                "name": "Alice",
+                "civility": "Mme",
+                "consent": True,
+                "enrolled_at": "2026-07-23T00:00:00+00:00",
+                "last_identified_at": None,
+            }
+        ]
+
+    monkeypatch.setattr(visitor_service_module.visitor_service, "list_remote", fake_list_remote)
+    response = client.get("/api/visitors")
+    assert response.status_code == 200
+    assert "embedding" not in response.text
+    assert response.json()[0]["name"] == "Alice"
+
+
+def test_list_no_kiosk_configured_returns_503(monkeypatch) -> None:
+    async def fake_list_remote() -> list[dict]:
+        raise RuntimeError("kiosk_backend_url non configuré")
+
+    monkeypatch.setattr(visitor_service_module.visitor_service, "list_remote", fake_list_remote)
+    response = client.get("/api/visitors")
+    assert response.status_code == 503
+
+
+def test_delete_unknown_visitor_returns_404(monkeypatch) -> None:
+    async def fake_remove_remote(visitor_id: str) -> tuple[int, dict]:
+        return 404, {"ok": False, "error": f"Visiteur '{visitor_id}' introuvable"}
+
+    monkeypatch.setattr(visitor_service_module.visitor_service, "remove_remote", fake_remove_remote)
     response = client.delete("/api/visitors/does-not-exist")
     assert response.status_code == 404
 
 
-def test_delete_existing_visitor() -> None:
-    enroll = client.post(
-        "/api/visitors/enroll",
-        json={"name": "Alice", "civility": "Mme", "embedding": [1.0, 0.0, 0.0], "consent": True},
-    )
-    visitor_id = enroll.json()["id"]
-    response = client.delete(f"/api/visitors/{visitor_id}")
+def test_delete_existing_visitor_relays_to_kiosk(monkeypatch) -> None:
+    async def fake_remove_remote(visitor_id: str) -> tuple[int, dict]:
+        assert visitor_id == "abc"
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(visitor_service_module.visitor_service, "remove_remote", fake_remove_remote)
+    response = client.delete("/api/visitors/abc")
     assert response.status_code == 200
     assert response.json()["ok"] is True
-    assert client.get("/api/visitors").json() == []
 
 
 def test_enroll_trigger_requires_name() -> None:

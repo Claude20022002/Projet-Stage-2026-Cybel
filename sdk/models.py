@@ -160,6 +160,7 @@ class SpeechRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=500)
     interrupt: bool = True
     priority: Literal["urgent", "normal", "background"] = "normal"
+    lang: Literal["fr", "en"] = "fr"
 
 
 class SpeechStatus(BaseModel):

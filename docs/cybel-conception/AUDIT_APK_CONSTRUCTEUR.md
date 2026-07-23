@@ -480,8 +480,8 @@ Navigation entre écrans : `FragmentFactory.changeFragment()` + identifiants pag
 | Télémétrie batterie/état | ✅ Fait | subscribe `/robot_status` |
 | TTS | ✅ Via CybelTTSBridge | `RobotSpeechManager.startSpeak` |
 | Annulation navigation | ✅ | `/move_base/cancel` ou `/path_follower/cancel` |
-| Relocalisation | ✅ Partiel | `/global_locate` service |
-| Retour charge | ⚠️ À valider | `SelfChassis.sendGoHome`, `/start_recharge` |
+| Relocalisation | ⚠️ Partiel (voir note) | `/global_locate` service |
+| Retour charge | ✅ Via navigation POI (voir note) | `SelfChassis.sendGoHome`, `/start_recharge` |
 | Patrouille multi-points | ⚠️ Partiel | `PatrolTask`, `/set_waypoints` |
 | Navigation inter-étages | ❌ Non fait | `crossFloorNavi`, `/cross_floor_navi` |
 | Ascenseur | ❌ Non fait | `ElevatorDialog`, `/lift_control/*` |
@@ -490,6 +490,24 @@ Navigation entre écrans : `FragmentFactory.changeFragment()` + identifiants pag
 | Reconnaissance vocale Iflytek | ❌ Non fait | `SpeechNavigationManager`, `IflytekAnalyzeManager` |
 | Sync cloud CIOT | ❌ Non nécessaire | `RetrofitManager`, `TcpService` |
 | Contenu CMS cloud | ❌ Remplacé par JSON local | `WuhanApiService` |
+
+> **Découverte 2026-07-23 — type de message générique `yutong_assistance/cmd`.**
+> `/global_locate`, `/change_location_mode` et `/start_recharge` partagent tous
+> le même type ROS générique `yutong_assistance/cmd` (champs `cmd`:int32,
+> `str`:string ; constantes `Start=1`, `Stop=2`, `Pause=3`,
+> `Delete=Load=Resume=Save=4`), avec un sens **propre à chaque service** — ce
+> n'est pas une énumération universelle "démarrer/arrêter". Découvert via
+> `/rosapi/service_request_details` (triangulation, méthodologie de
+> l'article). Un appel avec `args={}` est parfois accepté sans erreur mais
+> ne déclenche rien de réel (`/global_locate`) ou déclenche l'inverse de
+> l'effet voulu (`/start_recharge` avec `cmd=Start` fait *quitter* la borne
+> plutôt que d'y retourner, testé en direct). Le retour borne fiable passe
+> par la navigation POI standard vers `return_point`
+> (`data/lab_tour.json`), pas par ce service. À valider : le bon jeu
+> d'arguments pour que `/global_locate` déclenche un vrai scan de
+> relocalisation (piste : le service semble tolérer/attendre plusieurs
+> appels successifs, cf. `"info": "last operation is running"` observé en
+> test).
 
 ### Chaînes d'appel critiques pour CYBEL
 

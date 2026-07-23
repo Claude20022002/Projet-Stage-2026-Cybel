@@ -103,7 +103,16 @@ push_root "$REPO/frontend-kiosk/dist" "$CYBEL_TREE/frontend-kiosk"
 ok "frontend-kiosk/dist (bouton micro + overlay)"
 # FAQ statique (contenu, pas d'état device)
 push_root "$REPO/data/hestim_knowledge_base.json" "$CYBEL_TREE/data"
+# lab_tour.json (return_point notamment) — absent d'ici jusqu'au 2026-07-23,
+# la tablette gardait un exemplaire périmé (return_point manquant), faisant
+# échouer silencieusement le retour borne.
+push_root "$REPO/data/lab_tour.json" "$CYBEL_TREE/data"
+ok "lab_tour.json (return_point)"
 ok "base de connaissances FAQ"
+# Registre d'actions (VOICE_COMMAND_MAP y pointe — oublié ici, une action
+# reconnue par le NLU renvoie "Action inconnue" au lieu de s'exécuter).
+push_root "$REPO/scripts/termux/actions.json" "$CYBEL_TREE/scripts/termux"
+ok "actions.json"
 
 # ---- 3. Redémarrage backend --------------------------------------------------
 step "3. Redémarrage backend test (stop → ensure)"

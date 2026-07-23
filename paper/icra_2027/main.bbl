@@ -87,4 +87,14 @@ M.~Quigley, K.~Conley, B.~Gerkey, J.~Faust, T.~Foote, J.~Leibs, R.~Wheeler, and
 C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: {TTS} channel investigation
   log,'' 2026, internal technical documentation, HESTIM robotics lab.
 
+\bibitem{vosk}
+{Alpha Cephei}, ``{Vosk}: Offline open-source speech recognition toolkit,''
+  \url{https://alphacephei.com/vosk/}, accessed 2026.
+
+\bibitem{schroff2015facenet}
+F.~Schroff, D.~Kalenichenko, and J.~Philbin, ``{FaceNet}: A unified embedding
+  for face recognition and clustering,'' in \emph{Proceedings of the IEEE
+  Conference on Computer Vision and Pattern Recognition (CVPR)}, 2015, pp.
+  815--823.
+
 \end{thebibliography}

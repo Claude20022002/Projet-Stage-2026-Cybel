@@ -79,6 +79,9 @@ let voiceState: VoiceState = "idle";
 let voiceTranscript = "";
 let voiceReply = "";
 let voiceTimer: number | null = null;
+/** Vrai si l'écoute en cours a été déclenchée par le mot d'éveil (pas le bouton
+ * micro manuel) — sert à mesurer le taux de faux déclenchements (métrique papier). */
+let pendingWakeEvent = false;
 
 function tr() {
   return t[lang];
@@ -280,11 +283,12 @@ function speakAndListen(text: string): void {
  * traite comme une commande normale : elle contient peut-être déjà le nom
  * du point ou « visite guidée »). */
 async function routeVoiceText(text: string): Promise<void> {
+  const sttEndMs = Date.now();
   voiceTranscript = text;
   voiceState = "processing";
   render();
   try {
-    const result = await api.voice(text, lang);
+    const result = await api.voice(text, lang, sttEndMs);
     voiceReply = result.reply || tr().voiceError;
     voiceState = "answer";
     if (result.ok && result.kind === "navigation" && result.point) {
@@ -389,11 +393,17 @@ async function resolveDestinationByVoice(text: string): Promise<string | null> {
   return null;
 }
 
+/** Vrai si le capteur de présence châssis (distance réelle, contrairement à la
+ * reconnaissance faciale qui n'a aucune notion de distance) voit quelqu'un à
+ * portée — sert de garde-fou anti faux-positifs pour les deux déclencheurs. */
+function isSomeoneNearby(): boolean {
+  const maxDist = config?.presence_max_distance_m ?? 3.0;
+  return detectedPeople.some((p) => p.distance <= maxDist);
+}
+
 function handlePresenceWelcome(): void {
   if (!config?.presence_welcome_enabled) return;
-  const maxDist = config.presence_max_distance_m ?? 3.0;
-  const nearby = detectedPeople.filter((p) => p.distance <= maxDist);
-  if (!nearby.length) return;
+  if (!isSomeoneNearby()) return;
   tryGreetAndOfferTour();
 }
 
@@ -428,7 +438,11 @@ function startTelemetry(): void {
     },
     onVisitorIdentified: (visitor) => {
       identifiedVisitor = { visitor, at: Date.now() };
-      if (config?.face_recognition_enabled) tryGreetAndOfferTour();
+      // La reconnaissance faciale n'a aucune notion de distance : on exige que
+      // le capteur de présence châssis confirme aussi quelqu'un à portée,
+      // sinon un visage reconnu au loin (visiteur juste de passage) déclenche
+      // le salut à tort.
+      if (config?.face_recognition_enabled && isSomeoneNearby()) tryGreetAndOfferTour();
     },
     onVoice: (event) => {
       // Diffusion serveur : utile si un autre client (ex. opérateur) parle au robot.
@@ -711,6 +725,10 @@ function enterListeningState(): void {
   if (voiceTimer !== null) window.clearTimeout(voiceTimer);
   voiceTimer = window.setTimeout(() => {
     if (voiceState === "listening") {
+      if (pendingWakeEvent) {
+        pendingWakeEvent = false;
+        void api.wakeEvent(false).catch(() => undefined);
+      }
       voiceReply = tr().voiceError;
       voiceState = "answer";
       render();
@@ -724,6 +742,7 @@ function startVoice(): void {
     showToast(tr().voiceUnavailable);
     return;
   }
+  pendingWakeEvent = false;
   enterListeningState();
   try {
     window.CybelVoice?.startListening(lang);
@@ -738,6 +757,7 @@ function startVoice(): void {
  * commande a déjà démarré côté natif, on bascule juste l'UI en écoute. */
 function onWakeDetected(): void {
   if (busy || voiceState !== "idle") return;
+  pendingWakeEvent = true;
   enterListeningState();
 }
 
@@ -761,6 +781,10 @@ async function onVoiceTranscript(transcript: string, ok: boolean): Promise<void>
     voiceTimer = null;
   }
   const text = (transcript || "").trim();
+  if (pendingWakeEvent) {
+    pendingWakeEvent = false;
+    void api.wakeEvent(ok && !!text).catch(() => undefined);
+  }
   if (!ok || !text) {
     voiceReply = tr().voiceError;
     voiceState = "answer";

@@ -239,7 +239,7 @@ class RobotSpeech:
         while True:
             _, _, item = await self._queue.get()
             try:
-                result = await self._speak_immediate(item["text"])
+                result = await self._speak_immediate(item["text"], item.get("lang", "fr"))
                 future = item.get("future")
                 if future and not future.done():
                     future.set_result(result)
@@ -255,6 +255,7 @@ class RobotSpeech:
         text: str,
         interrupt: bool = True,
         priority: SpeechPriority | str = "normal",
+        lang: str = "fr",
     ) -> dict[str, Any]:
         text = text.strip()
         if not text:
@@ -267,12 +268,16 @@ class RobotSpeech:
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
         self._queue_seq += 1
         await self._queue.put(
-            (self._priority_value(priority), self._queue_seq, {"text": text, "future": future})
+            (
+                self._priority_value(priority),
+                self._queue_seq,
+                {"text": text, "lang": lang, "future": future},
+            )
         )
         self._ensure_worker()
         return await future
 
-    async def _speak_immediate(self, text: str) -> dict[str, Any]:
+    async def _speak_immediate(self, text: str, lang: str = "fr") -> dict[str, Any]:
         if self._mock:
             self._speech_task = asyncio.create_task(self._mock_speak(text))
             return {"ok": True, "method": "mock", "text": text}
@@ -282,7 +287,7 @@ class RobotSpeech:
         if adb_serial and ":" in adb_serial:
             await self._ensure_adb_connected(adb_serial)
         if adb_serial:
-            adb_method = await self._try_adb_speak(text, adb_serial)
+            adb_method = await self._try_adb_speak(text, adb_serial, lang)
             if adb_method:
                 return {"ok": True, "method": adb_method, "text": text}
             await self._clear_pending_speech()
@@ -299,7 +304,7 @@ class RobotSpeech:
                 return {"ok": True, "method": method, "text": text}
             await self._clear_pending_speech()
 
-        local_method = await self._try_local_broadcast_speak(text)
+        local_method = await self._try_local_broadcast_speak(text, lang)
         if local_method:
             return {"ok": True, "method": local_method, "text": text}
         await self._clear_pending_speech()
@@ -389,7 +394,9 @@ class RobotSpeech:
 
         return None
 
-    async def _try_adb_speak(self, text: str, adb_serial: str | None = None) -> str | None:
+    async def _try_adb_speak(
+        self, text: str, adb_serial: str | None = None, lang: str = "fr"
+    ) -> str | None:
         serial = adb_serial or self._adb_serial
         if not serial:
             return None
@@ -399,7 +406,7 @@ class RobotSpeech:
         escaped = text.replace("'", "'\\''")
         remote_cmd = (
             f"am broadcast -n {SPEECH_ADB_RECEIVER} -a {SPEECH_ADB_ACTION} "
-            f"--es text '{escaped}'"
+            f"--es text '{escaped}' --es lang '{lang}'"
         )
 
         try:
@@ -424,7 +431,7 @@ class RobotSpeech:
 
         return None
 
-    async def _try_local_broadcast_speak(self, text: str) -> str | None:
+    async def _try_local_broadcast_speak(self, text: str, lang: str = "fr") -> str | None:
         """TTS via am broadcast sur le même appareil (Termux sur la tête Android)."""
         if not self._local_broadcast:
             return None
@@ -432,7 +439,7 @@ class RobotSpeech:
         escaped = text.replace("'", "'\\''")
         broadcast = (
             f"am broadcast -n {SPEECH_ADB_RECEIVER} -a {SPEECH_ADB_ACTION} "
-            f"--es text '{escaped}'"
+            f"--es text '{escaped}' --es lang '{lang}'"
         )
         commands = [
             ["sh", "-c", broadcast],

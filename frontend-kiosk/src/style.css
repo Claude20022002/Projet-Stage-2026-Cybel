@@ -51,6 +51,28 @@ body {
         var(--bg);
 }
 
+/* ── Icônes SVG (icons.ts) ─────────────────────────────────── */
+
+.icon {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* ── Retour tactile générique (écran tactile kiosque) ───────
+   Filet de sécurité pour tout bouton sans effet :active dédié ; les classes
+   qui définissent déjà le leur (action-card, dest-card, featured-chip,
+   voice-button, btn-primary…) restent prioritaires (spécificité de classe). */
+
+button:not(:disabled) {
+    transition: transform 0.08s ease, filter 0.08s ease, opacity 0.08s ease;
+}
+
+button:not(:disabled):active {
+    transform: scale(0.93);
+    filter: brightness(0.92);
+}
+
 /* ── Header / status ───────────────────────────────────────── */
 
 .kiosk-header {
@@ -70,6 +92,12 @@ body {
     gap: 10px;
 }
 
+.kiosk-header__logo {
+    height: 32px;
+    width: auto;
+    display: block;
+}
+
 .kiosk-header__center {
     text-align: center;
 }
@@ -79,6 +107,13 @@ body {
     align-items: center;
     justify-content: flex-end;
     gap: 12px;
+}
+
+.kiosk-header__title {
+    font-size: clamp(15px, 2vw, 18px);
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.02em;
 }
 
 .kiosk-clock {
@@ -374,7 +409,11 @@ body {
 }
 
 .action-card__icon {
-    font-size: 36px;
+    color: var(--text-muted);
+}
+
+.action-card--primary .action-card__icon {
+    color: var(--primary);
 }
 
 .action-card__title {
@@ -540,7 +579,7 @@ body {
 }
 
 .dest-card__icon {
-    font-size: 40px;
+    color: var(--primary);
 }
 
 .dest-card__name {
@@ -899,7 +938,6 @@ body {
 }
 
 .voice-button__icon {
-    font-size: 34px;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -1027,4 +1065,17 @@ body {
     font-size: 18px;
     font-weight: 700;
     cursor: pointer;
+}
+
+/* ── Accessibilité : réduire les animations en boucle ──────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

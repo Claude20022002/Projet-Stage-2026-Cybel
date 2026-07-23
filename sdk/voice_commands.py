@@ -38,6 +38,11 @@ VOICE_COMMAND_MAP: dict[str, str] = {
     "arrête": "stop_all",
     "stop": "stop_all",
     "arrêter": "stop_all",
+    "bonjour": "greeting",
+    "salut": "greeting",
+    "coucou": "greeting",
+    "bonsoir": "greeting",
+    "hello": "greeting",
 }
 
 

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     speech_http_path: str = ""
     speech_adb_serial: str = ""
     speech_local_broadcast: bool = False
-    kiosk_backend_url: str = "http://172.16.0.131:8000"
+    kiosk_backend_url: str = "http://127.0.0.1:18001"
     localization_min_percent: float = 60.0
     auto_relocalize_on_connect: bool = True
     navigation_wait_timeout: float = 300.0
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     class Config:
-        env_file = ".env"
+        env_file = str(ROOT / ".env")
         env_file_encoding = "utf-8"
 
 

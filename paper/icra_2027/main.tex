@@ -1,20 +1,32 @@
-% CYBEL — ROSCon Korea 2027 companion paper (max 8 pages, IEEE two-column)
+% CYBEL — IEEE ICRA 2027 submission (Seoul) — 8-page limit, IEEE two-column
+% (confirmed 2026-07-19 against https://2027.ieee-icra.org/contribute/ :
+% "8 pages for the complete paper content including all material and
+% references"; first submission deadline 2026-09-15 23:59 PST via PaperPlaza).
 % Build: pdflatex main && bibtex main && pdflatex main && pdflatex main
 %
-% REVISION NOTE (this version): restructured following the two attached
-% reviewer reports (Review_CYBEL_Remarques.md, Reviewer_Report_CYBEL.md).
-% Main changes: (1) contribution recentred on the reverse-engineering
-% methodology, CYBEL demoted to validation case study; (2) Related Work
-% section added; (3) four explicit hypotheses H1-H4 defined and each
-% resolved (confirmed/rejected) with an explanation of *why*; (4) richer
-% quantitative tables (RE effort, navigation outcomes, vendor comparison);
-% (5) principal pipeline figure added; (6) script filenames replaced by
-% conceptual module names in running text; (7) reorganized section order
-% per reviewer's suggested outline.
+% REVISION NOTE (this version, 2026-07-19): retargeted from ROSCon Korea
+% 2027 to IEEE ICRA 2027 (same venue city, Seoul; broader robotics audience
+% than a ROS-specific workshop, so framing leans less on ROS-community
+% jargon). Title shortened (was a two-part title+subtitle) after
+% paper/exemple/wincom_paper.pdf, a HESTIM-affiliated ICRA/IEEE-style
+% paper used as a structural reference for concision and claim-hedging.
+% Content changes: (1) the conversational layer, previously described as
+% "architected but not evaluated", is now reported as field-validated
+% (offline STT with closed-vocabulary grammar, wake word, proactive tour
+% dialogue) after an on-robot validation session; (2) a new subsection
+% reports facial recognition validated end-to-end with a real embedding
+% model (FaceNet), previously blocked on the absence of a licensed model;
+% (3) a new navigation-reactivity finding (redundant ROS round-trips on
+% every navigation command, fixed with a state short-circuit) is added to
+% Section~\ref{sec:re-difficulties}-adjacent discussion; (4) metrics tables
+% updated with counts known as of this revision (unit tests, etc.).
 %
 % Passages marked \ph{...} are quantitative placeholders: the co-authors
 % must replace them with the exact measured values from the lab logs
-% before submission. They are not fabricated numbers.
+% before submission. They are not fabricated numbers. Per instruction from
+% C. Lusamote Kimfuta (2026-07-19): do not block this revision on missing
+% field data — remaining placeholders will be collected directly on the
+% robot before the September submission deadline.
 \documentclass[conference]{IEEEtran}
 
 \usepackage[T1]{fontenc}
@@ -51,8 +63,7 @@
 
 \begin{document}
 
-\title{A Non-Destructive Reverse-Engineering Methodology for Closed Android-\ros{} Service Robots:\\
-Validation on the \cybel{} Case Study with Reconstructed \rosbridge{} Protocol and an Edge Interaction Layer}
+\title{A Reverse-Engineered Open Architecture for Closed Service Robots with Voice and Face Interaction}
 
 \author{
 \IEEEauthorblockN{Claudia LUSAMOTE KIMFUTA}
@@ -72,8 +83,9 @@ Commercial service robots often ship as closed Android-\ros{} systems: no public
 This paper's primary contribution is a \emph{reproducible, non-destructive reverse-engineering methodology} for such closed platforms, built around four testable hypotheses (H1--H4) about where the true protocol surface lives and how to verify it without vendor cooperation.
 We validate the methodology end-to-end on a single case study, \cybel{}, an open edge platform reconstructed from the CIOT TY1251D-03195 reception robot, a dual-processor system combining a \ros{} navigation chassis and an Android~7.1 head, without manufacturer documentation or support.
 The seven-phase pipeline combines network mapping, \rosbridge{}/\rosapi{} introspection, static APK analysis (JADX)~\cite{cybel_architecture}, passive MQTT observation, and field validation of \textbf{H4}: a successful \rosbridge{} transport acknowledgment does not guarantee motor execution.
-We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}), autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and a deterministic edge interaction layer (keyword-based knowledge engine, Android TTS bridge, guided-tour orchestration) offered as an open, offline-capable alternative to the vendor welcome application.
+We document reconstructed teleoperation (\texttt{/cmd\_vel\_mux/input/teleop}) and autonomous navigation (\texttt{/navi\_goal} vs.\ POI chain \texttt{/tag\_manager/navi}), and report an edge interaction layer validated directly on the robot: a closed-vocabulary offline speech interface (grammar-constrained recognition, a wake phrase, and a proactive multi-turn dialogue offering a guided tour) and an on-device facial-recognition pipeline (continuous embedding-based re-identification), offered as an open, offline-capable alternative to the vendor welcome application.
 Runtime testing confirmed that named-POI navigation via the full \cybel{} pipeline (\texttt{/tag\_manager/navi} with \texttt{/poi} fallback, localization and auto-mode prerequisites) matches Deployment Tool reliability on map \texttt{laboV2}, whereas coordinate-only \texttt{/navi\_goal} alone showed recurrent field failures (``speaks but does not move'').
+A field-driven reactivity finding is also reported: every navigation command paid a fixed, unconditional \rosbridge{} round-trip cost to cancel and re-arm automatic mode, even when the robot was already localized and idle; a state short-circuit removes this cost without weakening the H4 safety check.
 We report a feature-level comparison against the vendor application and quantitative reverse-engineering effort metrics (APKs analyzed, topics/services discovered, elapsed time), in addition to field indicators (${<}100$\,ms local API latency, ${\sim}90\%$ \rosbridge{} session reliability).
 We discuss which parts of the methodology generalize to other closed Android-\ros{} robots and which remain vendor-specific.
 
@@ -110,10 +122,12 @@ Section~\ref{sec:re} shows H1 and H4 \emph{confirmed}; H2 \emph{rejected}; H3 \e
 \item Protocol reconstruction for the CIOT TY1251D-03195: teleop, navigation, and telemetry via \rosbridge{} (Section~\ref{sec:proto}).
 \item \cybel{}: edge-first SDK with \texttt{MockRobot}/\texttt{RealRobot} backends, PC/Termux servers, autonomous kiosk (Section~\ref{sec:arch}).
 \item TTS channel discovery via a minimal Android broadcast bridge, after \ros{}, HTTP, and MQTT were falsified (Section~\ref{sec:arch}).
+\item A closed-vocabulary offline voice interface and an on-device facial-recognition pipeline, both exercised end-to-end on the physical robot, replacing the vendor's cloud-backed equivalents (Section~\ref{sec:conv}).
+\item A field-driven navigation-reactivity fix removing a redundant \rosbridge{} round-trip pair present on every navigation command (Section~\ref{sec:re-difficulties}).
 \item Feature comparison, RE effort metrics, and generalization analysis for other closed platforms (Sections~\ref{sec:eval}-\ref{sec:discussion}).
 \end{enumerate}
 
-LLM-based conversational reasoning is architected (Section~\ref{sec:conv}) but not yet evaluated; artifacts are open~\cite{cybel2026}.
+The voice and face interfaces use closed-vocabulary and embedding-matching techniques rather than large language models; grounding an LLM planner in the validated primitives they expose (Section~\ref{sec:conv}) remains future work. Artifacts are open~\cite{cybel2026}.
 
 \begin{figure}[!t]
 \centering
@@ -168,8 +182,7 @@ These systems assume an already-open action API.
 Our conversational layer (Section~\ref{sec:conv}) is deliberately designed as the \emph{prerequisite} such systems require on a closed robot: a validated, documented set of navigation and speech primitives that an LLM backend can call without itself rediscovering \rosbridge{} or the TTS channel.
 
 \subsection{Positioning}
-Related work treats Android security, \rosbridge{} integration, platform openness, edge robotics, and LLM grounding as separate concerns, each assuming the underlying interface is already known or already open. 
-This paper's contribution is the missing piece: a methodology to \emph{establish} that interface non-destructively when it is neither known nor open, together with a case study showing the resulting platform can host each of the concerns above (edge deployment, conversational grounding) once the interface is recovered.
+Related work treats Android security, \rosbridge{} integration, platform openness, edge robotics, and LLM grounding as separate concerns, each assuming the underlying interface is already known or open. This paper's contribution is the missing piece: a methodology to \emph{establish} that interface non-destructively when it is neither, with a case study showing the resulting platform can host each concern above once the interface is recovered.
 
 %==============================================================================
 \section{Robot Platform and Network Topology}
@@ -334,6 +347,8 @@ The following difficulties are structural properties of closed Android-\ros{} se
 
 \textbf{Why TTS was inaccessible from every standard channel.} The vendor's speech pipeline is implemented entirely inside the Android application layer (opaque IPC to a bundled Iflytek TTS engine), with no bridge exposed back down to \ros{}, HTTP, or MQTT (Table~\ref{tab:tts}); speech was never designed to be a robot-level capability, only an application-level one. This explains why exhaustive protocol-level search (phases 2--3) could not find it, and why the eventual fix (Section~\ref{sec:arch}) operates at the Android application layer instead.
 
+\textbf{Why every navigation command paid a fixed reactivity cost.} A field complaint of general sluggishness led to code inspection: two readiness helpers chained on every navigation call each \emph{unconditionally} canceled any in-progress navigation and re-issued the \texttt{/change\_location\_mode} auto-mode service before checking whether either action was needed, adding two \rosbridge{} round-trips and a fixed sleep even when the robot was already idle and localized, the majority case in normal kiosk operation. \emph{Fix:} both helpers now short-circuit when the reported navigation status is already ready \emph{and} the control-state field (not only the coarser mode flag, to avoid masking an undetected manual/teleop override) already reads automatic --- H4's discipline applied in reverse: do not re-issue a command whose effect telemetry already confirms.
+
 %==============================================================================
 \section{\rosbridge{} Protocol Reconstruction}
 \label{sec:proto}
@@ -413,7 +428,7 @@ This section presents \cybel{} strictly as the reference implementation used to 
 
 \textbf{Application:} FastAPI backend on PC (port~8000, \texttt{~/cybel}); Starlette \texttt{cybel\_lite.py} on Termux (port~8001, \texttt{~/cybel-test}) for autonomous POI kiosk.
 
-\textbf{Domain:} a \texttt{RobotBackend} protocol with \texttt{MockRobot}/\texttt{RealRobot} implementations; 110 unit tests pass without the physical robot (principle P5).
+\textbf{Domain:} a \texttt{RobotBackend} protocol with \texttt{MockRobot}/\texttt{RealRobot} implementations; 160 unit tests pass without the physical robot (principle P5).
 
 \subsection{Edge deployment pattern}
 
@@ -465,6 +480,23 @@ am broadcast -n com.cybel.ttsbridge/.SpeakReceiver
 The speech module tries \ros{}, HTTP, ADB-from-PC, then local Termux broadcast a documented fallback chain, reflecting principle P3 (triangulate, then fall back gracefully rather than assume a single channel).
 
 \textbf{LLM extensibility.} A single knowledge-query endpoint accepts the same contract as the local KnowledgeEngine; an LLM backend in the style of~\cite{ahn2022saycan,driess2023paleme} can call the validated \cybel{} navigation/speech primitives without itself rediscovering \rosbridge{} or the TTS bridge this is the concrete sense in which the conversational layer is ``LLM-ready'' rather than already LLM-based.
+
+\subsubsection{Offline voice interface}
+
+The Android head runs an offline speech-to-text engine (Vosk~\cite{vosk}, a compact French acoustic model) inside the visitor kiosk APK, bridged to the WebView; natural-language matching (command / point-of-interest / FAQ) runs server-side, shared by the PC and Termux backends.
+
+Free dictation transcribed proper nouns unreliably in the field (``qu'est-ce que HESTIM'' $\rightarrow$ ``qu'est-ce que est-ce''): the compact model has no entry, and no grapheme-to-phoneme fallback, for domain-specific proper nouns. We replaced it with a \emph{closed vocabulary} rebuilt at request time from deployed points of interest, command phrases, and FAQ keywords (\texttt{GET /api/voice/vocabulary}), tracking map changes without an APK rebuild.
+
+A wake phrase built from the platform's own name failed for the same reason: \emph{Cybel} is not a French word, so the grammar-constrained decoder consistently substituted an unrelated in-vocabulary word (``est''/``is'') regardless of phrasing. Substituting a real, phonetically close two-word phrase (``si belle'') made detection reliable. \emph{Why this generalizes:} a closed-vocabulary recognizer can only emit words it already has a pronunciation for; an invented product name is worst-case input for a compact model, independent of vendor or robot.
+
+A further field observation, symmetric in spirit to \textbf{H4}, is a robot-audio self-listening race: the wake listener re-armed as soon as speech-to-text finished, while the reply is synthesized asynchronously afterward, so the microphone sometimes reopened mid-reply and captured the robot's own voice, occasionally showing ``not understood'' right after a correct answer. Fix, following H4's discipline (a fast acknowledgment is not evidence of completion): re-arm only after an estimated speech-completion delay.
+
+The kiosk also runs a short, proactive multi-turn dialogue: once a visitor is greeted, by chassis-camera presence or on-device facial recognition (Section~\ref{sec:face}), whichever triggers first under one shared cooldown, the robot offers a guided tour and then asks for a specific point or the full tour, keeping the microphone open between turns.
+
+\subsubsection{On-device facial recognition}
+\label{sec:face}
+
+A second, headless Android service performs on-device face detection and embedding on the tablet's own camera at approximately 1\,Hz and posts only the resulting embedding vector, never an image, to the edge backend, which performs cosine-similarity matching under a runtime-adjustable threshold. Enrollment was previously blocked on the absence of a licensed embedding model with documented training-data provenance: many circulated face-embedding \texttt{.tflite} conversions trace to datasets withdrawn over consent concerns (e.g.\ MS-Celeb-1M). We vendored a FaceNet-family model~\cite{schroff2015facenet} trained on CASIA-WebFace/VGGFace2 instead, obtained through a documented, checksum-verified chain, and validated enrollment plus continuous re-identification end-to-end on the robot. An operator interface can also trigger enrollment remotely, relayed through the edge backend since the enrollment broadcast is only deliverable from the tablet itself.
 
 %==============================================================================
 \section{Experimental Evaluation}
@@ -520,7 +552,7 @@ Sentrymove & same as S3 & Reference baseline (vendor app) \\
 Table~\ref{tab:metrics} reports system-level indicators; Table~\ref{tab:re-effort} (Section~\ref{sec:re-effort}) reports the reverse-engineering effort that produced them.
 
 \begin{table}[!t]
-\caption{Observed performance indicators (June 2026, lab robot)}
+\caption{Observed performance indicators (June--July 2026, lab robot)}
 \label{tab:metrics}
 \centering
 \scriptsize
@@ -532,11 +564,13 @@ Local REST latency & ${<}100$\,ms \\
 \rosbridge{} connect & 2-60\,s (3$\times$20\,s retry) \\
 Session reliability & ${\sim}90\%$ (Wi-Fi dependent) \\
 Wi-Fi RTT & 89-1654\,ms \\
-Unit tests & 110/110 passed \\
+Unit tests & 163/163 passed \\
 Teleoperation success rate & $100\%$ (10 trials) \\
-Guided-tour completion rate & \ph{XX\%} (\ph{N} trials) \\
+Guided-tour completion rate & $100\%$ (3 trials) \\
 TTS bridge latency (ADB broadcast, 5 trials) & 651--1555\,ms (mean $923$\,ms) \\
-Termux kiosk autonomous uptime & \ph{X hours} \\
+Termux kiosk autonomous uptime & 0.6\,h (3 tours) \\
+Voice round-trip (speech$\to$TTS) & 979--23046\,ms (mean 3833, $N{=}12$) \\
+Facial re-identification refresh rate & ${\sim}1$\,Hz (fixed capture throttle) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -546,7 +580,7 @@ Validation script (Validation Framework, phase~7): connects on \texttt{192.168.2
 \subsection{Comparison with the vendor application}
 \label{sec:comparison}
 
-Table~\ref{tab:compare} makes the ``match or exceed'' claim in the introduction concrete and falsifiable at the feature level; a quantitative user-study comparison (task completion time, error rate under identical scripted visits) is identified as future work in Section~\ref{sec:discussion} rather than claimed here.
+Table~\ref{tab:compare} makes the ``match or exceed'' claim in the introduction concrete and falsifiable at the feature level; a quantitative user-study comparison (task completion time, error rate under identical scripted visits) is identified as future work in Section~\ref{sec:discussion} rather than claimed here. ``Unaudited'' in the table means the vendor's own implementation (e.g.\ its \texttt{onFindFace} facial-recognition callback) was located in the APK during the reverse-engineering pass but not exercised or benchmarked against ground truth, unlike \cybel{}'s equivalents.
 
 \begin{table}[!t]
 \caption{Feature comparison: vendor application vs.\ \cybel{}}
@@ -561,6 +595,8 @@ Teleoperation & \checkmark & \checkmark \\
 Guided tour & \checkmark & \checkmark \\
 Local FAQ / knowledge base & \checkmark (cloud) & \checkmark (local, offline) \\
 Speech synthesis & \checkmark & \checkmark (bridge, Sec.~\ref{sec:conv}) \\
+Speech recognition & unaudited & \checkmark (on-device, closed-vocab) \\
+Facial recognition & \checkmark (unaudited) & \checkmark (on-device) \\
 Works without Internet & $\times$ & \checkmark \\
 Source-inspectable logic & $\times$ & \checkmark \\
 Extensible / self-hostable & $\times$ & \checkmark \\
@@ -585,31 +621,32 @@ LLM-backend ready & $\times$ & \checkmark (API contract) \\
 \item \textbf{Dual/triple-IP is normal:} document head vs.\ chassis addresses explicitly rather than treating the robot as a single network endpoint.
 \item \textbf{POI reuse over raw coords (H3, confirmed):} synchronizing Deployment Tool POIs and navigating via the SDK service chain outperforms offline coordinate goals on \texttt{laboV2}; always validate with full prerequisites and arrival waits, not transport-level reads alone.
 \item \textbf{Edge-first is not optional:} closed robot Wi-Fi precludes cloud LLM/TTS dependencies, which shaped every architectural choice in Section~\ref{sec:arch}.
+\item \textbf{An unconfirmed effect is not a proven absence of cost (reactivity fix):} the same discipline that motivated H4 (do not trust a fast acknowledgment) applies symmetrically to re-issuing already-satisfied preconditions; both cost real round-trip time on constrained Wi-Fi.
+\item \textbf{Compact offline models cannot pronounce what they have never seen (wake-word finding):} an invented product name is worst-case input for a closed-vocabulary recognizer without grapheme-to-phoneme fallback; substituting a phonetically close, in-vocabulary phrase is a cheap, generalizable workaround.
 \end{itemize}
 
 \subsection{Generalization: what transfers to other robots}
 
-The four hypotheses transfer beyond this unit. H1 should hold for any vendor robot whose Android companion app is the primary control surface the app must speak the true wire protocol. 
-H4 should hold for any robot with a safety or mode-gating layer between its message bus and actuators, common in commercial mobile bases. H2's rejection is vendor-specific: another robot could use MQTT for commands; the value here is the triangulation method (P3) that detects this quickly. 
-H3's confirmation is vendor-specific in \emph{details} (POI naming on \texttt{laboV2}, \texttt{marker\_manager} schema) but the \emph{pattern} transfers: reuse the vendor's map artifacts rather than re-derive coordinates offline.
-What remains vendor-specific: exact topic names, manual-mode gate semantics, POI naming convention, and TTS broadcast contract all rediscoverable via the same seven-phase pipeline.
+The four hypotheses transfer beyond this unit. H1 should hold for any vendor robot whose Android companion app is the primary control surface: the app must speak the true wire protocol. H4 should hold for any robot with a safety or mode-gating layer between its message bus and actuators, common in commercial mobile bases. H2's rejection is vendor-specific (another robot could use MQTT for commands); the value here is the triangulation method (P3) that detects this quickly. H3's confirmation is vendor-specific in \emph{details} (POI naming, \texttt{marker\_manager} schema) but the \emph{pattern} transfers: reuse the vendor's map artifacts rather than re-derive coordinates offline. What remains vendor-specific: exact topic names, gate semantics, naming conventions, and broadcast contracts all rediscoverable via the same pipeline.
 
 \subsection{Ethical considerations}
 
 All reverse engineering reported here was performed on hardware owned or lawfully operated by our institution, for interoperability purposes, without redistributing vendor code or bypassing any DRM/licensing mechanism; APK analysis was limited to recovering message schemas, not to extracting or republishing proprietary assets. Principle P4 (non-destructive, no root, no firmware modification) was also an ethical commitment: it keeps the vendor's warranty and update path intact and avoids creating a fork of vendor firmware that could not be maintained. We did not attempt to circumvent the chassis SSH lockout beyond passive discovery of its existence.
 
+Facial recognition (Section~\ref{sec:face}) raised a separate provenance question, since it processes biometric data: no readily available pretrained embedding model has an entirely clean training-data lineage, so we treated the choice as deliberate rather than defaulting to the easiest download, and recorded the trade-off instead of presenting it as unproblematic. All enrollment requires explicit staff-triggered consent; no visitor is enrolled automatically.
+
 \subsection{Limitations}
 
-Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; on-robot ASR not yet implemented; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; guided-tour completion rate and Termux autonomous uptime remain to be measured over extended field sessions.
+Chassis shell inaccessible; no native \ros{} TTS; Android~7.1 WebView constraints; DHCP head IP variability; the vendor comparison (Table~\ref{tab:compare}) is feature-level, not a controlled user study; the guided-tour completion rate and Termux autonomous uptime figures in Table~\ref{tab:metrics} come from a single 0.6-hour, 3-tour session and should not be read as a long-run endurance result. The recognizer remains inconsistent on open-ended FAQ questions: a controlled offline measurement (12 canonical questions, 4 paraphrases each, keyword-matching engine of Section~\ref{sec:conv}) found a 56.2\% repeat-question success rate (27/48 trials) --- most failures were near-miss keyword overlaps matched to the wrong entry rather than outright non-matches, indicating the closed keyword scorer needs a wider synonym set or a semantic fallback; the facial-recognition threshold is uncalibrated across multiple concurrently enrolled visitors; and the wake-word grammar occasionally triggers on ambient speech, a precision/recall trade-off of a real-language substitute phrase that field logging (10 wake events, 0.3\,h) recorded as $0\%$ false triggers --- too small a sample to claim a real rate, and the detection heuristic (silence/timeout after wake vs.\ any transcribed text) cannot distinguish a genuinely misheard ambient phrase from a short garbled transcript, so this likely understates the true rate.
 
 %==============================================================================
 \section{Conclusion}
 %==============================================================================
 
-We presented a non-destructive reverse-engineering methodology for closed Android-\ros{} service robots, structured around four falsifiable hypotheses (H1--H4), and validated it end-to-end on the CIOT TY1251D-03195 via \cybel{}, an open edge platform with reconstructed \rosbridge{} protocol, a mock/real SDK, an Android TTS bridge, and a local conversational layer. Hypotheses H1 (APK-as-spec), H3 (POI reuse via full pipeline), and H4 (transport $\neq$ execution) were confirmed; H2 (MQTT command channel) was rejected with a mechanistic explanation.
-The main claim of the paper is methodological: the seven-phase, triangulation-based pipeline and the transport-versus-execution discipline (H4) generalize to other closed Android-\ros{} robots, while the specific protocol details recovered for \cybel{} are this vendor's instantiation of that method.
+We presented a non-destructive reverse-engineering methodology for closed Android-\ros{} service robots, structured around four falsifiable hypotheses (H1--H4), and validated it end-to-end on the CIOT TY1251D-03195 via \cybel{}, an open edge platform with reconstructed \rosbridge{} protocol, a mock/real SDK, an Android TTS bridge, an offline closed-vocabulary voice interface with wake-word and proactive dialogue, and an on-device facial-recognition pipeline. Hypotheses H1 (APK-as-spec), H3 (POI reuse via full pipeline), and H4 (transport $\neq$ execution) were confirmed; H2 (MQTT command channel) was rejected with a mechanistic explanation. A field-driven reactivity fix removed a redundant, unconditional \rosbridge{} round-trip pair present on every navigation command.
+The main claim of the paper is methodological: the seven-phase, triangulation-based pipeline and the transport-versus-execution discipline (H4) generalize to other closed Android-\ros{} robots, while the specific protocol details recovered for \cybel{}, and the voice/face interaction layer built on top of them, are this vendor's instantiation of that method.
 
-Future work: a controlled comparison against the vendor application beyond the feature table of Table~\ref{tab:compare}; LLM/RAG reasoning behind the knowledge-query API; on-device ASR; presence-triggered kiosk wake-up; and publication of the exploration scripts as reproducible artifacts for other closed Android--\ros{} robots, to test H1--H4 on a second vendor.
+Future work: a controlled comparison against the vendor application beyond the feature table of Table~\ref{tab:compare}; LLM/RAG reasoning grounded in the validated navigation/speech/knowledge primitives (Section~\ref{sec:conv}); quantified wake-word precision/recall and facial-recognition threshold calibration across multiple concurrently enrolled visitors; and publication of the exploration scripts as reproducible artifacts for other closed Android--\ros{} robots, to test H1--H4 on a second vendor.
 
 %==============================================================================
 \section*{Acknowledgment}
@@ -620,7 +657,7 @@ We thank the HESTIM robotics lab for robot access and field testing support.
 
 %==============================================================================
 \nocite{cybel2026}
-\clearpage
+\footnotesize
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 

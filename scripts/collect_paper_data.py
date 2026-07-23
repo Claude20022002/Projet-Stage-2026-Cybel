@@ -1007,7 +1007,7 @@ async def phase_tour(
                 break
 
             st = _http_get(f"{base}/api/tour/status")
-            if "error" in st:
+            if st.get("error"):
                 print(f"  [WARN] Impossible de lire le statut : {st['error']}")
                 continue
 

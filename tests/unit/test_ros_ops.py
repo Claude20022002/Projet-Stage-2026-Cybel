@@ -65,6 +65,17 @@ async def test_call_service_first_global_locate() -> None:
     assert len(client.calls) == 1
 
 
+def test_build_global_locate_chain_sends_typed_cmd_for_global_locate() -> None:
+    """Régression : /global_locate est yutong_assistance/GlobalLocate (champ
+    "cmd" requis), pas un service vide — un appel avec args={} ne répond
+    jamais côté châssis (observé sur le robot le 2026-07-23 : timeout, aucune
+    rotation réelle). /global_localization reste std_srvs/Empty (args={})."""
+    chain = dict(build_global_locate_chain())
+    assert chain["/global_locate"]["cmd"] == 0
+    assert "search_step_linear" in chain["/global_locate"]
+    assert chain["/global_localization"] == {}
+
+
 @pytest.mark.asyncio
 async def test_publish_first() -> None:
     client = FakeRosClient()

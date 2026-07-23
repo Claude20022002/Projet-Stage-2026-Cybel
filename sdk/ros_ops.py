@@ -91,10 +91,26 @@ def build_poi_nav_chain(point_name: str) -> list[tuple[str, dict[str, Any]]]:
     return chain
 
 
-def build_global_locate_chain() -> list[tuple[str, dict[str, Any]]]:
-    from sdk.constants import GLOBAL_LOCATE_SERVICE_CHAIN
+# yutong_assistance/GlobalLocate.cmd constants (via /rosapi/service_request_details) —
+# /global_locate n'est PAS un service vide : sans "cmd" explicite, le châssis ne
+# répond jamais (observé : timeout, aucune rotation réelle malgré un éventuel
+# faux "succès" renvoyé par le service de repli /global_localization, lui
+# authentiquement std_srvs/Empty).
+GLOBAL_LOCATE_CMD_GLOBAL = 0
 
-    return [(service, {}) for service in GLOBAL_LOCATE_SERVICE_CHAIN]
+
+def build_global_locate_chain() -> list[tuple[str, dict[str, Any]]]:
+    from sdk.constants import ROS_SERVICES, GLOBAL_LOCATE_SERVICE_CHAIN
+
+    args_by_service: dict[str, dict[str, Any]] = {
+        ROS_SERVICES["global_locate"]: {
+            "cmd": GLOBAL_LOCATE_CMD_GLOBAL,
+            "search_step_linear": 0.0,
+            "search_step_angular": 0.0,
+            "search_boundary": {},
+        },
+    }
+    return [(service, args_by_service.get(service, {})) for service in GLOBAL_LOCATE_SERVICE_CHAIN]
 
 
 def yaw_from_quaternion(orientation: dict[str, Any]) -> float:
