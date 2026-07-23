@@ -11,8 +11,10 @@ public class SpeakReceiver extends BroadcastReceiver {
         if (text == null || text.length() == 0) {
             return;
         }
+        String lang = intent.getStringExtra("lang");
         Intent service = new Intent(context, SpeakService.class);
         service.putExtra("text", text);
+        service.putExtra("lang", lang);
         context.startService(service);
     }
 }

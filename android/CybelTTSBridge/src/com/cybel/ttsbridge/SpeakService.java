@@ -23,6 +23,7 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
     private TextToSpeech tts;
     private boolean ttsReady;
     private String pendingText;
+    private String pendingLang;
 
     @Override
     public void onCreate() {
@@ -34,8 +35,9 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForegroundNotification();
         String text = intent != null ? intent.getStringExtra("text") : null;
+        String lang = intent != null ? intent.getStringExtra("lang") : null;
         if (text != null) {
-            speak(text);
+            speak(text, lang);
         }
         return START_NOT_STICKY;
     }
@@ -65,17 +67,21 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
+            // Locale par défaut à l'init ; ajustée par appel dans doSpeak()
+            // selon le "lang" de chaque requête (fr/en).
             tts.setLanguage(Locale.FRENCH);
             ttsReady = true;
             if (pendingText != null) {
                 final String text = pendingText;
+                final String lang = pendingLang;
                 pendingText = null;
+                pendingLang = null;
                 // TextToSpeech.onInit can fire slightly before the
                 // service connection is fully usable; give it a moment.
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        doSpeak(text);
+                        doSpeak(text, lang);
                     }
                 }, 300);
             }
@@ -86,15 +92,29 @@ public class SpeakService extends Service implements TextToSpeech.OnInitListener
         }
     }
 
-    private void speak(String text) {
+    private void speak(String text, String lang) {
         if (!ttsReady) {
             pendingText = text;
+            pendingLang = lang;
             return;
         }
-        doSpeak(text);
+        doSpeak(text, lang);
     }
 
-    private void doSpeak(String text) {
+    private void applyLocale(String lang) {
+        Locale target = "en".equals(lang) ? Locale.US : Locale.FRENCH;
+        int availability = tts.isLanguageAvailable(target);
+        if (availability == TextToSpeech.LANG_MISSING_DATA
+                || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
+            Log.w(TAG, "Voix indisponible pour " + target + " (statut " + availability
+                    + ") — repli sur le français");
+            target = Locale.FRENCH;
+        }
+        tts.setLanguage(target);
+    }
+
+    private void doSpeak(String text, String lang) {
+        applyLocale(lang);
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {

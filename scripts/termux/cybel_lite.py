@@ -280,11 +280,12 @@ def _tts_friendly(text: str) -> str:
     return _ALLCAPS_RUN.sub(_title, text)
 
 
-def speak_local(text: str) -> bool:
+def speak_local(text: str, lang: str = "fr") -> bool:
     text = _tts_friendly(text)
     escaped = text.replace("'", "'\\''")
     broadcast = (
-        f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} --es text '{escaped}'"
+        f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} "
+        f"--es text '{escaped}' --es lang '{lang}'"
     )
     for cmd in (broadcast, f"su -c '{broadcast}'"):
         try:
@@ -929,12 +930,12 @@ def estimate_speech_seconds(text: str) -> float:
     return _speech_timing.estimate_speech_seconds(text)
 
 
-async def speak_local_and_wait(text: str) -> None:
+async def speak_local_and_wait(text: str, lang: str = "fr") -> None:
     """Envoie le TTS local et attend la fin réelle du service Android."""
     _speech_state["speaking"] = True
     _speech_state["last_text"] = text
     try:
-        if not speak_local(text):
+        if not speak_local(text, lang):
             raise RuntimeError("TTS échoué")
         await _speech_timing.wait_for_tts_completion(
             text,
