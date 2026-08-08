@@ -114,13 +114,35 @@ Intervalles de Wilson et test exact de Fisher recalculés à partir de ces effec
 
 ---
 
-## 5. Reste à fournir avant soumission
+## 5. Anonymisation appliquée
 
-1. **Adresse e-mail institutionnelle** des deux auteurs — le bloc auteur n'en porte aucune
-   actuellement.
-2. **URL publique du dépôt** — §IV affirme que les artefacts sont « released with this paper »
-   (référence `cybel2026`). Cette affirmation doit être rendue vraie, ou reformulée.
-3. **Capture propre de l'interface opérateur**, si une septième figure est souhaitée : l'article
+Sur demande de l'auteure, l'article ne nomme ni l'établissement, ni le modèle du robot.
+
+| Élément | Traitement |
+|---|---|
+| Bloc auteur | Les deux noms seuls, sans affiliation ni adresse |
+| Établissement | Supprimé du bloc auteur, des remerciements et de la bibliographie |
+| Modèle du robot | Remplacé par « the study platform », introduit en §III comme « a mass-produced indoor reception robot ». §III précise que rien dans la méthode ne dépend du modèle |
+| Noms de paquets constructeur | Déjà génériques : « a welcome application and a deployment tool » |
+| Fig. 1 (photo) | Bandeau logo, nom de l'établissement à l'écran et QR code floutés ; la légende le signale |
+| Fig. 5 (application constructeur) | Vérifiée : ne porte aucune marque identifiable |
+
+Contrôle automatisé : `grep -ni "hestim\|casablanca\|morocco\|ciot\|ty1251\|welcomepatrol\|sentrymove\|cerim" main.tex references.bib` ne renvoie rien.
+
+**Point à confirmer.** ICRA impose la soumission en double aveugle certaines années. Si c'est le
+cas pour l'édition 2027, il faudra également retirer les noms d'auteurs et l'URL du dépôt de la
+version soumise, puis les rétablir pour la version définitive. À vérifier sur l'appel à
+communications avant dépôt.
+
+---
+
+## 6. Reste à fournir avant soumission
+
+1. **Capture propre de l'interface opérateur**, si une septième figure est souhaitée : l'article
    tient en 7 pages sur 8, il reste de la place. La capture existante montre l'interface
    déconnectée, avec la barre d'onglets du navigateur visible.
-4. **Validation de l'encadrant** sur les deux écarts de la section 1.
+2. **Validation de l'encadrant** sur les deux écarts de la section 1.
+
+*Résolu :* l'URL du dépôt est désormais dans `references.bib`
+(`https://github.com/Claude20022002/Projet-Stage-2026-Cybel`). Le dépôt doit être public, et
+contenir les journaux de terrain cités en §IV, pour que l'affirmation de reproductibilité tienne.

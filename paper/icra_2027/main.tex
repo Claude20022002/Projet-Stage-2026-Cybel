@@ -25,7 +25,6 @@
 \newcommand{\ros}{\textsc{ros}}
 \newcommand{\rosbridge}{\textsc{rosbridge}}
 \newcommand{\rosapi}{\texttt{rosapi}}
-\newcommand{\cybel}{\textsc{Cybel}}
 
 \begin{document}
 
@@ -34,12 +33,8 @@ Methodology for Non-Destructive Protocol Reconstruction}
 
 \author{
 \IEEEauthorblockN{Claudia Lusamote Kimfuta}
-\IEEEauthorblockA{HESTIM Engineering \& Business School\\
-Casablanca, Morocco}
 \and
 \IEEEauthorblockN{Sridath Tula}
-\IEEEauthorblockA{Centre de Recherche en Ing\'enierie et Management (CERIM)\\
-HESTIM Engineering \& Business School, Casablanca, Morocco}
 }
 
 \maketitle
@@ -52,8 +47,8 @@ commands the machine accepts. We present a non-destructive methodology for recov
 command surface without vendor cooperation, structured as four falsifiable hypotheses about
 where the protocol is observable and how to verify it, tested through a seven-phase pipeline
 that triangulates network mapping, \rosapi{} introspection, static analysis of the vendor
-application, and passive broker observation. We validate the methodology on a CIOT
-TY1251D-03195 reception robot, recovering \num{455} topics and \num{308} services and
+application, and passive broker observation. We validate the methodology on a commercially
+available reception robot, recovering \num{455} topics and \num{308} services and
 rebuilding teleoperation, navigation, speech and visitor interaction as an edge platform that
 runs without the vendor cloud. Our main empirical finding concerns verification rather than
 discovery. A transport-level acknowledgment says nothing about whether the machine moved. In
@@ -84,9 +79,9 @@ speaks and greets visitors perfectly well, but only in the ways its manufacturer
 \begin{figure}[!t]
 \centering
 \includegraphics[width=0.62\columnwidth]{fig/robot_kiosk}
-\caption{The CIOT TY1251D-03195 reception robot running our reconstructed visitor interface on
-its own touchscreen. The head is an Android computer; the mobile base underneath is a separate
-Linux/\ros{} machine. Neither exposes a documented interface to its owner.}
+\caption{The study platform running our reconstructed visitor interface on its own touchscreen.
+The head is an Android computer; the mobile base underneath is a separate Linux/\ros{} machine.
+Neither exposes a documented interface to its owner. Identifying marks are blurred.}
 \label{fig:robot}
 \end{figure}
 
@@ -222,10 +217,13 @@ interface is known; what we describe here is the step before that.
 \label{sec:access}
 %==============================================================================
 
-The CIOT TY1251D-03195 pairs a Linux/\ros{} chassis~\cite{quigley2009ros} carrying SLAM, a
-planner, LiDAR and RGB-D sensing, with an Android~7.1 head driving a \SI{15.6}{inch}
-touchscreen, cameras and speakers. The two are independent network stacks, a fact no vendor
-document states and no application string reveals.
+The study platform is a mass-produced indoor reception robot, sold as a turnkey product with a
+companion Android application and a subscription cloud service. It pairs a Linux/\ros{}
+chassis~\cite{quigley2009ros} carrying SLAM, a planner, LiDAR and RGB-D sensing with an
+Android~7.1 head that drives a \SI{15.6}{inch} touchscreen, cameras and speakers. We refer to it
+generically throughout, since nothing in the methodology depends on the particular model and we
+have no interest in singling out one manufacturer. The two computers run independent network
+stacks, a fact no vendor document states and no application string reveals.
 
 \begin{figure}[!t]
 \centering
@@ -764,7 +762,7 @@ rather than leave it to rediscover the interface for itself.
 \section*{Acknowledgment}
 %==============================================================================
 
-We thank the HESTIM robotics laboratory for robot access and support during field testing.
+We thank our robotics laboratory for robot access and for support during field testing.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

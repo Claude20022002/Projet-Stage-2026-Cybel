@@ -123,8 +123,8 @@ M.~Quigley, K.~Conley, B.~Gerkey, J.~Faust, T.~Foote, J.~Leibs, R.~Wheeler, and
 
 \bibitem{cybel2026}
 C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL}: Reverse-engineering scripts, edge
-  platform and field logs,'' Software repository, 2026, hESTIM robotics
-  laboratory.
+  platform and field logs,''
+  \url{https://github.com/Claude20022002/Projet-Stage-2026-Cybel}, 2026.
 
 \bibitem{wilson1927}
 E.~B. Wilson, ``Probable inference, the law of succession, and statistical
