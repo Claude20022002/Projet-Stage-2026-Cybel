@@ -21,71 +21,81 @@
 \providecommand{\BIBdecl}{\relax}
 \BIBdecl
 
-\bibitem{cybel_architecture}
-C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: Architecture and {APK}
-  audit notes,'' 2026, internal technical documentation, HESTIM robotics lab.
+\bibitem{kim2005reengineering}
+M.~Kim, J.~Lee, K.~C. Kang, Y.~Hong, and S.~Bang, ``Re-engineering software
+  architecture of home service robots: A case study,'' in \emph{Proc. 27th
+  International Conference on Software Engineering (ICSE)}, 2005, pp. 505--513.
+
+\bibitem{muhe2010kuka}
+H.~M{\"u}he, A.~Angerer, A.~Hoffmann, and W.~Reif, ``On reverse-engineering the
+  {KUKA} {R}obot {L}anguage,'' in \emph{1st International Workshop on
+  Domain-Specific Languages and Models for Robotic Systems (DSLRob)}, 2010,
+  arXiv:1009.5004.
+
+\bibitem{west2003open}
+J.~West, ``How open is open enough? {M}elding proprietary and open source
+  platform strategies,'' \emph{Research Policy}, vol.~32, no.~7, pp.
+  1259--1285, 2003.
+
+\bibitem{glauser2023interop}
+R.~Glauser, J.~Holm, M.~Bender, and T.~B{\"u}rkle, ``How can social robot use
+  cases in healthcare be pushed --- with an interoperable programming
+  interface,'' \emph{BMC Medical Informatics and Decision Making}, vol.~23,
+  no.~1, p. 118, 2023.
+
+\bibitem{aragao2016yarp}
+M.~Arag{\~a}o, P.~Moreno, and A.~Bernardino, ``Middleware interoperability for
+  robotics: A {ROS}--{YARP} framework,'' \emph{Frontiers in Robotics and AI},
+  vol.~3, p.~64, 2016.
+
+\bibitem{crick2012rosbridge}
+C.~Crick, G.~Jay, S.~Osentoski, B.~Pitzer, and O.~C. Jenkins, ``Rosbridge:
+  {ROS} for non-{ROS} users,'' in \emph{Proc. 15th International Symposium on
+  Robotics Research (ISRR)}, 2012.
+
+\bibitem{rosbridge_suite}
+{Open Source Robotics Foundation}, ``rosbridge\_suite,''
+  \url{http://wiki.ros.org/rosbridge_suite}, {ROS} Wiki, accessed 2026.
+
+\bibitem{demarinis2019scanning}
+N.~DeMarinis, S.~Tellex, V.~P. Kemerlis, G.~Konidaris, and R.~Fonseca,
+  ``Scanning the {I}nternet for {ROS}: A view of security in robotics
+  research,'' in \emph{Proc. IEEE International Conference on Robotics and
+  Automation (ICRA)}, 2019, pp. 8514--8521.
+
+\bibitem{dieber2017security}
+B.~Dieber, S.~Kacianka, S.~Rass, and P.~Schartner, ``Application-level security
+  for {ROS}-based applications,'' in \emph{Proc. IEEE/RSJ International
+  Conference on Intelligent Robots and Systems (IROS)}, 2016, pp. 4477--4482.
+
+\bibitem{comparetti2009prospex}
+P.~M. Comparetti, G.~Wondracek, C.~Kruegel, and E.~Kirda, ``Prospex: Protocol
+  specification extraction,'' in \emph{Proc. IEEE Symposium on Security and
+  Privacy}, 2009, pp. 110--125.
 
 \bibitem{enck2014taintdroid}
 W.~Enck, P.~Gilbert, B.-G. Chun, L.~P. Cox, J.~Jung, P.~McDaniel, and A.~N.
   Sheth, ``{TaintDroid}: An information-flow tracking system for realtime
   privacy monitoring on smartphones,'' \emph{ACM Transactions on Computer
-  Systems}, vol.~32, no.~2, 2014.
+  Systems}, vol.~32, no.~2, pp. 1--29, 2014.
 
-\bibitem{comparetti2009prospex}
-P.~M. Comparetti, G.~Wondracek, C.~Kruegel, and E.~Kirda, ``Prospex: Protocol
-  specification extraction,'' in \emph{Proceedings of the IEEE Symposium on
-  Security and Privacy}, 2009.
+\bibitem{chin2011android}
+E.~Chin, A.~P. Felt, K.~Greenwood, and D.~Wagner, ``Analyzing inter-application
+  communication in {A}ndroid,'' in \emph{Proc. 9th International Conference on
+  Mobile Systems, Applications, and Services (MobiSys)}, 2011, pp. 239--252.
 
-\bibitem{cybel2026}
-C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL}: Reproducible artifacts and
-  exploration scripts,'' 2026, project repository, HESTIM robotics lab.
-
-\bibitem{jadx}
-Skylot, ``{JADX}: Dex to java decompiler,''
-  \url{https://github.com/skylot/jadx}, gitHub repository, accessed 2026.
-
-\bibitem{crick2012rosbridge}
-C.~Crick, G.~Jay, S.~Osentoski, B.~Pitzer, and O.~C. Jenkins, ``Rosbridge:
-  {ROS} for non-{ROS} users,'' in \emph{Proceedings of the 15th International
-  Symposium on Robotics Research (ISRR)}, 2012.
-
-\bibitem{rosbridge_suite}
-{Open Source Robotics Foundation}, ``rosbridge\_suite,''
-  \url{http://wiki.ros.org/rosbridge_suite}, rOS Wiki, accessed 2026.
-
-\bibitem{dieber2017security}
-B.~Dieber, S.~Kacianka, S.~Rass, and P.~Schartner, ``Application-level security
-  for {ROS}-based applications,'' in \emph{Proceedings of the IEEE/RSJ
-  International Conference on Intelligent Robots and Systems (IROS)}, 2017.
-
-\bibitem{west2003open}
-J.~West, ``How open is open enough? melding proprietary and open source
-  platform strategies,'' \emph{Research Policy}, vol.~32, no.~7, pp.
-  1259--1285, 2003.
+\bibitem{giese2018xiaomi}
+D.~Giese and D.~Wegemer, ``Having fun with {IoT}: Reverse engineering and
+  hacking of {X}iaomi {IoT} devices,'' DEF CON 26, 2018.
 
 \bibitem{kehoe2015cloud}
 B.~Kehoe, S.~Patil, P.~Abbeel, and K.~Goldberg, ``A survey of research on cloud
   robotics and automation,'' \emph{IEEE Transactions on Automation Science and
   Engineering}, vol.~12, no.~2, pp. 398--409, 2015.
 
-\bibitem{ahn2022saycan}
-M.~Ahn \emph{et~al.}, ``Do as {I} can, not as {I} say: Grounding language in
-  robotic affordances,'' in \emph{6th Conference on Robot Learning (CoRL)},
-  2022.
-
-\bibitem{driess2023paleme}
-D.~Driess \emph{et~al.}, ``{PaLM-E}: An embodied multimodal language model,''
-  in \emph{Proceedings of the 40th International Conference on Machine Learning
-  (ICML)}, 2023.
-
-\bibitem{quigley2009ros}
-M.~Quigley, K.~Conley, B.~Gerkey, J.~Faust, T.~Foote, J.~Leibs, R.~Wheeler, and
-  A.~Y. Ng, ``{ROS}: an open-source {R}obot {O}perating {S}ystem,'' in
-  \emph{ICRA Workshop on Open Source Software}, 2009.
-
-\bibitem{cybel_tts}
-C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: {TTS} channel investigation
-  log,'' 2026, internal technical documentation, HESTIM robotics lab.
+\bibitem{warden2018speechcommands}
+P.~Warden, ``Speech commands: A dataset for limited-vocabulary speech
+  recognition,'' 2018, arXiv:1804.03209.
 
 \bibitem{vosk}
 {Alpha Cephei}, ``{Vosk}: Offline open-source speech recognition toolkit,''
@@ -93,8 +103,36 @@ C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL} project: {TTS} channel investigation
 
 \bibitem{schroff2015facenet}
 F.~Schroff, D.~Kalenichenko, and J.~Philbin, ``{FaceNet}: A unified embedding
-  for face recognition and clustering,'' in \emph{Proceedings of the IEEE
-  Conference on Computer Vision and Pattern Recognition (CVPR)}, 2015, pp.
-  815--823.
+  for face recognition and clustering,'' in \emph{Proc. IEEE Conference on
+  Computer Vision and Pattern Recognition (CVPR)}, 2015, pp. 815--823.
+
+\bibitem{ahn2022saycan}
+M.~Ahn, A.~Brohan, N.~Brown, Y.~Chebotar, O.~Cortes, B.~David, C.~Finn
+  \emph{et~al.}, ``Do as {I} can, not as {I} say: Grounding language in robotic
+  affordances,'' in \emph{Proc. 6th Conference on Robot Learning (CoRL)}, 2022.
+
+\bibitem{driess2023paleme}
+D.~Driess, F.~Xia, M.~S.~M. Sajjadi, C.~Lynch, A.~Chowdhery, B.~Ichter
+  \emph{et~al.}, ``{PaLM-E}: An embodied multimodal language model,'' in
+  \emph{Proc. 40th International Conference on Machine Learning (ICML)}, 2023.
+
+\bibitem{quigley2009ros}
+M.~Quigley, K.~Conley, B.~Gerkey, J.~Faust, T.~Foote, J.~Leibs, R.~Wheeler, and
+  A.~Y. Ng, ``{ROS}: an open-source {R}obot {O}perating {S}ystem,'' in
+  \emph{ICRA Workshop on Open Source Software}, 2009.
+
+\bibitem{cybel2026}
+C.~Lusamote~Kimfuta and S.~Tula, ``{CYBEL}: Reverse-engineering scripts, edge
+  platform and field logs,'' Software repository, 2026, hESTIM robotics
+  laboratory.
+
+\bibitem{wilson1927}
+E.~B. Wilson, ``Probable inference, the law of succession, and statistical
+  inference,'' \emph{Journal of the American Statistical Association}, vol.~22,
+  no. 158, pp. 209--212, 1927.
+
+\bibitem{brown2001interval}
+L.~D. Brown, T.~T. Cai, and A.~DasGupta, ``Interval estimation for a binomial
+  proportion,'' \emph{Statistical Science}, vol.~16, no.~2, pp. 101--133, 2001.
 
 \end{thebibliography}

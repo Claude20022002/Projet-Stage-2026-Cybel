@@ -1,62 +1,160 @@
+% ==========================================================================
+%  CYBEL — IEEE ICRA 2027 — bibliography
+%  All entries are externally verifiable. Metadata (authors, venue, pages,
+%  DOI) checked against the publisher or arXiv record.
+% ==========================================================================
+
+% ---------- Robot middleware and rosbridge -------------------------------
+
 @inproceedings{quigley2009ros,
-  author    = {Quigley, Morgan and Conley, Ken and Gerkey, Brian and Faust, Josh and Foote, Tully and Leibs, Jeremy and Wheeler, Rob and Ng, Andrew Y.},
+  author    = {Quigley, Morgan and Conley, Ken and Gerkey, Brian and Faust, Josh
+               and Foote, Tully and Leibs, Jeremy and Wheeler, Rob and Ng, Andrew Y.},
   title     = {{ROS}: an open-source {R}obot {O}perating {S}ystem},
   booktitle = {ICRA Workshop on Open Source Software},
   year      = {2009}
 }
 
-@book{thrun2005probrob,
-  author    = {Thrun, Sebastian and Burgard, Wolfram and Fox, Dieter},
-  title     = {Probabilistic Robotics},
-  publisher = {MIT Press},
-  year      = {2005}
-}
-
-@book{bartneck2020hri,
-  author    = {Bartneck, Christoph and Belpaeme, Tony and Eyssel, Friederike and Kanda, Takayuki and Keijsers, Merel and {\v{S}}abanovi{\'c}, Selma},
-  title     = {Human-Robot Interaction: An Introduction},
-  publisher = {Cambridge University Press},
-  year      = {2020}
-}
-
 @inproceedings{crick2012rosbridge,
-  author    = {Crick, Christopher and Jay, Graylin and Osentoski, Sarah and Pitzer, Ben and Jenkins, Odest Chadwicke},
+  author    = {Crick, Christopher and Jay, Graylin and Osentoski, Sarah
+               and Pitzer, Ben and Jenkins, Odest Chadwicke},
   title     = {Rosbridge: {ROS} for Non-{ROS} Users},
-  booktitle = {Proceedings of the 15th International Symposium on Robotics Research (ISRR)},
-  year      = {2012}
+  booktitle = {Proc. 15th International Symposium on Robotics Research (ISRR)},
+  year      = {2012},
+  doi       = {10.1007/978-3-319-29363-9_28}
 }
 
 @misc{rosbridge_suite,
-  author = {{Open Source Robotics Foundation}},
-  title  = {rosbridge\_suite},
+  author       = {{Open Source Robotics Foundation}},
+  title        = {rosbridge\_suite},
   howpublished = {\url{http://wiki.ros.org/rosbridge_suite}},
-  note   = {ROS Wiki, accessed 2026}
+  note         = {{ROS} Wiki, accessed 2026}
+}
+
+@article{aragao2016yarp,
+  author  = {Arag{\~a}o, Miguel and Moreno, Plinio and Bernardino, Alexandre},
+  title   = {Middleware Interoperability for Robotics: A {ROS}--{YARP} Framework},
+  journal = {Frontiers in Robotics and AI},
+  volume  = {3},
+  pages   = {64},
+  year    = {2016},
+  doi     = {10.3389/frobt.2016.00064}
+}
+
+% ---------- Black-box access to robot systems ---------------------------
+
+@inproceedings{demarinis2019scanning,
+  author    = {DeMarinis, Nicholas and Tellex, Stefanie and Kemerlis, Vasileios P.
+               and Konidaris, George and Fonseca, Rodrigo},
+  title     = {Scanning the {I}nternet for {ROS}: A View of Security in Robotics Research},
+  booktitle = {Proc. IEEE International Conference on Robotics and Automation (ICRA)},
+  pages     = {8514--8521},
+  year      = {2019},
+  doi       = {10.1109/ICRA.2019.8794451}
+}
+
+@inproceedings{dieber2017security,
+  author    = {Dieber, Bernhard and Kacianka, Severin and Rass, Stefan and Schartner, Peter},
+  title     = {Application-level Security for {ROS}-based Applications},
+  booktitle = {Proc. IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages     = {4477--4482},
+  year      = {2016},
+  doi       = {10.1109/IROS.2016.7759659}
+}
+
+% ---------- Re-engineering closed robot platforms ------------------------
+
+@inproceedings{kim2005reengineering,
+  author    = {Kim, Moonzoo and Lee, Jaejoon and Kang, Kyo Chul
+               and Hong, Youngjin and Bang, Seokwon},
+  title     = {Re-engineering Software Architecture of Home Service Robots: A Case Study},
+  booktitle = {Proc. 27th International Conference on Software Engineering (ICSE)},
+  pages     = {505--513},
+  year      = {2005},
+  doi       = {10.1145/1062455.1062547}
+}
+
+@inproceedings{muhe2010kuka,
+  author    = {M{\"u}he, Henrik and Angerer, Andreas and Hoffmann, Alwin and Reif, Wolfgang},
+  title     = {On Reverse-Engineering the {KUKA} {R}obot {L}anguage},
+  booktitle = {1st International Workshop on Domain-Specific Languages and Models
+               for Robotic Systems (DSLRob)},
+  year      = {2010},
+  note      = {arXiv:1009.5004}
+}
+
+@article{glauser2023interop,
+  author  = {Glauser, Robin and Holm, J{\"u}rgen and Bender, Matthias and B{\"u}rkle, Thomas},
+  title   = {How can social robot use cases in healthcare be pushed --- with an
+             interoperable programming interface},
+  journal = {BMC Medical Informatics and Decision Making},
+  volume  = {23},
+  number  = {1},
+  pages   = {118},
+  year    = {2023},
+  doi     = {10.1186/s12911-023-02210-7}
+}
+
+% ---------- Protocol and companion-app reverse engineering ---------------
+
+@inproceedings{comparetti2009prospex,
+  author    = {Comparetti, Paolo Milani and Wondracek, Gilbert
+               and Kruegel, Christopher and Kirda, Engin},
+  title     = {Prospex: Protocol Specification Extraction},
+  booktitle = {Proc. IEEE Symposium on Security and Privacy},
+  pages     = {110--125},
+  year      = {2009},
+  doi       = {10.1109/SP.2009.14}
 }
 
 @article{enck2014taintdroid,
-  author  = {Enck, William and Gilbert, Peter and Chun, Byung-Gon and Cox, Landon P. and Jung, Jaeyeon and McDaniel, Patrick and Sheth, Anmol N.},
-  title   = {{TaintDroid}: An Information-Flow Tracking System for Realtime Privacy Monitoring on Smartphones},
+  author  = {Enck, William and Gilbert, Peter and Chun, Byung-Gon and Cox, Landon P.
+             and Jung, Jaeyeon and McDaniel, Patrick and Sheth, Anmol N.},
+  title   = {{TaintDroid}: An Information-Flow Tracking System for Realtime
+             Privacy Monitoring on Smartphones},
   journal = {ACM Transactions on Computer Systems},
   volume  = {32},
   number  = {2},
-  year    = {2014}
+  pages   = {1--29},
+  year    = {2014},
+  doi     = {10.1145/2619091}
+}
+
+@inproceedings{chin2011android,
+  author    = {Chin, Erika and Felt, Adrienne Porter and Greenwood, Kate and Wagner, David},
+  title     = {Analyzing Inter-Application Communication in {A}ndroid},
+  booktitle = {Proc. 9th International Conference on Mobile Systems,
+               Applications, and Services (MobiSys)},
+  pages     = {239--252},
+  year      = {2011},
+  doi       = {10.1145/1999995.2000018}
+}
+
+@misc{giese2018xiaomi,
+  author       = {Giese, Dennis and Wegemer, Daniel},
+  title        = {Having Fun with {IoT}: Reverse Engineering and Hacking of {X}iaomi {IoT} Devices},
+  howpublished = {DEF CON 26},
+  year         = {2018}
 }
 
 @misc{jadx,
   author       = {Skylot},
   title        = {{JADX}: Dex to Java decompiler},
   howpublished = {\url{https://github.com/skylot/jadx}},
-  note         = {GitHub repository, accessed 2026}
+  note         = {accessed 2026}
 }
+
+% ---------- Platform openness, edge and cloud robotics -------------------
 
 @article{west2003open,
   author  = {West, Joel},
-  title   = {How open is open enough? Melding proprietary and open source platform strategies},
+  title   = {How open is open enough? {M}elding proprietary and open source
+             platform strategies},
   journal = {Research Policy},
   volume  = {32},
   number  = {7},
   pages   = {1259--1285},
-  year    = {2003}
+  year    = {2003},
+  doi     = {10.1016/S0048-7333(03)00052-0}
 }
 
 @article{kehoe2015cloud,
@@ -66,70 +164,96 @@
   volume  = {12},
   number  = {2},
   pages   = {398--409},
-  year    = {2015}
+  year    = {2015},
+  doi     = {10.1109/TASE.2014.2376492}
 }
 
-@inproceedings{ahn2022saycan,
-  author    = {Ahn, Michael and others},
-  title     = {Do As {I} Can, Not As {I} Say: Grounding Language in Robotic Affordances},
-  booktitle = {6th Conference on Robot Learning (CoRL)},
-  year      = {2022}
-}
+% ---------- Interaction: speech, faces, language models ------------------
 
-@inproceedings{driess2023paleme,
-  author    = {Driess, Danny and others},
-  title     = {{PaLM-E}: An Embodied Multimodal Language Model},
-  booktitle = {Proceedings of the 40th International Conference on Machine Learning (ICML)},
-  year      = {2023}
-}
-
-@inproceedings{dieber2017security,
-  author    = {Dieber, Bernhard and Kacianka, Severin and Rass, Stefan and Schartner, Peter},
-  title     = {Application-level Security for {ROS}-based Applications},
-  booktitle = {Proceedings of the IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
-  year      = {2017}
-}
-
-@inproceedings{comparetti2009prospex,
-  author    = {Comparetti, Paolo Milani and Wondracek, Gilbert and Kruegel, Christopher and Kirda, Engin},
-  title     = {Prospex: Protocol Specification Extraction},
-  booktitle = {Proceedings of the IEEE Symposium on Security and Privacy},
-  year      = {2009}
-}
-
-@misc{cybel_architecture,
-  author = {Lusamote Kimfuta, Claudia and Tula, Sridath},
-  title  = {{CYBEL} Project: Architecture and {APK} Audit Notes},
-  note   = {Internal technical documentation, HESTIM robotics lab},
-  year   = {2026}
-}
-
-@misc{cybel_tts,
-  author = {Lusamote Kimfuta, Claudia and Tula, Sridath},
-  title  = {{CYBEL} Project: {TTS} Channel Investigation Log},
-  note   = {Internal technical documentation, HESTIM robotics lab},
-  year   = {2026}
-}
-
-
-@misc{cybel2026,
-  author = {Lusamote Kimfuta, Claudia and Tula, Sridath},
-  title  = {{CYBEL}: Reproducible Artifacts and Exploration Scripts},
-  note   = {Project repository, HESTIM robotics lab},
-  year   = {2026}
-}
-
-@inproceedings{schroff2015facenet,
-  author    = {Schroff, Florian and Kalenichenko, Dmitry and Philbin, James},
-  title     = {{FaceNet}: A Unified Embedding for Face Recognition and Clustering},
-  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
-  pages     = {815--823},
-  year      = {2015}
+@misc{warden2018speechcommands,
+  author = {Warden, Pete},
+  title  = {Speech Commands: A Dataset for Limited-Vocabulary Speech Recognition},
+  year   = {2018},
+  note   = {arXiv:1804.03209}
 }
 
 @misc{vosk,
   author       = {{Alpha Cephei}},
   title        = {{Vosk}: Offline Open-Source Speech Recognition Toolkit},
   howpublished = {\url{https://alphacephei.com/vosk/}},
-  note         = {Accessed 2026}
+  note         = {accessed 2026}
+}
+
+@inproceedings{schroff2015facenet,
+  author    = {Schroff, Florian and Kalenichenko, Dmitry and Philbin, James},
+  title     = {{FaceNet}: A Unified Embedding for Face Recognition and Clustering},
+  booktitle = {Proc. IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {815--823},
+  year      = {2015},
+  doi       = {10.1109/CVPR.2015.7298682}
+}
+
+@inproceedings{ahn2022saycan,
+  author    = {Ahn, Michael and Brohan, Anthony and Brown, Noah and Chebotar, Yevgen
+               and Cortes, Omar and David, Byron and Finn, Chelsea and others},
+  title     = {Do As {I} Can, Not As {I} Say: Grounding Language in Robotic Affordances},
+  booktitle = {Proc. 6th Conference on Robot Learning (CoRL)},
+  year      = {2022}
+}
+
+@inproceedings{driess2023paleme,
+  author    = {Driess, Danny and Xia, Fei and Sajjadi, Mehdi S. M. and Lynch, Corey
+               and Chowdhery, Aakanksha and Ichter, Brian and others},
+  title     = {{PaLM-E}: An Embodied Multimodal Language Model},
+  booktitle = {Proc. 40th International Conference on Machine Learning (ICML)},
+  year      = {2023}
+}
+
+@book{bartneck2020hri,
+  author    = {Bartneck, Christoph and Belpaeme, Tony and Eyssel, Friederike
+               and Kanda, Takayuki and Keijsers, Merel and {\v{S}}abanovi{\'c}, Selma},
+  title     = {Human-Robot Interaction: An Introduction},
+  publisher = {Cambridge University Press},
+  year      = {2020}
+}
+
+% ---------- Localization and statistics ----------------------------------
+
+@book{thrun2005probrob,
+  author    = {Thrun, Sebastian and Burgard, Wolfram and Fox, Dieter},
+  title     = {Probabilistic Robotics},
+  publisher = {MIT Press},
+  year      = {2005}
+}
+
+@article{wilson1927,
+  author  = {Wilson, Edwin B.},
+  title   = {Probable Inference, the Law of Succession, and Statistical Inference},
+  journal = {Journal of the American Statistical Association},
+  volume  = {22},
+  number  = {158},
+  pages   = {209--212},
+  year    = {1927},
+  doi     = {10.1080/01621459.1927.10502953}
+}
+
+@article{brown2001interval,
+  author  = {Brown, Lawrence D. and Cai, T. Tony and DasGupta, Anirban},
+  title   = {Interval Estimation for a Binomial Proportion},
+  journal = {Statistical Science},
+  volume  = {16},
+  number  = {2},
+  pages   = {101--133},
+  year    = {2001},
+  doi     = {10.1214/ss/1009213286}
+}
+
+% ---------- Project artifacts -------------------------------------------
+
+@misc{cybel2026,
+  author       = {Lusamote Kimfuta, Claudia and Tula, Sridath},
+  title        = {{CYBEL}: Reverse-Engineering Scripts, Edge Platform and Field Logs},
+  howpublished = {Software repository},
+  year         = {2026},
+  note         = {HESTIM robotics laboratory}
 }
