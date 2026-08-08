@@ -1,0 +1,40 @@
+% ============================================================================
+%  Preamble — packages, macros, global settings.
+%  Edit here for anything that affects the whole document.
+% ============================================================================
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,decorations.pathreplacing}
+\usepackage[section]{placeins}
+\usepackage{stfloats}
+
+% Images live in assets/ ; \includegraphics needs only the base name.
+\graphicspath{{assets/}}
+
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
+\sisetup{detect-all,range-phrase={--},range-units=single}
+
+% ---------------------------------------------------------------------------
+%  Terminology macros. Use these instead of typing the words, so that a
+%  change of wording stays consistent across every section.
+% ---------------------------------------------------------------------------
+\newcommand{\ros}{\textsc{ros}}
+\newcommand{\rosbridge}{\textsc{rosbridge}}
+\newcommand{\rosapi}{\texttt{rosapi}}
+
+% Anonymised designation of the case-study robot. The paper deliberately
+% avoids naming the model; change this one macro if that policy changes.
+\newcommand{\platform}{the study platform}
+\newcommand{\Platform}{The study platform}

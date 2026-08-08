@@ -1,0 +1,61 @@
+% ---------------------------------------------------------------------------
+%  II. Related Work
+%  Floats:  tables/tab-positioning.tex   (Table I)
+%  Rule:    every subsection ends by saying what that line of work assumes
+%           and why our starting point is different. Add a citation here and
+%           it must also gain a row in Table I, or it is decoration.
+% ---------------------------------------------------------------------------
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Re-engineering commercial robot platforms}
+The closest precedent is Kim \emph{et al.}~\cite{kim2005reengineering}, who re-engineered the
+software architecture of a commercial home service robot. Their study follows much the same arc
+as ours, but one difference decides everything: they had the manufacturer's source code and its
+engineering team, while we start from a sealed product. M\"uhe \emph{et al.}~\cite{muhe2010kuka}
+recovered a proprietary industrial robot language, again working from artifacts the vendor had
+published. Both begin with more material than we do, and the methodology below exists mainly to
+make up for that shortfall.
+
+\subsection{Vendor lock-in and interoperability}
+The trade-off between proprietary and open platform strategies is long
+established~\cite{west2003open}, and service robotics reproduces it one product at a time.
+Glauser \emph{et al.}~\cite{glauser2023interop} report healthcare deployments held back by
+outdated and restrictive vendor SDKs, and propose an interoperable programming interface as the
+remedy. Middleware bridges such as ROS--YARP~\cite{aragao2016yarp} address the adjacent problem
+of connecting two interfaces that are both \emph{known}. In every case the interface itself is
+taken for granted. The question we take up comes earlier: how does a laboratory obtain one at
+all, on a robot it has already bought?
+
+\subsection{Black-box access to \ros{} systems}
+\rosbridge{} was designed to let non-\ros{} clients reach a \ros{} graph over
+WebSocket~\cite{crick2012rosbridge,rosbridge_suite}, normally deployed by the integrator who
+controls that graph. DeMarinis \emph{et al.}~\cite{demarinis2019scanning} inverted this
+perspective, scanning the Internet for exposed \ros{} systems and showing that sensors and
+actuators can be reached without any knowledge of the node graph; Dieber \emph{et
+al.}~\cite{dieber2017security} treat the same openness as an application-level security problem.
+We occupy a similar position with the sign reversed: we too arrive at a vendor-deployed bridge
+as an unknown client, but constructively, and on hardware we own.
+
+\subsection{Protocol recovery from companion software}
+Extracting protocol specifications from observed traffic is a mature security
+technique~\cite{comparetti2009prospex}, and Android analysis has focused on information flow
+within an application~\cite{enck2014taintdroid} or between applications~\cite{chin2011android}.
+The practice of reading a device's companion app to recover its wire protocol is established in
+the IoT community~\cite{giese2018xiaomi}. Hypothesis H1 imports that practice into robotics,
+where the companion application controls a second, physically separate computer.
+
+\subsection{Edge robotics and on-device interaction}
+Cloud robotics assumes a reliable path to remote compute~\cite{kehoe2015cloud}. We had the
+opposite constraint. The robot's own network guarantees no Internet route, so speech and
+recognition had to run on the head, which pushed us towards closed-vocabulary
+recognition~\cite{warden2018speechcommands,vosk} and on-device face
+embeddings~\cite{schroff2015facenet}. Language-model agents~\cite{ahn2022saycan,driess2023paleme}
+assume an open action API is already available. On a closed robot that API has to be recovered
+first, which is the work reported here.
+
+\input{tables/tab-positioning}
+
+Table~\ref{tab:positioning} sets out the gap. Each neighbouring line of work starts once the
+interface is known; what we describe here is the step before that.

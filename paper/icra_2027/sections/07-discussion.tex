@@ -1,0 +1,73 @@
+% ---------------------------------------------------------------------------
+%  VII. Discussion
+%  Floats:  none.
+%  Rule:    prose, not bullet lists. A "lessons learned" list is the single
+%           strongest signal of an engineering report; an earlier version was
+%           rejected partly for that. Keep the argument in paragraphs.
+% ---------------------------------------------------------------------------
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{What the study establishes}
+
+The methodological lesson is that discovery and verification are two different problems, and on
+a closed platform the second is much the harder. Recovering names is fairly mechanical:
+introspection plus a decompiler produce a large candidate surface in a matter of days.
+Establishing that any of those commands does something is where the time actually goes, because
+the interface reports success in exactly the same way whether or not the machine moves. Our
+field record puts this as starkly as we could have wished. The outcome was settled by a state
+field, and not at all by the command variant we had spent weeks trying to tell apart.
+
+From this follows a design rule, and the rule has a price. Pair every command with an
+independent observation of its effect, and re-establish explicitly every precondition the vendor
+application sets implicitly. That preparation sequence is what separates a working integration
+from a bench script that reports success and moves nothing. It is also not free. We had a
+standing complaint that the robot felt sluggish, and traced it to preparation steps being issued
+unconditionally on every command, which added two round trips and a fixed delay even when
+telemetry already confirmed the required state. Skipping them once the state is confirmed is the
+same discipline read backwards: do not re-issue a command whose effect the telemetry is already
+reporting.
+
+\subsection{Generalization}
+
+H1 should hold wherever the vendor's companion application is the primary control surface, since
+that application has no choice but to speak the true protocol. H4 should hold on any platform
+that places a safety or mode-arbitration layer between the message bus and the actuators, which
+is the norm for commercial mobile bases. The rejection of H2 is specific to this manufacturer,
+and another may well command over a broker; what carries across is the triangulation procedure
+that settled the question in a single audit instead of weeks of intermittent failures. Concrete
+names, gate semantics and naming conventions do not transfer at all, and have to be
+rediscovered, which is what the pipeline is for. We have run the method on one platform. Whether
+it transfers to a second vendor is a claim we would like to make and cannot yet support.
+
+\subsection{Ethics and data protection}
+
+The robot belongs to our institution and was studied for interoperability. We analysed the
+vendor application in order to recover message schemas, not to extract or redistribute
+proprietary assets, and we bypassed no licensing or protection mechanism. Staying
+non-destructive was an ethical commitment and a practical one at the same time: it leaves the
+warranty and the update path intact, and it avoids producing a firmware fork that nobody would
+maintain.
+
+Face re-identification processes biometric data, and that needed a separate judgement.
+Pretrained embedding models differ in the provenance of their training data, and several widely
+circulated conversions descend from a corpus that was withdrawn over consent concerns. We chose
+a model whose provenance is documented, obtained through a checksum-verified chain, and we
+record the trade-off here rather than presenting the choice as settled. Enrollment is never
+automatic. A staff member initiates it in the presence of the person being enrolled, who is told
+at that moment what is happening, and individual embeddings can be deleted afterwards from the
+operator interface. Only embedding vectors leave the head. No image is stored or transmitted.
+
+\subsection{Limitations}
+
+The evaluation is where this work is weakest. Our samples are small and the intervals in
+Table~\ref{tab:metrics} are wide to match; the bench comparison in particular cannot support a
+claim of difference at $n=3$ per arm, and we do not make one. We never instrumented
+session-level connection reliability, so we describe the reconnection mechanism instead of
+quoting a figure we cannot stand behind. The vendor comparison covers capabilities, not measured
+task performance. H1 was confirmed in one direction only: observed names do appear in the
+application, but we did not establish that the application exercises every command the firmware
+will accept, so the surface we recovered is a lower bound. Ten recorded wake events are too few
+to estimate a false-trigger rate, and the face-matching threshold has not been calibrated for
+several visitors enrolled at once. All of it comes from one robot, one map and one site.

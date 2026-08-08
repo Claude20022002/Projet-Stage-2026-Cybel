@@ -1,0 +1,58 @@
+% ---------------------------------------------------------------------------
+%  IV. Methodology  — the paper's primary contribution
+%  Floats:  figures/fig-vantage.tex   (Fig. 3, vantage points and blind spots)
+%           tables/tab-phases.tex     (Table II, seven-phase pipeline)
+%  Rule:    this section states the METHOD only. Hypothesis verdicts and any
+%           measured outcome belong in section 06. Keep it that way: a
+%           reviewer noticed the mixture in the previous version.
+% ---------------------------------------------------------------------------
+
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Principles}
+
+Four rules govern the procedure. \textbf{P1: observe before publishing.} We listen passively
+before injecting anything, because there is no way to predict how an undocumented
+safety-critical system will react. \textbf{P2: verify effects, not acknowledgments.} A command
+counts as validated only once an independent state topic changes. This is the working form of
+H4. \textbf{P3: triangulate.} We accept a finding only when two independent sources agree, drawn
+from network traces, introspection, decompiled application code and field logs. \textbf{P4:
+remain non-destructive.} No firmware modification, no root, no persistent change to vendor
+partitions. This is an ethical commitment, and with a single unit it is also what makes the
+work repeatable.
+
+\subsection{Vantage points and their blind spots}
+
+The whole methodology exists because no single observation point tells us enough
+(Fig.~\ref{fig:vantage}). Introspection lists names, but says nothing about preconditions.
+Traffic capture shows what the vendor application happened to send during one session, which is
+not the same as what the chassis would accept. Decompiled code gives intent and the implicit
+setup steps, but leaves open whether a given path is reachable on this firmware. Triangulating
+between the three is not a stylistic preference; it is the only way to cover what any one of
+them misses.
+
+\input{figures/fig-vantage}
+
+\subsection{The seven-phase pipeline}
+
+Table~\ref{tab:phases} gives, for each phase, the evidence it produces, the hypothesis it bears
+on, and the condition under which we stopped. The stopping criteria are not a formality. With
+455 topics on the wire, an exploration without them simply does not converge.
+
+\input{tables/tab-phases}
+
+We kept the negative results instead of discarding them: a legacy velocity topic with no
+subscriber, two candidate speech topics, three HTTP ports on the head, and the broker command
+path of H2. Each one closed a branch of the search, which is worth as much as an open one.
+
+We report the cost of the method because a procedure nobody can budget for is of little use to
+anyone else. Phases~1--6 took two weeks and phase~7 a further week, spread over eight sessions
+with the physical robot and carried out by one full-time engineer. We decompiled two
+applications; introspection returned \num{455} topics and \num{308} services, a count taken from
+session logs rather than from an archived inventory. The exploration scripts, the recovered
+interface description and the logs behind the navigation, guided-tour, speech-bridge and
+question-matching results are released with this paper~\cite{cybel2026}. The remaining
+indicators in Table~\ref{tab:metrics} are readings noted during field campaigns for which we
+kept no machine-readable log, and we mark them as such rather than implying an archive that does
+not exist.

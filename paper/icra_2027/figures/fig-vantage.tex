@@ -1,0 +1,28 @@
+% Fig. 3 — vantage points and their blind spots. Used by sections/04-methodology.
+% This figure carries the methodological argument: three partial views, one
+% ground truth. Keep the blind-spot labels aligned with the prose above it.
+\begin{figure}[!t]
+\centering
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+  vp/.style={draw, rounded corners=2pt, align=center, font=\scriptsize,
+             inner sep=3.5pt, minimum width=2.1cm},
+  gap/.style={font=\scriptsize\itshape, align=center},
+  arr/.style={-{Stealth[length=3pt]}, semithick}
+]
+  \node[vp, fill=blue!10]   (a) at (0,0)      {Introspection\\\scriptsize names, types};
+  \node[vp, fill=green!12]  (b) at (3.1,0)    {Traffic capture\\\scriptsize framing, order};
+  \node[vp, fill=orange!14] (c) at (6.2,0)    {Application code\\\scriptsize intent, setup};
+  \node[gap] (a2) at (0,-1.15)   {blind to\\preconditions};
+  \node[gap] (b2) at (3.1,-1.15) {blind to\\unused commands};
+  \node[gap] (c2) at (6.2,-1.15) {blind to\\reachability};
+  \draw[arr] (a)--(a2); \draw[arr] (b)--(b2); \draw[arr] (c)--(c2);
+  \node[vp, fill=red!10, minimum width=6.2cm] (t) at (3.1,-2.3)
+    {Field telemetry --- the only ground truth for execution (P2, H4)};
+  \draw[arr] (a2)--(t); \draw[arr] (b2)--(t); \draw[arr] (c2)--(t);
+\end{tikzpicture}%
+}
+\caption{Each vantage point answers a different question and is blind to the others. A
+recovered command is accepted only after state telemetry confirms a physical effect.}
+\label{fig:vantage}
+\end{figure}

@@ -93,24 +93,82 @@ atteignables) ; reproductibilité → artefacts cités en §IV.
 
 ---
 
-## 4. Traçabilité des chiffres
+## 4. Traçabilité et justification des chiffres
 
-Chaque valeur de l'article provient d'un fichier du dépôt ou d'un commit git.
+### 4.1 Valeurs calculées — toutes re-dérivées
+
+| Valeur | Méthode | Vérifié |
+|---|---|---|
+| [72,2 ; 100] pour 10/10 | Score de Wilson, z=1,96 | ✅ |
+| [43,8 ; 100] pour 3/3 | idem | ✅ |
+| [88,6 ; 100] pour 30/30 | idem | ✅ |
+| [0 ; 56,2] pour 0/3 | idem | ✅ |
+| [42,3 ; 69,3] pour 27/48 | idem | ✅ |
+| p = 0,10 | Test exact de Fisher, bilatéral, table 2×2 (3,0 / 0,3) | ✅ |
+| Médiane 40,9 s | {40,0 ; 40,9 ; 46,5} | ✅ |
+| Médiane 670 s, étendue 668–822 s | {667,6 ; 670,4 ; 822,3} | ✅ |
+
+**Pourquoi Wilson et non l'approximation normale.** L'intervalle de Wald donne [100 % ; 100 %]
+pour 3/3, un intervalle de largeur nulle dénué de sens, et des bornes négatives près de zéro.
+Wilson reste correct aux proportions extrêmes et à petit effectif, ce qui est notre situation
+sur toutes les lignes.
+
+**Pourquoi le test de Fisher.** 3/3 contre 0/3 paraît spectaculaire et ne l'est pas. Sans le
+test, l'article affirmerait une différence que six essais ne portent pas. Khi-deux serait invalide
+à ces effectifs.
+
+**Pourquoi deux niveaux pour les visites.** 3/3 seul donne [43,8 ; 100], presque inexploitable.
+30/30 seul donne [88,6 ; 100] mais surestime, les trajets d'une même visite n'étant pas
+indépendants. Donner les deux avec la dépendance énoncée est le maximum défendable.
+
+### 4.2 Valeurs lues dans une source du dépôt
 
 | Valeur | Source |
 |---|---|
-| Coordonnées 3/3, 40,0/40,9/46,5 s ; POI 0/3, 150 s | `git show 08bfc34:data/paper_metrics.json` |
+| Coordonnées 3/3, 40,0/40,9/46,5 s ; annotations 0/3, 150 s | `git show 08bfc34:data/paper_metrics.json` |
 | Visites 3/3 ; 667,6/670,4/822,3 s | `data/paper_metrics.json` |
-| 30 trajets (9 arrêts résolvables + retour) × 3 | `data/lab_tour.json` croisé avec `data/points.json` (`POSTE-MACHINE` absent) |
+| 30 trajets (9 arrêts résolvables + retour) × 3 | `data/lab_tour.json` × `data/points.json` (`POSTE-MACHINE` absent) |
 | 17 commandes : 10 échecs à 600, 7 succès à 602 | `data/navigation_events.json` |
-| Question answering 27/48 = 56,2 % | `data/faq_repeat_rate.json` |
-| Latence TTS 651/923/1555 ms, N=5 | `git show 68812b9:data/paper_metrics.json` |
+| 27/48 = 56,2 % | `data/faq_repeat_rate.json` |
+| TTS 651/923/1555 ms, n=5 | `git show 68812b9:data/paper_metrics.json` |
 | 169 tests unitaires | `python -m pytest tests/unit -q` |
-| Surface cartographiée 1235 m² | Lisible sur la Fig. 5 (application constructeur) |
-| Seuil de localisation 60 % | `sdk/real_robot.py` (`_localization_min_percent`) |
-| 455 topics, 308 services ; 2 APK ; 2+1 semaines ; 8 sessions | Mesures de campagne rapportées par l'auteure |
+| Seuil de localisation 60 % | `backend/config.py:22` |
+| Surface cartographiée 1235 m² | Lisible sur la Fig. 5 |
 
-Intervalles de Wilson et test exact de Fisher recalculés à partir de ces effectifs.
+### 4.3 Relevés de campagne sans journal archivé
+
+Vérification faite sur tout l'historique git : **seules les phases `nav`, `tour` et `tts` ont
+été enregistrées.** Les phases `teleop` et `rosapi` ne l'ont jamais été.
+
+Concernées : téléopération 10/10, 455 topics, 308 services, latence REST, RTT Wi-Fi, boucle
+vocale n=12, 10 déclenchements de mot d'éveil, 2 APK, 2+1 semaines, 8 sessions.
+
+**Traitement appliqué.** §IV restreint désormais l'affirmation de reproductibilité aux résultats
+effectivement archivés (navigation, visites, pont vocal, appariement de questions), et précise
+que les 455/308 proviennent des journaux de session et non d'un inventaire archivé. Dans la
+Table III, les lignes concernées portent un obèle avec la mention explicite en légende. Aucune
+valeur n'est retirée, aucune n'est présentée comme archivée alors qu'elle ne l'est pas.
+
+### 4.4 Justification de chaque mesure
+
+La Table III porte une colonne « What it establishes ». Aucune mesure n'y figure sans rôle
+argumentatif ; le texte introductif le dit explicitement, et les indicateurs qui n'établissaient
+rien ont été retirés (tests unitaires sortis de la table des résultats, uptime Termux supprimé,
+fiabilité de session supprimée faute d'instrumentation).
+
+| Mesure | Ce qu'elle sert à établir |
+|---|---|
+| Téléopération 10/10 | Que la précondition de mode manuel issue de l'APK (H1) est la bonne |
+| Visites 3/3 et 30 trajets | Que la séquence de préparation complète fonctionne en service réel |
+| Durée de visite | L'enveloppe opérationnelle d'une session visiteur |
+| Coordonnées 3/3 / annotations 0/3 | Les deux bras de H3, et la bascule vers H4 |
+| 27/48 | Le plafond de l'appariement à vocabulaire fermé — principal résultat négatif |
+| TTS n=5 | Le coût du passage par l'IPC du système hôte |
+| Latence REST | Que la pile reconstruite n'ajoute pas de délai perceptible |
+| RTT Wi-Fi | Pourquoi la télémétrie est throttlée et pourquoi les aller-retours supprimés comptaient |
+| 455 / 308 | La taille de l'espace de recherche, qui justifie les critères d'arrêt |
+| 2 APK, 2+1 semaines, 8 sessions | Le coût de la méthode — question explicite des relecteurs |
+| Boucle vocale n=12 | Ce qui décide qu'un échange ressemble ou non à une conversation |
 
 ---
 

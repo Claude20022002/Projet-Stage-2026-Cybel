@@ -1,0 +1,75 @@
+% ---------------------------------------------------------------------------
+%  V. Recovered Command Surface and Edge Platform
+%  Floats:  none.
+%  Rule:    concepts, not identifiers. No source filenames, no method names,
+%           no vendor package names. The one deliberate exception is the
+%           broadcast listing below, which IS the contribution of C2.
+%           This is a standing reviewer request; do not reintroduce them.
+% ---------------------------------------------------------------------------
+
+\section{Recovered Command Surface and Edge Platform}
+\label{sec:platform}
+
+\subsection{Command and telemetry}
+
+Motion is commanded by advertising a multiplexer input and then publishing twist messages on it
+at roughly \SI{10}{\hertz}. The vendor application quietly sets a manual-control mode when a
+session opens. Our early builds did not, and every command we sent was dropped without comment.
+That precondition was visible in the decompiled application and in no traffic capture we took,
+and it was our first concrete encounter with H4. Autonomous motion comes in two forms: a
+coordinate goal, and a named-annotation service backed by the vendor's marker manager. One
+status field reports the state machine gating both, with values for unlocalized, ready,
+navigating, arrived and error. We throttle subscriptions per topic to keep the bridge usable
+over the robot's Wi-Fi.
+
+One detail cost us time and is worth passing on. A single vendor message type, carrying one
+integer field, is reused across several unrelated services, each giving that integer its own
+private meaning. Call one of them with empty or guessed arguments and it returns success, then
+either does nothing or does the opposite of what was intended. We recovered the correct
+arguments through the same introspection route that supports H1. Interfaces reconstructed from
+the outside are prone to this, and an acknowledgment offers no protection against it.
+
+\subsection{Edge architecture}
+
+The reconstructed platform is edge-first by necessity, since the robot's network offers no
+guaranteed Internet path. A domain layer hides the robot behind one interface with two
+implementations, simulated and real. This let us exercise the logic under 169 unit tests without
+the physical machine, and it kept ordinary software defects separate from genuine protocol
+uncertainty, which during field sessions was the difference between a productive afternoon and a
+wasted one. Above it, an application layer exposes REST and WebSocket endpoints and runs either
+on a development machine or on the Android head, so a visitor session needs no external
+computer. A presentation layer serves the visitor interface of Fig.~\ref{fig:robot} and the
+operator console.
+
+\subsection{Speech through inter-process communication}
+
+Speech was the hardest capability to recover, and at the protocol level the search simply
+failed. No topic accepted text, no such service existed, the head's HTTP ports were closed, and
+the broker carried telemetry only. The reason turned out to be architectural rather than
+accidental. The vendor implements speech inside the Android application layer, over opaque IPC
+to a bundled engine, so it was never a robot-level capability at all and no amount of protocol
+search would have found it. The answer was to stop looking sideways and move up a layer. A
+\SI{50}{\kilo\byte} companion application registers a broadcast
+receiver~\cite{chin2011android} and hands incoming text to the platform's native speech engine:
+
+\begin{footnotesize}
+\begin{verbatim}
+am broadcast -n com.cybel.ttsbridge/.SpeakReceiver
+  -a com.cybel.ttsbridge.SPEAK --es text "Welcome."
+\end{verbatim}
+\end{footnotesize}
+
+\noindent The move itself generalises. Whenever a vendor implements a function in the
+application layer, no protocol-level search will reach it, and the host operating system is
+where the capability has to be picked up instead.
+
+\subsection{Interaction layer}
+
+Visitor interaction runs entirely on the head. We abandoned free dictation early: a compact
+offline model holds no pronunciation for the proper nouns that matter on a campus, and it
+transcribed them unreliably in front of visitors. Recognition now works from a closed vocabulary
+rebuilt at request time out of the deployed annotations and the question set. The same
+limitation caught us again with the wake phrase. Built from the platform's invented name, it was
+consistently decoded as an unrelated word the model did in fact know; replacing it with a
+phonetically close phrase made of real words solved the problem. Face re-identification runs on
+the head at roughly \SI{1}{\hertz} and sends only embedding vectors, never images.

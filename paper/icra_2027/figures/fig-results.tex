@@ -1,0 +1,62 @@
+% Fig. 6 — the paper's only data plot, full width. Used by sections/06-evaluation.
+%
+% Panel (a): success rates with 95 % Wilson intervals. The table below holds
+%   v  = point estimate (%)
+%   lo = distance DOWN to the lower bound
+%   hi = distance UP to the upper bound
+% They are offsets, not absolute bounds. Recompute with tools/stats.py after
+% changing any count, and update tables/tab-metrics.tex to match.
+%
+% Panel (b): the field record, 17 commands, split by the state the robot
+%   reported. This is the strongest evidence in the paper; leave it uncluttered.
+\begin{figure*}[!t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  name=ax1, width=0.47\textwidth, height=4.3cm,
+  ybar, bar width=13pt, ymin=0, ymax=115,
+  ylabel={Success rate (\%)}, ylabel style={font=\small},
+  symbolic x coords={Teleop.,Tours,Tour legs,Coord.,Annot.,Question},
+  xtick=data,
+  xticklabels={Teleop. (10),Tours (3),Legs (30),Coord. (3),Annot. (3),Question (48)},
+  x tick label style={font=\scriptsize, rotate=22, anchor=east},
+  ytick={0,25,50,75,100}, tick label style={font=\scriptsize},
+  enlarge x limits=0.12, grid=major, grid style={gray!20},
+  title={(a) Outcomes with 95\,\% Wilson intervals ($n$ in brackets)},
+  title style={font=\small},
+]
+\addplot+[fill=blue!35, draw=blue!60!black,
+  error bars/.cd, y dir=both, y explicit, error bar style={black}]
+ table[x=k, y=v, y error minus=lo, y error plus=hi] {
+k            v     lo    hi
+Teleop.      100   27.8  0
+Tours        100   56.2  0
+{Tour legs}  100   11.4  0
+Coord.       100   56.2  0
+Annot.       0     0     56.2
+Question     56.2  14.0  13.0
+};
+\end{axis}
+\begin{axis}[
+  at={(ax1.right of south east)}, xshift=1.5cm, anchor=left of south west,
+  width=0.47\textwidth, height=4.3cm,
+  ybar stacked, bar width=26pt, ymin=0, ymax=12,
+  ylabel={Field commands}, ylabel style={font=\small},
+  symbolic x coords={Reported unlocalized,Reported navigating},
+  xtick=data, x tick label style={font=\scriptsize},
+  tick label style={font=\scriptsize}, enlarge x limits=0.45,
+  grid=major, grid style={gray!20},
+  title={(b) Field outcome by reported state ($n=17$)}, title style={font=\small},
+  legend style={font=\scriptsize, at={(0.5,-0.34)}, anchor=north, legend columns=2, draw=none},
+]
+\addplot+[fill=red!45, draw=red!60!black] coordinates {(Reported unlocalized,10) (Reported navigating,0)};
+\addplot+[fill=green!45, draw=green!45!black] coordinates {(Reported unlocalized,0) (Reported navigating,7)};
+\legend{failed, succeeded}
+\end{axis}
+\end{tikzpicture}
+\caption{(a)~Measured outcomes. Intervals are wide because samples are small; the annotation
+arm of the bench comparison and the coordinate arm do not separate at $p=0.10$. (b)~In the
+field record, reported localization state separates success from failure perfectly, and the
+addressing scheme does not separate them at all.}
+\label{fig:results}
+\end{figure*}

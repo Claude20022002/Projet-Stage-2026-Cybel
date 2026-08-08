@@ -1,0 +1,29 @@
+% Table I — positioning against the nearest categories of work.
+% Used by sections/02-related-work.
+% Rule: one row per line of work discussed in that section. If a citation is
+% added to the prose and does not earn a row here, it is decoration.
+\begin{table}[!t]
+\caption{Positioning relative to the nearest categories of work}
+\label{tab:positioning}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{1.55cm}p{2.5cm}p{3.0cm}@{}}
+\toprule
+\textbf{Work} & \textbf{Primary emphasis} & \textbf{Distinction in this paper} \\
+\midrule
+Kim \emph{et al.}~\cite{kim2005reengineering} & Re-architecting a service robot &
+Vendor source and engineers available; here the product is sealed \\[2pt]
+M\"uhe \emph{et al.}~\cite{muhe2010kuka} & Proprietary robot language &
+Published artifacts as input; here no artifact is published \\[2pt]
+DeMarinis \emph{et al.}~\cite{demarinis2019scanning} & Exposed \ros{} systems at scale &
+Same black-box stance, applied constructively to one owned unit \\[2pt]
+Glauser \emph{et al.}~\cite{glauser2023interop} & Interoperable interface for social robots &
+Assumes a usable SDK; we recover one where none exists \\[2pt]
+Giese \emph{et al.}~\cite{giese2018xiaomi} & Companion-app protocol recovery (IoT) &
+Transposed to a robot whose app drives a separate \ros{} computer \\[2pt]
+\textbf{This work} & \textbf{Non-destructive protocol reconstruction} &
+\textbf{Hypothesis-driven method; execution verified against state, not transport} \\
+\bottomrule
+\end{tabular}
+\end{table}

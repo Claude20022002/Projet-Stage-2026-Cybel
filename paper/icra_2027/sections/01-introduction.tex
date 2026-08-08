@@ -1,0 +1,65 @@
+% ---------------------------------------------------------------------------
+%  I. Introduction
+%  Floats:  figures/fig-robot.tex   (Fig. 1, robot photograph)
+%  Holds:   the three structural obstacles, the research question,
+%           H1-H4 as statements (verdicts belong in section 06),
+%           the three contributions, the ethics pointer.
+% ---------------------------------------------------------------------------
+
+\section{Introduction}
+\label{sec:intro}
+
+A laboratory that buys a commercial service robot buys a sealed appliance. The vendor ships an
+Android application, a cloud account, and a support contract; it does not ship the message
+schemas that would let the owner send the robot anywhere the application does not already go.
+For research groups this is a hard limit: the platform in Fig.~\ref{fig:robot} navigates,
+speaks and greets visitors perfectly well, but only in the ways its manufacturer anticipated.
+
+\input{figures/fig-robot}
+
+\textbf{Why this is hard.} Three obstacles compound, and none of them is peculiar to this
+vendor. First, the robot is not one computer but two: an Android head and a \ros{} chassis,
+joined by an undocumented internal link. No single point of observation covers the whole command
+surface, and each one is blind in a different place (Section~\ref{sec:method}). Second, there is
+no white-box route. Shells on the chassis are closed, and repeated authentication attempts lock
+the account, so we cannot simply read the running system. Third, and least obvious, the software
+layer that accepts a message is not the layer that turns the wheels. A command can be accepted,
+acknowledged and then quietly dropped. Treat the acknowledgment as proof and the result is a
+protocol description that is confidently wrong. This is the reason naive fuzzing of the exposed
+interfaces gets nowhere on such a platform.
+
+\textbf{Research question.} \emph{Can a non-destructive methodology recover the command surface
+of a closed Android--\ros{} robot without documentation, and what evidence is required before a
+recovered command may be considered validated?}
+
+We formulate four hypotheses, stated here and resolved in Section~\ref{sec:eval}:
+
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{H1 (application-as-specification).} Static analysis of the vendor's own Android
+application yields the wire protocol the chassis actually speaks.
+\item \textbf{H2 (broker-as-command-channel).} The exposed MQTT broker can issue motion
+commands, as the WebSocket bridge does.
+\item \textbf{H3 (map-artifact reuse).} Reusing the vendor's own map annotations is more
+reliable than re-deriving goal coordinates offline.
+\item \textbf{H4 (transport $\neq$ execution).} A transport acknowledgment does not imply that
+the chassis executed the command.
+\end{itemize}
+
+\textbf{Contributions.}
+\begin{enumerate}[label=\textbf{C\arabic*.},leftmargin=1.5em]
+\item A reproducible seven-phase reverse-engineering methodology for closed Android--\ros{}
+robots, organised around falsifiable hypotheses and a triangulation rule, together with the
+effort it required in practice (Sections~\ref{sec:method} and~\ref{sec:eval}).
+\item A recovered command surface for a commercial reception platform and an edge-first
+architecture built on it, including a speech channel obtained through Android inter-process
+communication after every protocol-level channel had been eliminated
+(Section~\ref{sec:platform}).
+\item Field evidence that execution must be verified against state telemetry rather than
+transport acknowledgments, with the resulting design rule, quantified indicators, and an
+analysis of which findings should transfer to other closed platforms
+(Sections~\ref{sec:eval} and~\ref{sec:discussion}).
+\end{enumerate}
+
+All work reported here was carried out on hardware owned by our institution, for
+interoperability purposes, without redistributing vendor code or circumventing any licensing
+mechanism; Section~\ref{sec:discussion} details the ethical and legal framing.

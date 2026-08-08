@@ -1,0 +1,29 @@
+% Fig. 2 — three network segments. Used by sections/03-platform.
+\begin{figure}[!t]
+\centering
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.5cm,
+  box/.style={draw, rounded corners=3pt, align=center, font=\tiny,
+              inner sep=4pt, minimum width=2.4cm},
+  arr/.style={-{Stealth[length=3.5pt]}, semithick},
+  lbl/.style={font=\tiny, fill=white, inner sep=1pt}
+]
+  \node[box, fill=blue!10] (pc) {\textbf{Development host}\\laboratory Wi-Fi};
+  \node[box, fill=green!12, below=0.7cm of pc] (head)
+    {\textbf{Android head}\\wlan0: \texttt{172.16.0.x}\\eth0:\;\texttt{192.168.20.1}};
+  \node[box, fill=red!10, right=1.5cm of head] (ch)
+    {\textbf{\ros{} chassis}\\WebSocket bridge :9090\\\texttt{192.168.20.22}};
+  \node[box, fill=yellow!20, below=0.7cm of ch] (ap)
+    {\textbf{Robot access point}\\\texttt{10.42.0.1:9090}};
+  \draw[arr] (pc)   -- node[lbl, left]{ADB} (head);
+  \draw[arr] (head) -- node[lbl, above]{internal Ethernet} (ch);
+  \draw[arr] (pc.east) .. controls +(1.0,-0.5) and +(-1.1,1.2) ..
+             node[lbl, near start, right]{Wi-Fi} (ap.north);
+  \draw[arr] (ap)   -- (ch);
+\end{tikzpicture}%
+}
+\caption{Three network segments on a product marketed as a single device. Conflating the head's
+DHCP address with the chassis address was the most frequent operator error we observed.}
+\label{fig:network}
+\end{figure}

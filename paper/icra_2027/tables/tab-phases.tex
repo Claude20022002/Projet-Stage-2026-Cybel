@@ -1,0 +1,24 @@
+% Table II — the seven-phase pipeline. Used by sections/04-methodology.
+% Rule: every phase must declare the evidence it produces AND the condition
+% under which it terminates. A phase without a stopping criterion is a task,
+% not a method step, and reviewers said so about the previous version.
+\begin{table}[!t]
+\caption{Reverse-engineering pipeline}
+\label{tab:phases}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.15cm}p{1.25cm}p{2.35cm}p{0.5cm}p{2.15cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Phase} & \textbf{Evidence produced} & \textbf{Hyp.} & \textbf{Stopping criterion} \\
+\midrule
+1 & Network mapping & Segment map, open ports & --- & All hosts and reachable ports enumerated \\
+2 & Introspection & Topic and service inventory & H1 & Inventory stable across sessions \\
+3 & Passive broker & Payload classes on the broker & H2 & No command payload after repeated sessions \\
+4 & Application audit & Names, types, implicit setup steps & H1 & Every observed name located in code \\
+5 & Frame capture & Message framing and ordering & H1 & Client reproduces vendor framing \\
+6 & Edge integration & On-device services and bridges & --- & Capability reachable without a host PC \\
+7 & Field validation & State transitions, pose deltas & H3, H4 & Effect confirmed on independent topic \\
+\bottomrule
+\end{tabular}
+\end{table}

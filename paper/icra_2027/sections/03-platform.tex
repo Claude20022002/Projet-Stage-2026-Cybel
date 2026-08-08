@@ -1,0 +1,29 @@
+% ---------------------------------------------------------------------------
+%  III. Platform and Access Model
+%  Floats:  figures/fig-network.tex   (Fig. 2, three network segments)
+%  Policy:  the robot model is deliberately not named. Use \platform{} /
+%           \Platform{} from preamble.tex, never a product reference.
+% ---------------------------------------------------------------------------
+
+\section{Platform and Access Model}
+\label{sec:access}
+
+\Platform{} is a mass-produced indoor reception robot, sold as a turnkey product with a
+companion Android application and a subscription cloud service. It pairs a Linux/\ros{}
+chassis~\cite{quigley2009ros} carrying SLAM, a planner, LiDAR and RGB-D sensing with an
+Android~7.1 head that drives a \SI{15.6}{inch} touchscreen, cameras and speakers. We refer to it
+generically throughout, since nothing in the methodology depends on the particular model and we
+have no interest in singling out one manufacturer. The two computers run independent network
+stacks, a fact no vendor document states and no application string reveals.
+
+\input{figures/fig-network}
+
+Network mapping turned up three segments (Fig.~\ref{fig:network}), and that was already a
+result in itself. Two channels are reachable from outside the vendor stack: a WebSocket bridge
+on port~9090 and an MQTT broker on port~1883. Shell access to the chassis is closed. We observed
+that repeated authentication attempts trigger an account lockout, and went no further down that
+road, partly because it would break the non-destructive principle stated below and partly
+because we had one unit and bricking it would have ended the study. Two vendor packages sit on
+the head, a welcome application and a deployment tool, and both link against the same
+chassis-communication library. We treat that library as the \emph{de facto} protocol
+specification. It is the empirical basis for H1.

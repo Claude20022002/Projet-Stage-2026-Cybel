@@ -1,0 +1,48 @@
+% Table III — measured indicators (full width). Used by sections/06-evaluation.
+%
+% Adding a row requires all four of:
+%   1. n stated;
+%   2. a 95 % Wilson interval, recomputed with tools/stats.py;
+%   3. a source line in review/REPONSE.md section 4;
+%   4. a "what it establishes" cell. If that cell is hard to write, the
+%      measurement is padding and should be left out.
+%
+% The dagger marks campaign readings with no archived machine-readable log.
+% Do not remove it without archiving the corresponding data.
+\begin{table*}[!t]
+\caption{Measured indicators, June--July 2026, and what each one is for. Legs within a tour are
+not independent observations, so the leg-level interval is optimistic. Rows marked $^{\dagger}$
+are campaign readings for which no machine-readable log was archived.}
+\label{tab:metrics}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{3.2cm}rp{1.7cm}p{1.9cm}p{8.4cm}@{}}
+\toprule
+\textbf{Indicator} & \textbf{$n$} & \textbf{Value} & \textbf{95\,\% interval} & \textbf{What it establishes} \\
+\midrule
+Teleoperation success$^{\dagger}$ & 10 & \SI{100}{\percent} & \numrange{72.2}{100}\,\% &
+That the manual-mode precondition recovered from the vendor application (H1) is the correct one:
+without it the same commands were dropped silently \\
+Guided tours completed           & 3  & \SI{100}{\percent} & \numrange{43.8}{100}\,\% &
+That the full preparation path works end to end in service, unattended \\
+\quad individual legs            & 30 & \SI{100}{\percent} & \numrange{88.6}{100}\,\% &
+The same at leg resolution, which is the finest grain the tour logs support \\
+Tour duration (median)           & 3  & \SI{670}{\second}  & \numrange{668}{822}\,s &
+The operating envelope of a complete visitor session, for anyone sizing a deployment \\
+Coordinate goal, bench           & 3  & \SI{100}{\percent} & \numrange{43.8}{100}\,\% &
+Arm A of the H3 comparison: goals addressed by coordinate, preparation omitted \\
+Annotation goal, bare client     & 3  & \SI{0}{\percent}   & \numrange{0}{56.2}\,\% &
+Arm B: same target and same conditions, and the measurement that redirected H3 towards H4 \\
+Repeat-question match            & 48 & \SI{56.2}{\percent}& \numrange{42.3}{69.3}\,\% &
+The ceiling of the closed-vocabulary matcher, and the main negative result of the study \\
+Speech-bridge latency (mean)     & 5  & \SI{923}{\milli\second} & \numrange{651}{1555}\,ms &
+The price of routing speech through the host operating system instead of the vendor engine \\
+Local REST latency$^{\dagger}$   & -- & $<\SI{100}{\milli\second}$ & -- &
+That the reconstructed stack adds no delay a visitor would notice on top of the bridge \\
+Wi-Fi round-trip time$^{\dagger}$ & -- & --                & \numrange{89}{1654}\,ms &
+Why telemetry is throttled per topic, and why the round trips removed in
+Section~\ref{sec:discussion}-A were worth removing \\
+\bottomrule
+\end{tabular}
+\end{table*}
