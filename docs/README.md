@@ -31,6 +31,7 @@ Procédures sur le robot physique, sync POI, tests kiosque A/B.
 | [labo/GUIDE_CONTROLEUR_POI.md](labo/GUIDE_CONTROLEUR_POI.md) | **Formation POI → CybelVisitorKioskTest** |
 | [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md) | Comparaison kiosque coords vs POI |
 | [SENTRYMOVE_POI_SYNC.md](SENTRYMOVE_POI_SYNC.md) | Sync POI ROS → `points.json` |
+| [COLLECTE_MESURES.md](COLLECTE_MESURES.md) | **Campagnes de mesures : lancement, wake lock, dépannage des coupures** |
 
 ---
 
