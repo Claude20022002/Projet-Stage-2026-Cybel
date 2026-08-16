@@ -69,6 +69,7 @@
   figarrow/.style={-{Stealth[length=3.2pt,width=2.6pt]}, line width=0.5pt,
                    draw=figslate},
   figlabel/.style={font=\tiny, text=figslate, fill=white, inner sep=1.5pt},
-  % Secondary caption line inside a box.
-  figsub/.style={font=\tiny, text=figslate},
 }
+
+% Secondary line inside a figure box: \figsub{wlan0 172.16.0.x}
+\newcommand{\figsub}[1]{{\tiny\color{figslate}#1}}

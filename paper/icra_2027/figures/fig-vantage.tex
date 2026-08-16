@@ -1,6 +1,6 @@
 % Fig. 3 — vantage points and their blind spots. Used by sections/04-methodology.
 % This figure carries the methodological argument: three partial views, one
-% ground truth. Uses the shared styles from preamble.tex.
+% ground truth. Uses the shared styles and the \figsub macro from preamble.tex.
 \begin{figure}[!t]
 \centering
 \resizebox{0.94\columnwidth}{!}{%
@@ -9,11 +9,11 @@
   \def\colA{0} \def\colB{3.35} \def\colC{6.7}
 
   \node[figbox blue, minimum width=2.5cm] (a) at (\colA,0)
-    {Introspection\\[1pt]\figsub names, types};
+    {Introspection\\[1pt]\figsub{names, types}};
   \node[figbox teal, minimum width=2.5cm] (b) at (\colB,0)
-    {Traffic capture\\[1pt]\figsub framing, order};
+    {Traffic capture\\[1pt]\figsub{framing, order}};
   \node[figbox rust, minimum width=2.5cm] (c) at (\colC,0)
-    {Application code\\[1pt]\figsub intent, setup};
+    {Application code\\[1pt]\figsub{intent, setup}};
 
   \node[font=\scriptsize\itshape, text=figslate, align=center] (a2) at (\colA,-1.25)
     {blind to\\preconditions};

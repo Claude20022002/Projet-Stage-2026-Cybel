@@ -2,40 +2,58 @@
 % Three lanes: the transport view (identical in both cases), an unprepared
 % command path, a prepared one. Timings come from the bench comparison
 % (n = 3 per arm) recovered from git commit 08bfc34; see review/REPONSE.md.
-% \L is the lane length; move the marker x-coordinates together if you change it.
+%
+% The two outcomes are distinguished by marker SHAPE as well as colour
+% (crossed box for the aborted path, filled square for a state transition),
+% so the figure still reads when printed in greyscale.
 \begin{figure}[!t]
 \centering
 \resizebox{\columnwidth}{!}{%
-\begin{tikzpicture}[font=\scriptsize, >={Stealth[length=3pt]}]
-  \def\L{7.4}
-  % --- lane A : transport view -------------------------------------------
-  \draw[->] (0,2.2) -- (\L,2.2);
-  \node[left, align=right] at (-0.1,2.2) {Transport\\view};
-  \fill[blue!55] (0.55,2.05) rectangle (0.75,2.35);
-  \node[above, font=\tiny] at (0.65,2.36) {request};
-  \fill[blue!25] (1.05,2.05) rectangle (1.25,2.35);
-  \node[above right, font=\tiny] at (1.05,2.36)
-    {acknowledgment --- identical whether or not the robot moves};
-  % --- lane B : unprepared path ------------------------------------------
-  \draw[->] (0,1.1) -- (\L,1.1);
-  \node[left, align=right] at (-0.1,1.1) {Unprepared\\path};
-  \draw[dashed, gray] (1.25,1.0) -- (1.25,1.2);
-  \node[font=\tiny, align=center] at (3.6,0.75) {no state transition, pose unchanged};
-  \draw[decorate, decoration={brace, amplitude=3pt}] (1.25,1.25) -- (6.4,1.25);
-  \node[draw, fill=red!15, rounded corners=1.5pt, font=\tiny] at (6.9,1.1) {abort};
-  \node[font=\tiny] at (6.9,0.75) {\SI{150}{\second}};
-  % --- lane C : prepared path --------------------------------------------
-  \draw[->] (0,-0.1) -- (\L,-0.1);
-  \node[left, align=right] at (-0.1,-0.1) {Prepared\\path};
-  \fill[green!45!black] (1.35,-0.25) rectangle (1.55,0.05);
-  \node[above, font=\tiny] at (1.45,0.08) {ready};
-  \fill[green!45!black] (1.95,-0.25) rectangle (2.15,0.05);
-  \node[above, font=\tiny] at (2.05,0.08) {navigating};
-  \fill[green!45!black] (5.6,-0.25) rectangle (5.8,0.05);
-  \node[above, font=\tiny] at (5.7,0.08) {arrived};
-  \node[font=\tiny] at (5.7,-0.5) {median \SI{40.9}{\second}};
-  \draw[decorate, decoration={brace, mirror, amplitude=3pt}] (2.15,-0.32) -- (5.6,-0.32);
-  \node[font=\tiny] at (3.9,-0.75) {pose advances continuously};
+\begin{tikzpicture}[x=1cm, y=1cm, font=\scriptsize]
+  \def\L{7.8}
+  \tikzset{
+    lane/.style={draw=figslate, line width=0.4pt,
+                 -{Stealth[length=3pt,width=2.4pt]}},
+    lanename/.style={font=\scriptsize, align=right, text=black},
+    ev/.style={draw, line width=0.4pt, minimum size=0.19cm, inner sep=0pt},
+    note/.style={font=\tiny, text=figslate},
+  }
+
+  % ---- lane A : what the transport layer reports -------------------------
+  \draw[lane] (0,2.15) -- (\L,2.15);
+  \node[lanename, left] at (-0.15,2.15) {Transport\\view};
+  \node[ev, fill=figblue,     draw=figblue]      (req) at (0.65,2.15) {};
+  \node[ev, fill=figblue!30,  draw=figblue]      (ack) at (1.20,2.15) {};
+  \node[note, above] at (0.65,2.28) {request};
+  \node[note, above right] at (1.32,2.26)
+    {acknowledgment: identical whether or not the robot moves};
+
+  % ---- lane B : command issued without the preparation sequence ----------
+  \draw[lane] (0,1.05) -- (\L,1.05);
+  \node[lanename, left] at (-0.15,1.05) {Unprepared\\path};
+  \draw[dashed, draw=figslate!60, line width=0.4pt] (1.20,0.93) -- (1.20,1.17);
+  \draw[decorate, decoration={brace, amplitude=3pt}, draw=figslate!70]
+        (1.20,1.20) -- (6.35,1.20);
+  \node[note] at (3.8,0.80) {no state transition, pose unchanged};
+  \node[ev, draw=figrust, fill=figrust!15, minimum size=0.24cm] (ab) at (6.75,1.05) {};
+  \draw[figrust, line width=0.5pt] (ab.south west) -- (ab.north east)
+                                   (ab.north west) -- (ab.south east);
+  \node[note, right] at (6.95,1.05) {abort, \SI{150}{\second}};
+
+  % ---- lane C : command issued after the preparation sequence ------------
+  \draw[lane] (0,-0.05) -- (\L,-0.05);
+  \node[lanename, left] at (-0.15,-0.05) {Prepared\\path};
+  \node[ev, fill=figteal, draw=figteal] at (1.35,-0.05) {};
+  \node[ev, fill=figteal, draw=figteal] at (1.95,-0.05) {};
+  \node[ev, fill=figteal, draw=figteal] at (5.70,-0.05) {};
+  \node[note, above] at (1.35,0.08) {ready};
+  \node[note, above] at (2.05,0.08) {navigating};
+  \node[note, above] at (5.70,0.08) {arrived};
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}, draw=figslate!70]
+        (1.95,-0.20) -- (5.70,-0.20);
+  \node[note] at (3.8,-0.48) {pose advances continuously};
+  \node[note, right] at (5.90,-0.48) {median \SI{40.9}{\second}};
+
 \end{tikzpicture}%
 }
 \caption{The transport lane is identical whether or not the command executes. Only an
