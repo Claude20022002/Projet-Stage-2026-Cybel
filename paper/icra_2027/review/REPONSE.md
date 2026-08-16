@@ -172,6 +172,41 @@ fiabilité de session supprimée faute d'instrumentation).
 
 ---
 
+## 4bis. Remarques de l'encadrant — version 2 (13/08/2026)
+
+| # | Remarque | État | Traitement |
+|---|---|---|---|
+| 1 | Retirer 455/308 du résumé | ✅ | Le résumé annonce désormais les capacités recouvrées (téléopération, navigation autonome, synthèse vocale, interaction visiteur). Les comptes bruts restent en §IV-C, où ils justifient les critères d'arrêt |
+| 2 | P1–P4 en liste à puces | ✅ | §IV-A |
+| 3 | Anonymisation : auteurs + lien anonyme | ✅ | Bloc auteur « Anonymous Authors », remerciements retirés, entrée bibliographique anonymisée. **Action requise : créer le miroir anonyme (voir §5)** |
+| 4 | Figures : haute résolution et exports propres | ✅ | Voir détail ci-dessous |
+| 5 | Atteindre p < 0,05 | ⏳ | Campagne du 14/08 — voir [COLLECTE.md](COLLECTE.md) |
+| 6 | Note sur la latence vocale à 23 s | ⏳ | Campagne du 14/08 — voir ci-dessous |
+
+### Remarque 4 — figures
+
+| Figure | Avant | Après |
+|---|---|---|
+| Fig. 1 robot | Cliché téléphone 385 × 482, sous-exposé | Suréchantillonné ×2, exposition, contraste et netteté repris, 770 × 964. Caviardage réappliqué **après** l'accentuation, sinon le masque flou redessinait les contours |
+| Fig. 5 carte | Photographie de l'écran constructeur, avec moiré et perspective | **Export vectoriel** généré par `tools/gen_map_figure.py` depuis `points.json` et `lab_tour.json` : parcours réel, arrêts numérotés dans l'ordre de visite, retour borne. Montre les 10 trajets que revendique §VI-C au lieu de les affirmer |
+| Fig. 2, 3, 4 | Déjà vectorielles, mais trois styles différents | Palette et styles partagés définis une fois dans `preamble.tex`. Palette sûre en niveaux de gris et pour les daltoniens ; dans la Fig. 4 l'échec et le succès se distinguent aussi par la **forme** du marqueur, pas seulement par la couleur |
+
+La Fig. 5 est **générée**, pas dessinée : elle se régénère après toute modification des POI ou du parcours, et ne peut donc pas diverger des données.
+
+### Remarque 6 — l'aberration à 23 s
+
+Elle n'est pas diagnosticable après coup : les journaux bruts vivaient sur la tablette et n'ont
+jamais été récupérés. Nous n'écrivons donc rien d'affirmatif pour l'instant.
+
+`scripts/measure_voice_latency.py` ventile désormais la latence **par type d'échange**.
+L'hypothèse à tester est qu'un échange de type `navigation` inclut toute la séquence de
+préparation, relocalisation comprise, alors qu'un échange `faq` ne fait qu'un appariement local :
+deux grandeurs différentes, dont l'agrégation produit une distribution bimodale sans moyenne
+interprétable. Si elle se vérifie, la note demandée s'écrit d'elle-même et la Table III rapporte
+les deux types séparément.
+
+---
+
 ## 5. Anonymisation appliquée
 
 Sur demande de l'auteure, l'article ne nomme ni l'établissement, ni le modèle du robot.
