@@ -39,3 +39,36 @@
 % avoids naming the model; change this one macro if that policy changes.
 \newcommand{\platform}{the study platform}
 \newcommand{\Platform}{The study platform}
+
+% ---------------------------------------------------------------------------
+%  Shared figure style. Figures 2, 3 and 4 are drawn with these styles so the
+%  three read as one visual language rather than three separate sketches.
+%
+%  The palette is chosen to survive two things reviewers actually do: printing
+%  in greyscale, and having a colour-vision deficiency. Hues are separated in
+%  lightness as well as in hue, and no meaning rests on a red/green contrast.
+%  Fills are light tints of their own stroke colour, never a different hue.
+% ---------------------------------------------------------------------------
+\definecolor{figblue}{HTML}{2F5C8A}   % primary: hosts, transport
+\definecolor{figteal}{HTML}{2E7D74}   % secondary: on-device, success
+\definecolor{figrust}{HTML}{C6702A}   % attention: chassis, failure
+\definecolor{figsand}{HTML}{B08B2E}   % tertiary: peripheral segments
+\definecolor{figslate}{HTML}{5B6470}  % neutral: ground truth, annotations
+
+\tikzset{
+  % Boxes. figbox is the base; the four tinted variants only change colour.
+  figbox/.style={
+    draw, line width=0.5pt, rounded corners=2pt, align=center,
+    font=\scriptsize, inner sep=4pt, minimum height=0.62cm},
+  figbox blue/.style ={figbox, draw=figblue,  fill=figblue!8,  text=black},
+  figbox teal/.style ={figbox, draw=figteal,  fill=figteal!8,  text=black},
+  figbox rust/.style ={figbox, draw=figrust,  fill=figrust!8,  text=black},
+  figbox sand/.style ={figbox, draw=figsand,  fill=figsand!10, text=black},
+  figbox slate/.style={figbox, draw=figslate, fill=figslate!8, text=black},
+  % Arrows and edge labels.
+  figarrow/.style={-{Stealth[length=3.2pt,width=2.6pt]}, line width=0.5pt,
+                   draw=figslate},
+  figlabel/.style={font=\tiny, text=figslate, fill=white, inner sep=1.5pt},
+  % Secondary caption line inside a box.
+  figsub/.style={font=\tiny, text=figslate},
+}
