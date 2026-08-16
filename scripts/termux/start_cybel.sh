@@ -18,6 +18,27 @@ fi
 
 PORT="${BACKEND_PORT:-8000}"
 
+# Android suspend les processus Termux (Doze / optimisation batterie) dès que
+# l'écran s'éteint ou après une période d'inactivité : le backend cesse de
+# répondre et les sessions longues perdent la connexion. Le wake lock empêche
+# cette suspension. Il faut le paquet termux-api ; sans lui on démarre quand
+# même, mais une campagne de plusieurs heures échouera très probablement.
+acquire_wake_lock() {
+  if command -v termux-wake-lock >/dev/null 2>&1; then
+    if termux-wake-lock 2>/dev/null; then
+      echo "Wake lock acquis — Termux ne sera pas suspendu par Android"
+      return 0
+    fi
+    echo "AVERTISSEMENT: termux-wake-lock a échoué (application Termux:API installée ?)"
+  else
+    echo "AVERTISSEMENT: termux-wake-lock introuvable."
+    echo "               Installez-le :  pkg install termux-api"
+    echo "               puis l'application Termux:API depuis F-Droid."
+  fi
+  echo "               Sans wake lock, Android coupera le backend en session longue."
+  return 0
+}
+
 write_kiosk_url() {
   KIOSK_URL_FILE="/sdcard/Download/cybel_kiosk_url.txt"
   FALLBACK_FILE="$HOME/cybel_kiosk_url.txt"
@@ -83,6 +104,8 @@ fi
 
 export PYTHONPATH="$CYBEL_HOME${PYTHONPATH:+:$PYTHONPATH}"
 PYTHON="${PYTHON:-/data/data/com.termux/files/usr/bin/python}"
+
+acquire_wake_lock
 
 cd "$BACKEND_DIR"
 

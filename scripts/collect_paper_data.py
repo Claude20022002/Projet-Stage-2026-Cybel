@@ -69,6 +69,9 @@ TTS_INTER_TRIAL = 2.5         # s   — laisser le TTS terminer avant mesure sui
 
 TOUR_POLL_INTERVAL = 20.0     # s   — intervalle de polling statut visite
 TOUR_TIMEOUT = 3600.0         # s   — timeout max par essai de visite (60 min)
+TOUR_MAX_UNREACHABLE = 9      # sondages consécutifs illisibles avant abandon
+                              # (9 x 20 s = 3 min : tolère une coupure Wi-Fi
+                              #  passagère, sans consommer les 60 min de timeout)
 
 # URL rosbridge active — initialisée dans run_async, utilisée par wait_nav_done
 _ROSBRIDGE_URL: str = ""
@@ -711,6 +714,44 @@ def phase_tts(adb_serial: str, n_trials: int = 5) -> dict:
 # Phase 5 — tour : visite guidée complète (API REST backend)
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _tour_metrics(results: list[dict], n_trials: int, session_start: float, base: str) -> dict:
+    """Forme du bloc de résultats visite — partagée par la sauvegarde
+    incrémentale et par le retour final, pour qu'elles ne divergent pas."""
+    n_ok = sum(1 for r in results if r["success"])
+    return {
+        "tour_trials": n_trials,
+        "tour_trials_done": len(results),
+        "tour_successes": n_ok,
+        "tour_completion_rate_pct": round(100 * n_ok / max(n_trials, 1), 1),
+        "tour_results": results,
+        "tour_session_duration_h": round((time.time() - session_start) / 3600, 2),
+        "tour_backend_url": base,
+    }
+
+
+def save_partial(fragment: dict) -> None:
+    """Écrit un résultat intermédiaire sur le disque, immédiatement.
+
+    Une campagne de dix visites dure plus de deux heures. Sans cela, une
+    coupure réseau ou un Ctrl-C au huitième essai emporte les sept précédents.
+    On fusionne dans le fichier existant plutôt que de l'écraser, pour que les
+    phases lancées séparément se cumulent.
+    """
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        current: dict = {}
+        if OUTPUT.exists():
+            try:
+                current = json.loads(OUTPUT.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                current = {}
+        current.update(fragment)
+        current["partial_saved_at"] = datetime.now().isoformat()
+        OUTPUT.write_text(json.dumps(current, indent=2, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        print(f"  [WARN] Sauvegarde intermédiaire impossible : {exc}")
+
+
 def _http_get(url: str, timeout: float = 10.0) -> dict:
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
@@ -996,6 +1037,7 @@ async def phase_tour(
 
         success = False
         error_msg = None
+        unreachable_polls = 0
 
         while True:
             await asyncio.sleep(TOUR_POLL_INTERVAL)
@@ -1008,8 +1050,20 @@ async def phase_tour(
 
             st = _http_get(f"{base}/api/tour/status")
             if st.get("error"):
-                print(f"  [WARN] Impossible de lire le statut : {st['error']}")
+                unreachable_polls += 1
+                print(f"  [WARN] Statut illisible ({unreachable_polls}/{TOUR_MAX_UNREACHABLE}) "
+                      f": {st['error']}")
+                # Un backend définitivement mort sinon consommerait le timeout
+                # complet, soit une heure perdue par essai.
+                if unreachable_polls >= TOUR_MAX_UNREACHABLE:
+                    error_msg = (f"backend injoignable sur {unreachable_polls} sondages "
+                                 f"consécutifs")
+                    print(f"  [ABANDON] {error_msg}")
+                    print("       → Termux a-t-il été suspendu ? Vérifiez le wake lock :")
+                    print("         termux-wake-lock  (paquet termux-api)")
+                    break
                 continue
+            unreachable_polls = 0
 
             state = st.get("state", "unknown")
             phase = st.get("phase", "")
@@ -1041,21 +1095,16 @@ async def phase_tour(
         outcome = "SUCCÈS" if success else f"ÉCHEC ({error_msg})"
         print(f"  → Essai {trial_i + 1} : {outcome} en {elapsed_total / 60:.1f} min")
 
-    session_h = (time.time() - session_start) / 3600
-    n_ok = sum(1 for r in results if r["success"])
-    rate_pct = round(100 * n_ok / max(n_trials, 1), 1)
+        # Sauvegarde après CHAQUE essai : une interruption au huitième ne doit
+        # pas emporter les sept précédents.
+        save_partial(_tour_metrics(results, n_trials, session_start, base))
+        print(f"     (résultats intermédiaires écrits → {OUTPUT.name})")
 
-    print(f"\n  Taux de complétion : {rate_pct}%  ({n_ok}/{n_trials})")
-    print(f"  Durée session visite : {session_h:.2f} h")
-
-    return {
-        "tour_trials": n_trials,
-        "tour_successes": n_ok,
-        "tour_completion_rate_pct": rate_pct,
-        "tour_results": results,
-        "tour_session_duration_h": round(session_h, 2),
-        "tour_backend_url": base,
-    }
+    metrics = _tour_metrics(results, n_trials, session_start, base)
+    print(f"\n  Taux de complétion : {metrics['tour_completion_rate_pct']}%  "
+          f"({metrics['tour_successes']}/{n_trials})")
+    print(f"  Durée session visite : {metrics['tour_session_duration_h']:.2f} h")
+    return metrics
 
 
 # ══════════════════════════════════════════════════════════════════════════════

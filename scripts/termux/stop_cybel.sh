@@ -12,3 +12,9 @@ if [ -f "$PID_FILE" ]; then
 else
   echo "Aucun PID CYBEL enregistré"
 fi
+
+# Libère le wake lock acquis au démarrage : sans cela la tablette reste
+# empêchée de dormir et se décharge inutilement entre deux sessions.
+if command -v termux-wake-unlock >/dev/null 2>&1; then
+  termux-wake-unlock 2>/dev/null && echo "Wake lock libéré"
+fi
