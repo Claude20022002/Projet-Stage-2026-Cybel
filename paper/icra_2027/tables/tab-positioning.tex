@@ -8,19 +8,22 @@
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}p{1.55cm}p{2.5cm}p{3.0cm}@{}}
+% Ragged right in the narrow author column: justifying 1.55 cm stretches the
+% space inside "Kim et al." into a gap. Note "et~al." is bound by a tie so it
+% can never break across lines.
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{1.55cm}p{2.5cm}p{3.0cm}@{}}
 \toprule
 \textbf{Work} & \textbf{Primary emphasis} & \textbf{Distinction in this paper} \\
 \midrule
-Kim \emph{et al.}~\cite{kim2005reengineering} & Re-architecting a service robot &
+Kim \emph{et~al.}~\cite{kim2005reengineering} & Re-architecting a service robot &
 Vendor source and engineers available; here the product is sealed \\[2pt]
-M\"uhe \emph{et al.}~\cite{muhe2010kuka} & Proprietary robot language &
+M\"uhe \emph{et~al.}~\cite{muhe2010kuka} & Proprietary robot language &
 Published artifacts as input; here no artifact is published \\[2pt]
-DeMarinis \emph{et al.}~\cite{demarinis2019scanning} & Exposed \ros{} systems at scale &
+DeMarinis \emph{et~al.}~\cite{demarinis2019scanning} & Exposed \ros{} systems at scale &
 Same black-box stance, applied constructively to one owned unit \\[2pt]
-Glauser \emph{et al.}~\cite{glauser2023interop} & Interoperable interface for social robots &
+Glauser \emph{et~al.}~\cite{glauser2023interop} & Interoperable interface for social robots &
 Assumes a usable SDK; we recover one where none exists \\[2pt]
-Giese \emph{et al.}~\cite{giese2018xiaomi} & Companion-app protocol recovery (IoT) &
+Giese \emph{et~al.}~\cite{giese2018xiaomi} & Companion-app protocol recovery (IoT) &
 Transposed to a robot whose app drives a separate \ros{} computer \\[2pt]
 \textbf{This work} & \textbf{Non-destructive protocol reconstruction} &
 \textbf{Hypothesis-driven method; execution verified against state, not transport} \\
