@@ -15,13 +15,13 @@
 Four rules govern the procedure.
 
 \begin{itemize}[leftmargin=1.2em]
-\item \textbf{P1- observe before publishing.} We listen passively before injecting anything,
+\item \textbf{P1: observe before publishing.} We listen passively before injecting anything,
 because there is no way to predict how an undocumented safety-critical system will react.
-\item \textbf{P2- verify effects, not acknowledgments.} A command counts as validated only
+\item \textbf{P2: verify effects, not acknowledgments.} A command counts as validated only
 once an independent state topic changes. This is the working form of H4.
-\item \textbf{P3- triangulate.} We accept a finding only when two independent sources agree,
+\item \textbf{P3: triangulate.} We accept a finding only when two independent sources agree,
 drawn from network traces, introspection, decompiled application code and field logs.
-\item \textbf{P4- remain non-destructive.} No firmware modification, no root, no persistent
+\item \textbf{P4: remain non-destructive.} No firmware modification, no root, no persistent
 change to vendor partitions. This is an ethical commitment, and with a single unit it is also
 what makes the work repeatable.
 \end{itemize}
