@@ -15,26 +15,39 @@ frame; if you change a crop box, re-check the blur regions against it.
 
 from pathlib import Path
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter
 
 SOURCE_DIR = Path(r"c:\Users\clusa\Desktop\redaction_latex\images")
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "assets"
 
-BLUR_RADIUS = 8
-
 
 def build_robot_photo() -> None:
-    """Fig. 1 — robot with the reconstructed visitor interface on screen."""
+    """Fig. 1 — robot with the reconstructed visitor interface on screen.
+
+    The original is an underexposed phone frame at 720x1280. We upsample
+    before sharpening, otherwise the unsharp mask puts halos on every edge.
+    Redaction comes LAST: applied before sharpening, the mask redraws the very
+    contours it is meant to hide.
+    """
     image = Image.open(SOURCE_DIR / "cybel.jpeg").crop((160, 118, 545, 600)).convert("RGB")
+    image = image.resize((image.width * 2, image.height * 2), Image.LANCZOS)
+
+    image = ImageEnhance.Brightness(image).enhance(1.10)
+    image = ImageEnhance.Contrast(image).enhance(1.18)
+    image = ImageEnhance.Color(image).enhance(0.92)
+    image = image.filter(ImageFilter.UnsharpMask(radius=2.2, percent=115, threshold=3))
+
+    # Coordinates are in the upsampled frame (2x the crop above).
     redactions = [
-        (103, 404, 270, 458),  # logo band beneath the touchscreen
-        (158, 313, 218, 333),  # institution name, line under "Bienvenue dans"
-        (263, 334, 302, 377),  # on-screen QR code
+        (206, 808, 540, 916),  # logo band beneath the touchscreen
+        (316, 626, 436, 666),  # institution name, line under "Bienvenue dans"
+        (526, 668, 604, 754),  # on-screen QR code
     ]
     for box in redactions:
-        image.paste(image.crop(box).filter(ImageFilter.GaussianBlur(BLUR_RADIUS)), box)
-    image.save(OUTPUT_DIR / "robot_kiosk.jpg", quality=90, optimize=True)
-    print(f"assets/robot_kiosk.jpg {image.size} — {len(redactions)} regions redacted")
+        image.paste(image.crop(box).filter(ImageFilter.GaussianBlur(16)), box)
+
+    image.save(OUTPUT_DIR / "robot_kiosk.jpg", quality=94, optimize=True, subsampling=0)
+    print(f"assets/robot_kiosk.jpg {image.size} - {len(redactions)} regions redacted")
 
 
 def build_vendor_map() -> None:

@@ -1,32 +1,28 @@
 % Fig. 2 — three network segments. Used by sections/03-platform.
-% Uses the shared figbox / figarrow styles and the \figsub macro defined in
-% preamble.tex; do not hard-code colours or line weights here, or the three
-% diagrams drift apart.
+% Monochrome line art: no fills, so it prints identically in colour and in
+% greyscale. Keep it that way, and keep Fig. 3 matching it.
 \begin{figure}[!t]
 \centering
-\resizebox{0.94\columnwidth}{!}{%
-\begin{tikzpicture}[node distance=0.75cm and 1.7cm]
-
-  \node[figbox blue, minimum width=2.7cm] (pc)
-    {Development host\\[1pt]\figsub{laboratory Wi-Fi}};
-
-  \node[figbox teal, minimum width=2.7cm, below=of pc] (head)
-    {Android head\\[1pt]\figsub{wlan0 \texttt{172.16.0.x}}\\[-1pt]
-     \figsub{eth0 \texttt{192.168.20.1}}};
-
-  \node[figbox rust, minimum width=2.7cm, right=of head] (ch)
-    {\ros{} chassis\\[1pt]\figsub{WebSocket bridge :9090}\\[-1pt]
-     \figsub{\texttt{192.168.20.22}}};
-
-  \node[figbox sand, minimum width=2.7cm, below=of ch] (ap)
-    {Robot access point\\[1pt]\figsub{\texttt{10.42.0.1:9090}}};
-
-  \draw[figarrow] (pc)   -- node[figlabel, left]  {ADB} (head);
-  \draw[figarrow] (head) -- node[figlabel, above] {internal Ethernet} (ch);
-  \draw[figarrow] (ap)   -- (ch);
-  \draw[figarrow] (pc.east) .. controls +(1.4,-0.3) and +(-1.4,1.4) ..
-        node[figlabel, near start, above right] {Wi-Fi} (ap.north);
-
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.5cm,
+  box/.style={draw, rounded corners=3pt, align=center, font=\tiny,
+              inner sep=4pt, minimum width=2.4cm},
+  arr/.style={-{Stealth[length=3.5pt]}, semithick},
+  lbl/.style={font=\tiny, fill=white, inner sep=1pt}
+]
+  \node[box] (pc) {\textbf{Development host}\\laboratory Wi-Fi};
+  \node[box, below=0.7cm of pc] (head)
+    {\textbf{Android head}\\wlan0: \texttt{172.16.0.x}\\eth0:\;\texttt{192.168.20.1}};
+  \node[box, right=1.5cm of head] (ch)
+    {\textbf{\ros{} chassis}\\WebSocket bridge :9090\\\texttt{192.168.20.22}};
+  \node[box, below=0.7cm of ch] (ap)
+    {\textbf{Robot access point}\\\texttt{10.42.0.1:9090}};
+  \draw[arr] (pc)   -- node[lbl, left]{ADB} (head);
+  \draw[arr] (head) -- node[lbl, above]{internal Ethernet} (ch);
+  \draw[arr] (pc.east) .. controls +(1.0,-0.5) and +(-1.1,1.2) ..
+             node[lbl, near start, right]{Wi-Fi} (ap.north);
+  \draw[arr] (ap)   -- (ch);
 \end{tikzpicture}%
 }
 \caption{Three network segments on a product marketed as a single device. Conflating the head's

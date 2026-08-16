@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1786877749.30568 "main.aux" "main.bbl" "main" 1786877905.28826 0
+["bibtex main"] 1786877749.30568 "main.aux" "main.bbl" "main" 1786878737.4641 0
   "./references.bib" 1786875813 10175 a3b2a8e168bd7c68ce8a4ffd54641c22 ""
   "C:/Users/clusa/AppData/Local/Programs/MiKTeX/bibtex/bst/ieeetran/IEEEtran.bst" 1440622569 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "main.aux" 1786877903 12113 af2671211d910014c7a5c8e0f539bef6 "pdflatex"
+  "main.aux" 1786878735 12113 af2671211d910014c7a5c8e0f539bef6 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1786877897.05856 "c:/Users/clusa/Desktop/Projet-Stage-2026-Cybel/paper/icra_2027/main.tex" "main.pdf" "main" 1786877905.29014 0
+["pdflatex"] 1786878729.65048 "c:/Users/clusa/Desktop/Projet-Stage-2026-Cybel/paper/icra_2027/main.tex" "main.pdf" "main" 1786878737.46621 0
   "C:/Users/clusa/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1786178036 262531 facb75b16c0280cc440977bb4fbd8782 ""
   "C:/Users/clusa/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1781977611 13367096 c2d23b10843dbdaca9cf5b49143e72a6 ""
   "C:/Users/clusa/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc" 1458473887 4993 80dc9bab7f31fb78a000ccfed0e27cab ""
@@ -251,16 +251,16 @@
   "figures/fig-robot.tex" 1786186004 620 6fc7ecd3c51cf8c7537d19a66e503f7f ""
   "figures/fig-tour-map.tex" 1786876688 3211 0f42d4f5d00a5086adc7f925ba5a4dc9 ""
   "figures/fig-vantage.tex" 1786877403 1639 22365049ff9c2eb227e83ef73c8a9104 ""
-  "main.aux" 1786877903 12113 af2671211d910014c7a5c8e0f539bef6 "pdflatex"
+  "main.aux" 1786878735 12113 af2671211d910014c7a5c8e0f539bef6 "pdflatex"
   "main.bbl" 1786877749 6195 34b4f38412943e88d9a16ae53729a240 "bibtex main"
-  "main.out" 1786877903 5561 0cc0f501c1d823622dec9a60e34ad195 "pdflatex"
+  "main.out" 1786878735 5561 0cc0f501c1d823622dec9a60e34ad195 "pdflatex"
   "main.tex" 1786875773 1730 1cd56f570d03ed88ffe3ab38357b4d97 ""
   "preamble.tex" 1786877305 3550 1e4560aea7cd858e8443a4fb834d9832 ""
   "sections/00-abstract.tex" 1786875694 2319 976fa93ca2634679fcc1afbbf38678d6 ""
   "sections/01-introduction.tex" 1786877895 3990 7d7b4556c0095ab6b814d78ff8789686 ""
   "sections/02-related-work.tex" 1786195225 4073 a4af934fb4cbf7c4ddff07dde87b552c ""
   "sections/03-platform.tex" 1786185384 1900 64ef85f1c8ca32c4e5ae169129527d3a ""
-  "sections/04-methodology.tex" 1786877745 3570 ab168bb0dca79b05c0cb7d20095f0567 ""
+  "sections/04-methodology.tex" 1786878727 3566 cae50e7e6a2e314cf6f0385631473e87 ""
   "sections/05-command-surface.tex" 1786185528 4680 dc270a6ff4fa2cc5b913a863676c9f4a ""
   "sections/06-evaluation.tex" 1786877563 7473 4257098ecf1216fa05e15e2802d689f8 ""
   "sections/07-discussion.tex" 1786185839 4975 fb4d01d4d357ebd9466d7c9d35dafbd7 ""

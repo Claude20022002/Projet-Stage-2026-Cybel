@@ -1,38 +1,25 @@
 % Fig. 3 — vantage points and their blind spots. Used by sections/04-methodology.
 % This figure carries the methodological argument: three partial views, one
-% ground truth. Uses the shared styles and the \figsub macro from preamble.tex.
+% ground truth. Monochrome line art, matching Fig. 2.
 \begin{figure}[!t]
 \centering
-\resizebox{0.94\columnwidth}{!}{%
-\begin{tikzpicture}[x=1cm, y=1cm]
-
-  \def\colA{0} \def\colB{3.35} \def\colC{6.7}
-
-  \node[figbox blue, minimum width=2.5cm] (a) at (\colA,0)
-    {Introspection\\[1pt]\figsub{names, types}};
-  \node[figbox teal, minimum width=2.5cm] (b) at (\colB,0)
-    {Traffic capture\\[1pt]\figsub{framing, order}};
-  \node[figbox rust, minimum width=2.5cm] (c) at (\colC,0)
-    {Application code\\[1pt]\figsub{intent, setup}};
-
-  \node[font=\scriptsize\itshape, text=figslate, align=center] (a2) at (\colA,-1.25)
-    {blind to\\preconditions};
-  \node[font=\scriptsize\itshape, text=figslate, align=center] (b2) at (\colB,-1.25)
-    {blind to\\unused commands};
-  \node[font=\scriptsize\itshape, text=figslate, align=center] (c2) at (\colC,-1.25)
-    {blind to\\reachability};
-
-  \draw[figarrow] (a) -- (a2);
-  \draw[figarrow] (b) -- (b2);
-  \draw[figarrow] (c) -- (c2);
-
-  \node[figbox slate, minimum width=8.6cm, minimum height=0.7cm] (t) at (\colB,-2.5)
-    {Field telemetry: the only ground truth for execution (P2, H4)};
-
-  \draw[figarrow] (a2) -- (t);
-  \draw[figarrow] (b2) -- (t);
-  \draw[figarrow] (c2) -- (t);
-
+\resizebox{0.95\columnwidth}{!}{%
+\begin{tikzpicture}[
+  vp/.style={draw, rounded corners=2pt, align=center, font=\scriptsize,
+             inner sep=3.5pt, minimum width=2.1cm},
+  gap/.style={font=\scriptsize\itshape, align=center},
+  arr/.style={-{Stealth[length=3pt]}, semithick}
+]
+  \node[vp] (a) at (0,0)      {Introspection\\\scriptsize names, types};
+  \node[vp] (b) at (3.1,0)    {Traffic capture\\\scriptsize framing, order};
+  \node[vp] (c) at (6.2,0)    {Application code\\\scriptsize intent, setup};
+  \node[gap] (a2) at (0,-1.15)   {blind to\\preconditions};
+  \node[gap] (b2) at (3.1,-1.15) {blind to\\unused commands};
+  \node[gap] (c2) at (6.2,-1.15) {blind to\\reachability};
+  \draw[arr] (a)--(a2); \draw[arr] (b)--(b2); \draw[arr] (c)--(c2);
+  \node[vp, minimum width=6.2cm] (t) at (3.1,-2.3)
+    {Field telemetry --- the only ground truth for execution (P2, H4)};
+  \draw[arr] (a2)--(t); \draw[arr] (b2)--(t); \draw[arr] (c2)--(t);
 \end{tikzpicture}%
 }
 \caption{Each vantage point answers a different question and is blind to the others. A
