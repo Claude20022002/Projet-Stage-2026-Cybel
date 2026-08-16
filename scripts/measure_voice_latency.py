@@ -54,7 +54,25 @@ def observed_hours(entries: list[dict]) -> float:
     return span.total_seconds() / 3600
 
 
+def _median(values: list[int]) -> float:
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
 def report_latency(entries: list[dict]) -> None:
+    """Latence bout-en-bout, ventilée par type d'échange.
+
+    La ventilation est le point important pour l'article : un échange `faq`
+    ne fait qu'un appariement local, alors qu'un échange `navigation` inclut
+    toute la séquence de préparation (vérification d'état, relocalisation).
+    Ce sont deux grandeurs différentes, et les agréger produit une
+    distribution bimodale dont ni la moyenne ni l'étendue ne veulent dire
+    grand-chose. C'est l'explication à vérifier pour la valeur aberrante à
+    23 s relevée dans la campagne de juillet.
+    """
     voice_entries = [
         e for e in entries if e.get("event") == "voice_exchange" and e.get("latency_ms") is not None
     ]
@@ -64,19 +82,40 @@ def report_latency(entries: list[dict]) -> None:
 
     latencies = [e["latency_ms"] for e in voice_entries]
     n = len(latencies)
-    avg = round(sum(latencies) / n)
 
     print(f"Échanges vocaux avec latence mesurée : {n}")
-    print(f"  min = {min(latencies)} ms, moyenne = {avg} ms, max = {max(latencies)} ms")
-    print()
-    print("Détail par échange :")
+    print(f"  min = {min(latencies)} ms, médiane = {_median(latencies):.0f} ms, "
+          f"max = {max(latencies)} ms")
+
+    by_kind: dict[str, list[int]] = {}
     for e in voice_entries:
-        print(f"  {e['ts']}  {e['latency_ms']:>5} ms  [{e.get('kind', '?')}] {e.get('transcript', '')!r}")
+        by_kind.setdefault(e.get("kind", "?"), []).append(e["latency_ms"])
 
     print()
-    print("  -> Dans main.tex, remplacez :")
-    print("      Voice command round-trip (speech end to TTS start) & \\ph{XXX\\,ms} (\\ph{N} trials)")
-    print(f"      par  {min(latencies)}--{max(latencies)}\\,ms (mean {avg}\\,ms)  ({n} trials)")
+    print("Par type d'échange :")
+    print(f"  {'type':18s} {'n':>3s} {'min':>7s} {'médiane':>9s} {'max':>7s}")
+    for kind in sorted(by_kind, key=lambda k: -_median(by_kind[k])):
+        v = by_kind[kind]
+        print(f"  {kind:18s} {len(v):>3d} {min(v):>6d}ms {_median(v):>8.0f}ms {max(v):>6d}ms")
+
+    slow = [e for e in voice_entries if e["latency_ms"] >= 5000]
+    if slow:
+        print()
+        print(f"Échanges au-delà de 5 s ({len(slow)}) — vérifier le type :")
+        for e in slow:
+            print(f"  {e['ts']}  {e['latency_ms']:>6} ms  [{e.get('kind', '?')}] "
+                  f"{e.get('transcript', '')!r}")
+        kinds = {e.get("kind", "?") for e in slow}
+        if kinds <= {"navigation", "faq+navigation", "action"}:
+            print("  -> tous de type navigation/action : la latence inclut la séquence")
+            print("     de préparation, pas seulement la reconnaissance et la réponse.")
+
+    print()
+    print("  -> Pour Table III (tables/tab-metrics.tex), rapporter les types séparément.")
+    for kind in sorted(by_kind):
+        v = by_kind[kind]
+        print(f"     {kind:18s} n={len(v)}, médiane {_median(v):.0f} ms, "
+              f"étendue {min(v)}--{max(v)} ms")
 
 
 def report_wake_triggers(entries: list[dict], hours: float) -> None:

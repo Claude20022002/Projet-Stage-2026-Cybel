@@ -2,6 +2,8 @@
 %  Abstract and keywords.
 %  Target: 200-250 words. Rewrite LAST, once the results are frozen.
 %  Every number here must also appear, with its n, in section 06.
+%  Raw protocol-discovery counts (topics, services) belong in Section IV-C,
+%  not here: the abstract states recovered CAPABILITIES, not inventory sizes.
 % ---------------------------------------------------------------------------
 
 \begin{abstract}
@@ -13,9 +15,9 @@ command surface without vendor cooperation, structured as four falsifiable hypot
 where the protocol is observable and how to verify it, tested through a seven-phase pipeline
 that triangulates network mapping, \rosapi{} introspection, static analysis of the vendor
 application, and passive broker observation. We validate the methodology on a commercially
-available reception robot, recovering \num{455} topics and \num{308} services and
-rebuilding teleoperation, navigation, speech and visitor interaction as an edge platform that
-runs without the vendor cloud. Our main empirical finding concerns verification rather than
+available reception robot, recovering enough of its command surface to rebuild teleoperation,
+autonomous navigation, speech output and visitor interaction as an edge platform that runs
+without the vendor cloud. Our main empirical finding concerns verification rather than
 discovery. A transport-level acknowledgment says nothing about whether the machine moved. In
 \num{17} logged field commands, what separated success from failure was the localization state
 the robot reported: all ten failures occurred while it reported itself unlocalized, and all

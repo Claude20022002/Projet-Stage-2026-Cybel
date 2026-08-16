@@ -59,12 +59,19 @@ function Invoke-Checks {
         }
     }
 
+    # Identity checks ignore LaTeX comment lines: the real names and URL are
+    # deliberately kept there, commented out, for the camera-ready version.
     foreach ($probe in @(
         @{ Name = "leftover placeholders"; Pattern = 'TODO|FIXME|\\ph\{' },
-        @{ Name = "anonymisation";
-           Pattern = 'hestim|casablanca|morocco|ciot|ty1251|welcomepatrol|sentrymove|cerim' }
+        @{ Name = "institution / robot model";
+           Pattern = 'hestim|casablanca|morocco|ciot|ty1251|welcomepatrol|sentrymove|cerim' },
+        @{ Name = "author identity (double-blind)";
+           Pattern = 'lusamote|kimfuta|tula|claude20022002|Projet-Stage-2026' },
+        @{ Name = "unfilled anonymous repository link";
+           Pattern = 'ANONYMOUS-REPO-ID' }
     )) {
-        $hits = Select-String -Path $sources -Pattern $probe.Pattern
+        $hits = Select-String -Path $sources -Pattern $probe.Pattern |
+                Where-Object { $_.Line -notmatch '^\s*%' }
         if ($hits) {
             Write-Host "FAIL  $($probe.Name)" -ForegroundColor Red
             $hits | ForEach-Object { Write-Host "        $($_.Path):$($_.LineNumber)" }
