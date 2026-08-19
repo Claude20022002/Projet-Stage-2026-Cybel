@@ -740,7 +740,7 @@
     "/web_video_server_1/get_loggers",
     "/web_video_server_1/set_logger_level"
   ],
-  "partial_saved_at": "2026-08-19T14:25:44.981689",
+  "partial_saved_at": "2026-08-19T16:28:32.285809",
   "teleop_trials": 10,
   "teleop_successes": 10,
   "teleop_success_rate_pct": 100.0,
@@ -1040,5 +1040,48 @@
   "tts_latency_adb_avg_ms": 751,
   "tts_latency_adb_max_ms": 1130,
   "tts_latency_perceived_ms": 1051,
-  "tts_note": "Latence ADB = commande→ack broadcast. Latence audio réelle ≈ +300 ms (init TextToSpeech Google)."
+  "tts_note": "Latence ADB = commande→ack broadcast. Latence audio réelle ≈ +300 ms (init TextToSpeech Google).",
+  "tour_trials": 10,
+  "tour_trials_done": 7,
+  "tour_successes": 7,
+  "tour_completion_rate_pct": 70.0,
+  "tour_results": [
+    {
+      "success": true,
+      "elapsed_s": 650.0,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 587.5,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 589.0,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 588.1,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 616.6,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 630.5,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 589.6,
+      "error": null
+    }
+  ],
+  "tour_session_duration_h": 1.19,
+  "tour_backend_url": "http://172.16.0.30:8001"
 }
