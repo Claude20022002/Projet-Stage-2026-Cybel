@@ -76,6 +76,11 @@ session-level connection reliability, so we describe the reconnection mechanism 
 quoting a figure we cannot stand behind. The vendor comparison covers capabilities, not measured
 task performance. H1 was confirmed in one direction only: observed names do appear in the
 application, but we did not establish that the application exercises every command the firmware
-will accept, so the surface we recovered is a lower bound. Ten recorded wake events are too few
-to estimate a false-trigger rate, and the face-matching threshold has not been calibrated for
-several visitors enrolled at once. All of it comes from one robot, one map and one site.
+will accept, so the surface we recovered is a lower bound. The wake-phrase false-trigger rate is
+a proportion of logged triggers, not a rate per hour: our logs span calendar time rather than
+continuous supervised operation, so we cannot say how often a false trigger occurs per hour of
+service. The face-matching threshold has not been calibrated for several visitors enrolled at
+once. A handful of interaction-loop timings are negative by up to a second, an artifact of
+comparing a timestamp taken in the recognition app with one taken in the backend; we excluded
+them rather than correcting a clock offset we did not measure. All of it comes from one robot,
+one map and one site.

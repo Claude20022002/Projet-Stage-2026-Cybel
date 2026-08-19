@@ -37,8 +37,15 @@ Arm B: same target, same conditions; median \SI{45.3}{\second}. Separates from a
 reliability ($p=1.00$) nor in time ($p=0.76$) \\
 Repeat-question match            & 48 & \SI{56.2}{\percent}& \numrange{42.3}{69.3}\,\% &
 The ceiling of the closed-vocabulary matcher, and the main negative result of the study \\
-Speech-bridge latency (mean)     & 5  & \SI{923}{\milli\second} & \numrange{651}{1555}\,ms &
+Speech-bridge latency (median)   & 10 & \SI{702}{\milli\second} & \numrange{621}{1130}\,ms &
 The price of routing speech through the host operating system instead of the vendor engine \\
+Question exchange (median)       & 9  & \SI{1.3}{\second}  & \numrange{1.0}{6.8}\,s &
+The interaction loop when the reply is a local lookup \\
+Navigation exchange (median)     & 13 & \SI{22}{\second}   & \numrange{11.6}{135}\,s &
+The same loop when the reply also drives the robot: the preparation sequence dominates, and the
+two kinds must not be averaged together \\
+Wake-phrase false triggers       & 55 & \SI{36.4}{\percent}& \numrange{24.9}{49.6}\,\% &
+The cost of substituting a real-word phrase for an out-of-vocabulary product name \\
 Local REST latency$^{\dagger}$   & -- & $<\SI{100}{\milli\second}$ & -- &
 That the reconstructed stack adds no delay a visitor would notice on top of the bridge \\
 Wi-Fi round-trip time$^{\dagger}$ & -- & --                & \numrange{89}{1654}\,ms &
