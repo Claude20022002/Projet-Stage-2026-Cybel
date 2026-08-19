@@ -18,7 +18,7 @@
   ylabel={Success rate (\%)}, ylabel style={font=\small},
   symbolic x coords={Teleop.,Tours,Tour legs,Coord.,Annot.,Question},
   xtick=data,
-  xticklabels={Teleop. (10),Tours (3),Legs (30),Coord. (10),Annot. (10),Question (48)},
+  xticklabels={Teleop. (10),Legs before (7),Legs after (80),Coord. (10),Annot. (10),Question (48)},
   x tick label style={font=\scriptsize, rotate=22, anchor=east},
   ytick={0,25,50,75,100}, tick label style={font=\scriptsize},
   enlarge x limits=0.12, grid=major, grid style={gray!20},
@@ -30,8 +30,8 @@
  table[x=k, y=v, y error minus=lo, y error plus=hi] {
 k            v     lo    hi
 Teleop.      100   27.8  0
-Tours        100   56.2  0
-{Tour legs}  100   11.4  0
+Tours        14.3  11.7  37.0
+{Tour legs}  100   4.6   0
 Coord.       100   27.8  0
 Annot.       100   27.8  0
 Question     56.2  14.0  13.0
@@ -54,9 +54,11 @@ Question     56.2  14.0  13.0
 \legend{failed, succeeded}
 \end{axis}
 \end{tikzpicture}
-\caption{(a)~Measured outcomes. Intervals remain wide because samples are small. The two arms of
-the bench comparison are indistinguishable: identical success rates ($p=1.00$) and overlapping
-completion times ($p=0.76$). (b)~In the field record, reported localization state separates
-success from failure perfectly, and the addressing scheme does not separate them at all.}
+\caption{(a)~Measured outcomes. The two leftmost tour bars contrast guided-tour legs before and
+after the map and its annotations stopped changing, the single largest effect we measured. The
+two arms of the bench comparison are indistinguishable: identical success rates ($p=1.00$) and
+overlapping completion times ($p=0.76$). (b)~In the field record, reported localization state
+separates success from failure perfectly, and the addressing scheme does not separate them at
+all.}
 \label{fig:results}
 \end{figure*}

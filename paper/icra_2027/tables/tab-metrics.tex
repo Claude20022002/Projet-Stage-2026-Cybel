@@ -24,11 +24,13 @@ are campaign readings for which no machine-readable log was archived.}
 Teleoperation success            & 10 & \SI{100}{\percent} & \numrange{72.2}{100}\,\% &
 That the manual-mode precondition recovered from the vendor application (H1) is the correct one:
 without it the same commands were dropped silently \\
-Guided tours completed           & 3  & \SI{100}{\percent} & \numrange{43.8}{100}\,\% &
-That the full preparation path works end to end in service, unattended \\
-\quad individual legs            & 30 & \SI{100}{\percent} & \numrange{88.6}{100}\,\% &
-The same at leg resolution, which is the finest grain the tour logs support \\
-Tour duration (median)           & 3  & \SI{670}{\second}  & \numrange{668}{822}\,s &
+Guided tours run end to end          & 7  & --                 & -- &
+That the full preparation path works unattended, repeatedly, over seven weeks \\
+\quad navigation legs, after map stable & 80 & \SI{100}{\percent} & \numrange{95.4}{100}\,\% &
+The same at leg resolution: no navigation failure once the map and its annotations settled \\
+\quad navigation legs, before        & 7  & \SI{14.3}{\percent}& \numrange{2.6}{51.3}\,\% &
+What the same pipeline did while the map was still changing \\
+Tour duration (median)               & 7  & \SI{10.8}{\minute} & \numrange{10.4}{13.1}\,min &
 The operating envelope of a complete visitor session, for anyone sizing a deployment \\
 Coordinate goal, bench           & 10 & \SI{100}{\percent} & \numrange{72.2}{100}\,\% &
 Arm A of the H3 comparison: goals addressed by coordinate; median \SI{47.0}{\second} \\

@@ -60,15 +60,13 @@ Goal annotations are created in the vendor deployment application (Fig.~\ref{fig
 and resolved by the chassis marker manager. Testing H3 took us three attempts, and the two
 failed ones are the more instructive.
 
-Our first two campaigns recorded the annotation route failing outright: no state transition at
-all, in every trial, against a coordinate route that always succeeded. Read at face value this
-inverts H3. It also contradicted daily operation, where the annotation route is the one that
-works. Rather than report the contradiction we introspected the interface, and the discrepancy
-dissolved. The service our client called does not exist on this firmware: none of the
-\num{321} services the chassis advertises carries that name, and asking \rosapi{} for its type
-returns an empty string. The fallback service does exist, but we had been calling it with three
-argument names, none of which was the single field it declares. We had measured a malformed call
-to an absent service, not a navigation strategy.
+Our first two campaigns recorded the annotation route failing outright, in every trial, against a
+coordinate route that always succeeded. Read at face value this inverts H3, and it also
+contradicted daily operation, where the annotation route is the one that works. Introspection
+dissolved the contradiction: the service our client called does not exist on this firmware, none
+of the \num{321} advertised services carries that name, and the fallback service we then tried
+declares a single argument, none of whose name matched the three we were sending. We had
+measured a malformed call to an absent service, not a navigation strategy.
 
 With the call corrected to the introspected signature, the comparison is unambiguous
 (Fig.~\ref{fig:results}\,(a)). Both arms navigated to the same annotated target, from the same
@@ -87,13 +85,11 @@ is exactly what the field record of Section~\ref{sec:eval}-B shows at a larger s
 reuse remains preferable operationally, because it avoids drift between offline coordinates and
 the live map, but that is a maintenance argument rather than a reliability one.
 
-The episode also generalises. An interface recovered from outside misleads twice: once on the
-arguments one sends it, and once on the semantics of the replies one reads back. We met the
-second form immediately afterwards, in our own verification script, which watched a status topic
-whose numbering comes from the underlying planner's action interface rather than from the
-vendor's own state machine. The robot navigated correctly and the script reported nothing. On a
-reconstructed interface, a topic's name does not tell you which vocabulary it speaks, and the
-only remedy is the introspection that produced the correct call in the first place.
+We met the mirror image of the same trap immediately afterwards, in our own verification script,
+which watched a status topic whose numbering comes from the underlying planner rather than from
+the vendor's state machine: the robot navigated correctly and the script saw nothing. A recovered
+interface misleads on the arguments one sends it and on the semantics of the replies one reads
+back (Section~\ref{sec:discussion}-A).
 
 \input{figures/fig-results}
 
@@ -101,10 +97,18 @@ only remedy is the introspection that produced the correct call in the first pla
 
 Table~\ref{tab:metrics} collects the measured indicators. We took none of them for their own
 sake, so the table states what each one is meant to settle; an indicator that settles nothing is
-padding, and we have left several such figures out. Guided-tour completion appears at two
-levels, because the 30 legs are not independent observations: a leg that fails ends the rest of
-its tour. The leg-level interval is therefore optimistic, and the tour-level one is the
-conservative reading.
+padding, and we have left several such figures out.
+
+Guided-tour operation is the longest-running of them: \num{24} instrumented tours over seven
+weeks, dividing sharply at the point where the map and its annotations stopped changing. Before
+that, one leg in seven succeeded and no tour finished. After it, \num{80} consecutive legs
+succeeded with no navigation failure at all, and seven tours ran end to end, median
+\SI{10.8}{\minute}. Of the ten later sessions that did not finish, eight were stopped by the
+operator with every attempted leg successful, and two aborted on a speech failure rather than a
+navigation one. Legs within a tour are not independent, so the leg-level interval is the
+optimistic reading. That the only remaining abort mode is speech deserves note: the capability we
+had to recover outside the protocol (Section~\ref{sec:platform}-C) is the one that now fails the
+whole task when it fails.
 
 \input{tables/tab-metrics}
 
@@ -116,19 +120,22 @@ argues for a wider synonym set or a semantic fallback, not for moving the thresh
 
 The second concerns the wake phrase. Substituting a phonetically close real-word phrase for the
 platform's invented name made detection work, and we reported that as a fix. Instrumenting it
-shows what the fix cost: of \num{55} logged wake events, \num{20} were false triggers on ambient
-speech, a rate of \SI{36.4}{\percent} (\numrange{24.9}{49.6}\,\%). A phrase made of ordinary
-words is, unsurprisingly, ordinary enough to be said by accident. Any closed-vocabulary wake word
-faces this trade-off, and ours sits at an operating point we would not ship.
+shows what the fix cost: of \num{55} logged wake events, \num{20} opened the microphone without
+any usable utterance following, a rate of \SI{36.4}{\percent} (\numrange{24.9}{49.6}\,\%). A
+phrase made of ordinary words is, unsurprisingly, ordinary enough to be said by accident.
 
-We also timed the complete interaction loop, from the end of a visitor's utterance to the start
-of the spoken reply, and found it is not one distribution but two. When the reply is a local
-lookup, the median is \SI{1.3}{\second} ($n=9$). When it also drives the robot, the median is
-\SI{22}{\second} ($n=13$), because the preparation sequence of
-Section~\ref{sec:eval}-C runs inside the loop. Averaging the two produces a figure that describes
-neither, which is what earlier revisions of this paper reported as an unexplained outlier. The
-lesson is the ordinary one about bimodal data, but it took per-exchange instrumentation to see
-it, and the same caution applies to any metric that spans a preparation step.
+The logs also say what kind of failure this is, and it is milder than the headline rate suggests.
+Eighteen of the twenty were followed by no speech at all; only two produced a transcript, one of
+them the wake phrase decoded a second time. A spurious wake is therefore almost never a spurious
+\emph{command}, only a microphone opened for nothing. It becomes visible to a visitor because the
+kiosk answers a silent window with a ``not understood'' prompt, so the cheap remedy is not a
+better detector but staying quiet when nothing was said.
+
+We also timed the interaction loop, from the end of an utterance to the start of the spoken
+reply, and found it is not one distribution but two. When the reply is a local lookup the median
+is \SI{1.3}{\second} ($n=9$); when it also drives the robot it is \SI{22}{\second} ($n=13$),
+because the preparation sequence runs inside the loop. Averaging them describes neither, which is
+what an earlier revision of this paper reported as an unexplained outlier.
 
 \subsection{Comparison with the vendor application}
 
