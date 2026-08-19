@@ -1,10 +1,10 @@
 {
-  "collected_at": "2026-08-19T14:25:12.457424",
+  "collected_at": "2026-08-19T15:16:50.400102",
   "robot_host": "10.42.0.1",
-  "backend_host": "(auto)",
-  "backend_port": null,
+  "backend_host": "172.16.0.30",
+  "backend_port": 8001,
   "phases_run": [
-    "tts"
+    "tour"
   ],
   "rosbridge_error": "no close frame received or sent",
   "ros_topics_total": 404,
@@ -740,7 +740,7 @@
     "/web_video_server_1/get_loggers",
     "/web_video_server_1/set_logger_level"
   ],
-  "partial_saved_at": "2026-08-19T16:28:32.285809",
+  "partial_saved_at": "2026-08-19T16:59:04.578731",
   "teleop_trials": 10,
   "teleop_successes": 10,
   "teleop_success_rate_pct": 100.0,
@@ -1042,9 +1042,9 @@
   "tts_latency_perceived_ms": 1051,
   "tts_note": "Latence ADB = commande→ack broadcast. Latence audio réelle ≈ +300 ms (init TextToSpeech Google).",
   "tour_trials": 10,
-  "tour_trials_done": 7,
-  "tour_successes": 7,
-  "tour_completion_rate_pct": 70.0,
+  "tour_trials_done": 10,
+  "tour_successes": 10,
+  "tour_completion_rate_pct": 100.0,
   "tour_results": [
     {
       "success": true,
@@ -1080,8 +1080,23 @@
       "success": true,
       "elapsed_s": 589.6,
       "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 607.5,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 593.8,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 591.3,
+      "error": null
     }
   ],
-  "tour_session_duration_h": 1.19,
+  "tour_session_duration_h": 1.7,
   "tour_backend_url": "http://172.16.0.30:8001"
 }
