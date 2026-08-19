@@ -53,11 +53,24 @@ def build_robot_photo() -> None:
 def build_vendor_map() -> None:
     """Fig. 5 — vendor deployment application and the laboratory map.
 
+    Source is a real screen capture taken over ADB, not a photograph of the
+    tablet, so there is no moire and no perspective:
+
+        adb connect 172.16.0.30:5555
+        adb exec-out screencap -p > assets/vendor_map_raw.png
+
+    We drop the right-hand toolbar, which has no bearing on the paper's
+    argument, and keep the status bar, the point-type legend, the occupancy
+    grid with its annotations, and the mapped area.
+
     Checked for identifying marks: none present, so no redaction is applied.
     """
-    image = Image.open(SOURCE_DIR / "nouvellmap.jpeg").crop((30, 180, 1572, 1052))
-    image = image.resize((image.width // 2, image.height // 2), Image.LANCZOS)
-    image.save(OUTPUT_DIR / "vendor_map.jpg", quality=88, optimize=True)
+    raw = OUTPUT_DIR / "vendor_map_raw.png"
+    if not raw.exists():
+        print(f"assets/vendor_map.jpg — ignoré, {raw.name} absent (voir docstring)")
+        return
+    image = Image.open(raw).crop((0, 0, 1775, 1080)).convert("RGB")
+    image.save(OUTPUT_DIR / "vendor_map.jpg", quality=92, optimize=True, subsampling=0)
     print(f"assets/vendor_map.jpg {image.size}")
 
 
