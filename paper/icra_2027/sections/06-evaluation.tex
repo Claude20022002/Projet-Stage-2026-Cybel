@@ -57,33 +57,43 @@ been acknowledged.
 \input{figures/fig-vendor-map}
 
 Goal annotations are created in the vendor deployment application (Fig.~\ref{fig:vendormap})
-and resolved by the chassis marker manager. We compared the two schemes directly on the bench,
-with automatic mode set and telemetry subscribed for both arms, navigating to the same annotated
-target (Fig.~\ref{fig:results}\,(a)). Coordinate goals succeeded in 3 of 3 trials, reaching the
-arrived state in \SIlist{40.0;40.9;46.5}{\second} (median \SI{40.9}{\second}). The annotation
-service, issued from the same bare client through its full fallback chain, produced no state
-transition at all in 3 of 3 trials and was abandoned at the \SI{150}{\second} timeout. At three
-trials per arm the difference is not statistically significant (Fisher's exact test, two-sided,
-$p=0.10$), and neither arm's interval excludes the other's point estimate.
+and resolved by the chassis marker manager. Testing H3 took us three attempts, and the two
+failed ones are the more instructive.
 
-Taken alone this would be a clean verdict against annotation reuse, and it would also contradict
-everything we saw in daily operation, where the annotation route is precisely the one that
-works. Three consecutive guided tours ran to completion without operator intervention, 30
-navigation legs in total counting nine resolvable stops and a return leg per tour, with
-durations of \SIlist{667.6;670.4;822.3}{\second}. What reconciles the two observations is
-everything the bare client leaves out. The operational path checks control state, clears
-blocking navigation states, relocalizes when the robot reports itself unlocalized or below the
-\SI{60}{\percent} confidence gate, and declines to issue a goal if those conditions are not met.
-The bare client does none of this and fires into the void.
+Our first two campaigns recorded the annotation route failing outright: no state transition at
+all, in every trial, against a coordinate route that always succeeded. Read at face value this
+inverts H3. It also contradicted daily operation, where the annotation route is the one that
+works. Rather than report the contradiction we introspected the interface, and the discrepancy
+dissolved. The service our client called does not exist on this firmware: none of the
+\num{321} services the chassis advertises carries that name, and asking \rosapi{} for its type
+returns an empty string. The fallback service does exist, but we had been calling it with three
+argument names, none of which was the single field it declares. We had measured a malformed call
+to an absent service, not a navigation strategy.
 
-We therefore do not claim H3 in the form we stated it. What the evidence supports is broader and
-more useful: what decides the outcome is not how the goal is addressed, but whether the
-preconditions the vendor application sets implicitly have been re-established explicitly.
-Annotation reuse is still the right operational choice, because it avoids the drift between
-offline coordinates and the live map, but its reliability belongs to the preparation sequence
-rather than to the addressing scheme. Two explanations remain consistent with the bench failure,
-an unmet precondition or a target name the marker manager did not resolve in that session, and
-we could not separate them with the instrumentation we had.
+With the call corrected to the introspected signature, the comparison is unambiguous
+(Fig.~\ref{fig:results}\,(a)). Both arms navigated to the same annotated target, from the same
+withdrawal point \SI{9.1}{\meter} away, with automatic mode set and telemetry subscribed.
+Coordinate goals succeeded in 10 of 10 trials, median \SI{47.0}{\second}; annotation goals
+succeeded in 10 of 10, median \SI{45.3}{\second}. Reliability does not separate the two
+(Fisher's exact test, two-sided, $p=1.00$) and neither does completion time (Mann--Whitney,
+two-sided, $p=0.76$).
+
+\textbf{H3 is therefore not supported}, and not for the reason the earlier data suggested.
+Annotation reuse is not more reliable than reconstructed coordinates; once the preconditions
+hold, both address the same planner equally well. This strengthens rather than weakens the
+paper's central claim. What decides the outcome is not how the goal is addressed but whether the
+preconditions the vendor application sets implicitly have been re-established explicitly, which
+is exactly what the field record of Section~\ref{sec:eval}-B shows at a larger scale. Annotation
+reuse remains preferable operationally, because it avoids drift between offline coordinates and
+the live map, but that is a maintenance argument rather than a reliability one.
+
+The episode also generalises. An interface recovered from outside misleads twice: once on the
+arguments one sends it, and once on the semantics of the replies one reads back. We met the
+second form immediately afterwards, in our own verification script, which watched a status topic
+whose numbering comes from the underlying planner's action interface rather than from the
+vendor's own state machine. The robot navigated correctly and the script reported nothing. On a
+reconstructed interface, a topic's name does not tell you which vocabulary it speaks, and the
+only remedy is the introspection that produced the correct call in the first place.
 
 \input{figures/fig-results}
 

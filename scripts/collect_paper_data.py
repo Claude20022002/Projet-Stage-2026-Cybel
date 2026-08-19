@@ -107,6 +107,19 @@ def _agent_debug_log(
 # Helpers WebSocket / rosbridge
 # ══════════════════════════════════════════════════════════════════════════════
 
+async def ainput(prompt: str = "") -> str:
+    """input() qui ne gèle pas la boucle asyncio.
+
+    Un input() classique dans du code async bloque la boucle d'événements :
+    pendant que l'opérateur positionne le robot, plus personne ne répond aux
+    pings du WebSocket, et rosbridge coupe la session au bout de ping_timeout.
+    Le symptôme observé était « no close frame received or sent » juste après
+    la reprise, avec une télémétrie vide (nav_status=-1). En déportant la
+    lecture clavier dans un thread, la boucle continue de tourner.
+    """
+    return await asyncio.to_thread(input, prompt)
+
+
 async def ws_send(ws, msg: dict) -> None:
     try:
         await ws.send(json.dumps(msg))
@@ -508,11 +521,21 @@ async def nav_s3_trial(
     idx: int,
     goal_xy: tuple[float, float] | None = None,
 ) -> dict:
-    print(f"    S3 essai {idx}: /tag_manager/navi '{poi_name}' ...", end=" ", flush=True)
+    print(f"    S3 essai {idx}: /poi '{poi_name}' ...", end=" ", flush=True)
 
+    # Signature établie par introspection le 2026-08-19 :
+    #   /rosapi/service_type("/poi")            -> yutong_assistance/poi
+    #   /rosapi/service_request_details(...)    -> un seul champ : poi (string)
+    # et /marker_manager/get_markers_brief renvoie les POI par NOM LISIBLE.
+    #
+    # Les versions antérieures appelaient /tag_manager/navi, qui n'existe pas
+    # sur ce firmware (absent des 321 services introspectés, type vide), puis
+    # /poi avec {name, point_name, command} — trois champs dont aucun n'est
+    # celui attendu. Les deux campagnes précédentes ont donc mesuré un appel
+    # malformé, pas la réutilisation des annotations.
+    #
     # Ne PAS utiliser ws_call : il monopolise ws.recv() et jette les messages
     # /navi_status qui arrivent pendant l'attente du service_response.
-    # On envoie en fire-and-forget, puis on écoute nav_status immédiatement.
     async def _fire(service: str, args: dict) -> None:
         req_id = f"call_{service.replace('/', '_')}_{int(time.time() * 1000)}"
         await ws_send(ws, {"op": "call_service", "id": req_id, "service": service, "args": args})
@@ -520,25 +543,8 @@ async def nav_s3_trial(
         await drain(ws, n=5, timeout=0.2)
 
     await drain(ws, n=20, timeout=0.15)
-    # Tentative 1 : nom lisible ("CNC ROUTEUR")
-    await _fire("/tag_manager/navi", {"name": poi_name, "tag_name": poi_name})
+    await _fire("/poi", {"poi": poi_name})
     code, elapsed = await wait_nav_done(ws, timeout=NAV_TIMEOUT, goal_xy=goal_xy)
-
-    if code == -1:
-        # Tentative 2 : ID interne du marqueur ("m1")
-        await cancel_nav_full(ws)
-        await _fire("/tag_manager/navi", {"name": poi_id, "tag_name": poi_id})
-        code2, elapsed2 = await wait_nav_done(ws, timeout=30.0, goal_xy=goal_xy)
-        elapsed += elapsed2
-        if code2 != -1:
-            code = code2
-        else:
-            # Tentative 3 : fallback /poi
-            await cancel_nav_full(ws)
-            await _fire("/poi", {"name": "navi", "point_name": poi_name, "command": "go"})
-            code3, elapsed3 = await wait_nav_done(ws, timeout=30.0, goal_xy=goal_xy)
-            elapsed += elapsed3
-            code = code3
 
     success = code == 603
     print(f"{'✓' if success else '✗'}  nav_status={code} ({elapsed:.1f}s)")
@@ -1238,10 +1244,15 @@ async def run_async(args) -> dict:
             )
         )
 
-    # Sauvegarde
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8")
+    # Sauvegarde — on FUSIONNE avec le fichier existant au lieu de l'écraser.
+    # Les phases se lancent une par une sur plusieurs heures : une écriture
+    # brutale ici effacerait les phases précédentes de la même campagne.
+    save_partial(metrics)
     print(f"\n✓  Résultats sauvegardés → {OUTPUT}")
+    merged = json.loads(OUTPUT.read_text(encoding="utf-8"))
+    known = [p for p in ("rosapi", "teleop", "nav", "tts", "tour")
+             if any(k.startswith(p if p != "rosapi" else "ros_") for k in merged)]
+    print(f"   Phases présentes dans le fichier : {', '.join(known) or '(aucune)'}")
 
     print_paper_summary(metrics)
     return metrics

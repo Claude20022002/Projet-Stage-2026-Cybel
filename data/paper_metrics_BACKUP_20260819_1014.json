@@ -1,0 +1,31 @@
+{
+  "collected_at": "2026-07-23T12:59:57.609300",
+  "robot_host": "192.168.20.22",
+  "backend_host": "127.0.0.1",
+  "backend_port": 18001,
+  "phases_run": [
+    "tour"
+  ],
+  "tour_trials": 3,
+  "tour_successes": 3,
+  "tour_completion_rate_pct": 100.0,
+  "tour_results": [
+    {
+      "success": true,
+      "elapsed_s": 667.6,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 822.3,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 670.4,
+      "error": null
+    }
+  ],
+  "tour_session_duration_h": 0.6,
+  "tour_backend_url": "http://127.0.0.1:18001"
+}

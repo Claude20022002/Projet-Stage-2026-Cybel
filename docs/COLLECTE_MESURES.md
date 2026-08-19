@@ -79,7 +79,40 @@ la cause.
 
 ---
 
-## 3. Ordre recommandé et sauvegardes
+## 3. Préparer la session
+
+Trois étapes avant toute mesure, dans cet ordre.
+
+**a. Brancher la tablette et vérifier qu'ADB la voit.**
+
+```bash
+adb devices          # doit lister un appareil en "device", pas "unauthorized"
+```
+
+**b. Démarrer le backend et ouvrir la redirection de port.**
+
+```powershell
+.\scripts\kiosk_test.ps1 demarrer     # backend 8001 + adb forward
+.\scripts\kiosk_test.ps1 status       # doit répondre health OK
+```
+
+Si le backend tourne déjà mais répond mal : `.\scripts\kiosk_test.ps1 reparer`.
+
+**c. Contrôler l'état du robot avant de lancer quoi que ce soit.**
+
+```powershell
+.\scripts\preflight_labo.ps1 -TabletHost <IP_tablette> -Target test
+```
+
+Il enchaîne ping robot et tablette, synchronisation POI à blanc, et santé HTTP. Un préflight au
+rouge signifie qu'une mesure lancée maintenant sera perdue.
+
+Vérifiez enfin que le wake lock est bien pris (§1) : c'est le message
+« Wake lock acquis » à l'écran au démarrage du backend.
+
+---
+
+## 4. Ordre recommandé et sauvegardes
 
 Les phases courtes d'abord : si la session tourne court, l'essentiel est acquis.
 
@@ -116,7 +149,7 @@ python scripts/measure_voice_latency.py
 
 ---
 
-## 4. Quel `--host` utiliser
+## 5. Quel `--host` utiliser
 
 Deux chemins mènent au robot, et ils ne servent pas la même chose.
 
@@ -138,14 +171,14 @@ python scripts/collect_paper_data.py --phase tour --tour-trials 10 \
 
 ---
 
-## 5. Diagnostic
+## 6. Diagnostic
 
 | Symptôme | Cause probable | Remède |
 |---|---|---|
 | Coupures après quelques minutes, surtout écran éteint | Termux suspendu par Android | Wake lock, §1 |
 | `Backend CYBEL injoignable` au démarrage | backend arrêté, ou mauvais port | `bash scripts/termux/start_cybel_test.sh`, vérifier 8001 contre 8000 |
 | `[WARN] Statut illisible` par intermittence | Wi-Fi instable | Sans gravité : le script tolère 3 min avant d'abandonner |
-| `Impossible de se connecter` sur rosbridge | mauvais `--host`, ou robot éteint | Essayer les deux adresses du §4 |
+| `Impossible de se connecter` sur rosbridge | mauvais `--host`, ou robot éteint | Essayer les deux adresses du §5 |
 | Robot non localisé à chaque essai | carte perdue, ou dérive | Relocaliser depuis la tablette, attendre ≥ 60 % |
 | Visite qui démarre puis reste bloquée | POI absent de la carte | Vérifier que les POI du parcours existent dans l'application constructeur |
 
@@ -153,7 +186,7 @@ Journal du backend, sur la tablette : `~/cybel-test-uvicorn.log`.
 
 ---
 
-## 6. Après la campagne
+## 7. Après la campagne
 
 ```bash
 python paper/icra_2027/tools/stats.py     # recalcule tous les intervalles

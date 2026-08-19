@@ -19,6 +19,14 @@ the interface reports success in exactly the same way whether or not the machine
 field record puts this as starkly as we could have wished. The outcome was settled by a state
 field, and not at all by the command variant we had spent weeks trying to tell apart.
 
+The same discipline has to be turned on the measuring apparatus, and this is where we were
+slowest to learn. Two of our campaigns recorded a navigation strategy failing when in fact our
+client was calling a service the firmware never exposed, and a later verification script watched
+a status topic whose numbering belongs to the underlying planner rather than to the vendor. In
+both cases the transport reported nothing wrong. An integrator who trusts a recovered interface
+without introspecting it will not merely write faulty control code; they will collect faulty
+evidence about it, and publish it.
+
 From this follows a design rule, and the rule has a price. Pair every command with an
 independent observation of its effect, and re-establish explicitly every precondition the vendor
 application sets implicitly. That preparation sequence is what separates a working integration

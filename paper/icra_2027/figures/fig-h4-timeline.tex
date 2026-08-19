@@ -1,7 +1,12 @@
 % Fig. 4 — H4 timeline. Used by sections/06-evaluation.
-% Three lanes: the transport view (identical in both cases), an unprepared
-% command path, a prepared one. Timings come from the bench comparison
-% (n = 3 per arm) recovered from git commit 08bfc34; see review/REPONSE.md.
+% Three lanes: the transport view (identical in both cases), a command that is
+% accepted but never executed, and one that is.
+%
+% The lower two lanes are drawn from the FIELD record (17 logged commands,
+% Section VI-B), not from the bench comparison. The 150 s abort shown in
+% earlier revisions came from a malformed call to an absent service and was
+% withdrawn on 2026-08-19; see review/CAMPAGNE_2026-08-19.md. Do not
+% reintroduce a timing here that no longer has a measurement behind it.
 % \L is the lane length; move the marker x-coordinates together if you change it.
 \begin{figure}[!t]
 \centering
@@ -18,15 +23,14 @@
     {acknowledgment --- identical whether or not the robot moves};
   % --- lane B : unprepared path ------------------------------------------
   \draw[->] (0,1.1) -- (\L,1.1);
-  \node[left, align=right] at (-0.1,1.1) {Unprepared\\path};
+  \node[left, align=right] at (-0.1,1.1) {Accepted,\\not executed};
   \draw[dashed, gray] (1.25,1.0) -- (1.25,1.2);
   \node[font=\tiny, align=center] at (3.6,0.75) {no state transition, pose unchanged};
   \draw[decorate, decoration={brace, amplitude=3pt}] (1.25,1.25) -- (6.4,1.25);
-  \node[draw, fill=red!15, rounded corners=1.5pt, font=\tiny] at (6.9,1.1) {abort};
-  \node[font=\tiny] at (6.9,0.75) {\SI{150}{\second}};
+  \node[draw, fill=red!15, rounded corners=1.5pt, font=\tiny] at (6.9,1.1) {give up};
   % --- lane C : prepared path --------------------------------------------
   \draw[->] (0,-0.1) -- (\L,-0.1);
-  \node[left, align=right] at (-0.1,-0.1) {Prepared\\path};
+  \node[left, align=right] at (-0.1,-0.1) {Accepted\\and executed};
   \fill[green!45!black] (1.35,-0.25) rectangle (1.55,0.05);
   \node[above, font=\tiny] at (1.45,0.08) {ready};
   \fill[green!45!black] (1.95,-0.25) rectangle (2.15,0.05);
@@ -39,7 +43,7 @@
 \end{tikzpicture}%
 }
 \caption{The transport lane is identical whether or not the command executes. Only an
-independent state topic distinguishes the two lower cases. Timings from the bench comparison of
-Section~\ref{sec:eval}-C ($n=3$ per arm).}
+independent state topic distinguishes the two lower cases. Drawn from the field record of
+Section~\ref{sec:eval}-B, where all ten failures were acknowledged and none moved the robot.}
 \label{fig:h4}
 \end{figure}

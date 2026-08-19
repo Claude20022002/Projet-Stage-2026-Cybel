@@ -22,10 +22,12 @@ discovery. A transport-level acknowledgment says nothing about whether the machi
 \num{17} logged field commands, what separated success from failure was the localization state
 the robot reported: all ten failures occurred while it reported itself unlocalized, and all
 seven successes while it reported navigating. How the goal was addressed made no difference at
-all. A controlled bench comparison shows the same asymmetry between an unprepared and a
-prepared command path. We report field indicators with confidence intervals, a capability
-comparison against the vendor application, and the conditions under which each hypothesis
-should transfer to other closed platforms.
+all, and a controlled bench comparison confirms it: two addressing schemes we expected to differ
+succeed equally often ($p=1.00$) in equal time ($p=0.76$) once the preconditions hold. Reaching
+that conclusion first required correcting our own instrumentation, which had been calling a
+service the firmware does not expose. We report field indicators with confidence intervals, a
+capability comparison against the vendor application, and the conditions under which each
+hypothesis should transfer to other closed platforms.
 \end{abstract}
 
 \begin{IEEEkeywords}

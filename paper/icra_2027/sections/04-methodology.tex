@@ -42,7 +42,7 @@ them misses.
 
 Table~\ref{tab:phases} gives, for each phase, the evidence it produces, the hypothesis it bears
 on, and the condition under which we stopped. The stopping criteria are not a formality. With
-455 topics on the wire, an exploration without them simply does not converge.
+several hundred topics on the wire, an exploration without them simply does not converge.
 
 \input{tables/tab-phases}
 
@@ -53,10 +53,12 @@ path of H2. Each one closed a branch of the search, which is worth as much as an
 We report the cost of the method because a procedure nobody can budget for is of little use to
 anyone else. Phases~1--6 took two weeks and phase~7 a further week, spread over eight sessions
 with the physical robot and carried out by one full-time engineer. We decompiled two
-applications; introspection returned \num{455} topics and \num{308} services, a count taken from
-session logs rather than from an archived inventory. The exploration scripts, the recovered
-interface description and the logs behind the navigation, guided-tour, speech-bridge and
-question-matching results are released with this paper~\cite{cybel2026}. The remaining
-indicators in Table~\ref{tab:metrics} are readings noted during field campaigns for which we
-kept no machine-readable log, and we mark them as such rather than implying an archive that does
-not exist.
+applications; a full introspection archived at the end of the study enumerated \num{404} topics
+and \num{321} services. An earlier session had counted \num{455} and \num{308}, but we did not
+archive that inventory and cannot now say whether the difference reflects a genuinely
+state-dependent graph or an imprecise count. The stopping criterion for phase~2, a stable
+inventory across sessions, is therefore the one criterion in Table~\ref{tab:phases} we cannot
+claim to have verified. The exploration scripts, the recovered interface description and the
+logs behind every measured result reported here are released with this
+paper~\cite{cybel2026}; the two indicators in Table~\ref{tab:metrics} that carry no archived
+log are marked as such rather than implying an archive that does not exist.
