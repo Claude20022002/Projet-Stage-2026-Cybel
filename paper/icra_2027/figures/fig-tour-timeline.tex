@@ -15,14 +15,14 @@
   width=\columnwidth, height=5.0cm,
   xlabel={Days from first instrumented tour}, ylabel={Legs completed},
   label style={font=\scriptsize}, tick label style={font=\scriptsize},
-  xmin=-2, xmax=53, ymin=-0.6, ymax=10.4,
-  ytick={0,3,6,9}, xtick={0,10,20,30,40,50},
+  xmin=-2, xmax=63, ymin=-0.6, ymax=11.4,
+  ytick={0,3,6,9}, xtick={0,10,20,30,40,50,60},
   grid=major, grid style={gray!20},
   legend style={font=\tiny, at={(0.5,-0.32)}, anchor=north,
                 legend columns=3, draw=none, column sep=4pt},
 ]
   % frontiere : carte et annotations stabilisees
-  \draw[dashed, thick, draw=figdark] (axis cs:2.95,-0.6) -- (axis cs:2.95,10.4);
+  \draw[dashed, thick, draw=figdark] (axis cs:2.95,-0.6) -- (axis cs:2.95,11.4);
   \node[font=\tiny, text=figdark, anchor=west, align=left]
     at (axis cs:5.5,5.4) {map and annotations stable};
 
@@ -35,14 +35,20 @@
   \addlegendentry{stopped by operator}
 
   \addplot[only marks, mark=*, mark size=2.4pt, draw=green!45!black, fill=green!55!black]
-    coordinates {(3,9) (5,9) (6,9) (29,9) (29,9) (29,9) (29,9)};
+    % Les sessions d'un même jour sont légèrement décalées en x, sinon dix
+    % visites se superposent en un seul marqueur et la campagne disparaît.
+    coordinates {(3,9) (5,9) (6,9)
+                 (28.4,9) (28.8,9) (29.2,9) (29.6,9)
+                 (55.2,10) (55.8,10) (56.4,10) (57.0,10) (57.6,10)
+                 (58.2,10) (58.8,10) (59.4,10) (60.0,10) (60.6,10)};
   \addlegendentry{ran to completion}
 \end{axis}
 \end{tikzpicture}
-\caption{All \num{24} instrumented guided tours. To the left of the rule, while the map and its
+\caption{All \num{34} instrumented guided tours. To the left of the rule, while the map and its
 annotations were still being edited, one navigation leg in seven succeeded and no tour finished.
-To the right, \num{80} consecutive legs succeeded with no navigation failure, and seven tours ran
-end to end. Operator stops are not failures: every leg they had attempted had succeeded. The two
-late aborts ended on a speech failure, not a navigation one.}
+To the right, \num{180} consecutive legs succeeded with no navigation failure and 17 tours ran end
+to end, the last ten of them in one uninterrupted campaign. Operator stops are not failures: every
+leg they had attempted had succeeded. The two late aborts ended on a speech failure, not a
+navigation one.}
 \label{fig:tourtimeline}
 \end{figure}
