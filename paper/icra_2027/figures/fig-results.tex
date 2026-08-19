@@ -1,64 +1,104 @@
-% Fig. 6 — the paper's only data plot, full width. Used by sections/06-evaluation.
+% Fig. 6 — the paper's quantitative summary, full width, three panels.
+% Used by sections/06-evaluation.
 %
-% Panel (a): success rates with 95 % Wilson intervals. The table below holds
-%   v  = point estimate (%)
-%   lo = distance DOWN to the lower bound
-%   hi = distance UP to the upper bound
-% They are offsets, not absolute bounds. Recompute with tools/stats.py after
-% changing any count, and update tables/tab-metrics.tex to match.
+% Each panel exists to replace a paragraph, not to decorate one:
+%   (a) every success rate in the paper, with its interval, in one place;
+%   (b) the field record that carries H4;
+%   (c) why a single interaction-loop latency is meaningless.
 %
-% Panel (b): the field record, 17 commands, split by the state the robot
-%   reported. This is the strongest evidence in the paper; leave it uncluttered.
+% Panel (a): lo/hi are OFFSETS from the point estimate, not bounds.
+% Recompute with tools/stats.py after changing any count, and keep
+% tables/tab-metrics.tex in step.
+%
+% Panel (c): min / median / max per exchange kind, log scale because the
+% range spans three decades. Negative latencies (clock skew between the
+% recognition app and the backend) are excluded; see Limitations.
 \begin{figure*}[!t]
 \centering
 \begin{tikzpicture}
+
+% ---------------------------------------------------------------- (a) ----
 \begin{axis}[
-  name=ax1, width=0.47\textwidth, height=4.3cm,
-  ybar, bar width=13pt, ymin=0, ymax=115,
+  name=ax1, width=0.36\textwidth, height=4.3cm,
+  ybar, bar width=8pt, ymin=0, ymax=115,
   ylabel={Success rate (\%)}, ylabel style={font=\small},
-  symbolic x coords={Teleop.,Tours,Tour legs,Coord.,Annot.,Question},
+  symbolic x coords={Teleop.,Legs before,Legs after,Coord.,Annot.,Question},
   xtick=data,
   xticklabels={Teleop. (10),Legs before (7),Legs after (80),Coord. (10),Annot. (10),Question (48)},
-  x tick label style={font=\scriptsize, rotate=22, anchor=east},
+  x tick label style={font=\scriptsize, rotate=25, anchor=east},
   ytick={0,25,50,75,100}, tick label style={font=\scriptsize},
-  enlarge x limits=0.12, grid=major, grid style={gray!20},
-  title={(a) Outcomes with 95\,\% Wilson intervals ($n$ in brackets)},
-  title style={font=\small},
+  enlarge x limits=0.10, grid=major, grid style={gray!20},
+  title={(a) Outcomes, 95\,\% Wilson}, title style={font=\small},
 ]
 \addplot+[fill=blue!35, draw=blue!60!black,
   error bars/.cd, y dir=both, y explicit, error bar style={black}]
  table[x=k, y=v, y error minus=lo, y error plus=hi] {
-k            v     lo    hi
-Teleop.      100   27.8  0
-Tours        14.3  11.7  37.0
-{Tour legs}  100   4.6   0
-Coord.       100   27.8  0
-Annot.       100   27.8  0
-Question     56.2  14.0  13.0
+k              v     lo    hi
+Teleop.        100   27.8  0
+{Legs before}  14.3  11.7  37.0
+{Legs after}   100   4.6   0
+Coord.         100   27.8  0
+Annot.         100   27.8  0
+Question       56.2  14.0  13.0
 };
 \end{axis}
+
+% ---------------------------------------------------------------- (b) ----
 \begin{axis}[
-  at={(ax1.right of south east)}, xshift=1.5cm, anchor=left of south west,
-  width=0.47\textwidth, height=4.3cm,
-  ybar stacked, bar width=26pt, ymin=0, ymax=12,
+  at={(ax1.right of south east)}, xshift=1.15cm, anchor=left of south west,
+  width=0.30\textwidth, height=4.3cm,
+  ybar stacked, bar width=22pt, ymin=0, ymax=12,
   ylabel={Field commands}, ylabel style={font=\small},
-  symbolic x coords={Reported unlocalized,Reported navigating},
+  symbolic x coords={Unlocalized,Navigating},
   xtick=data, x tick label style={font=\scriptsize},
-  tick label style={font=\scriptsize}, enlarge x limits=0.45,
+  tick label style={font=\scriptsize}, enlarge x limits=0.5,
   grid=major, grid style={gray!20},
-  title={(b) Field outcome by reported state ($n=17$)}, title style={font=\small},
-  legend style={font=\scriptsize, at={(0.5,-0.34)}, anchor=north, legend columns=2, draw=none},
+  title={(b) Field outcome by reported state ($n{=}17$)}, title style={font=\small},
+  legend style={font=\scriptsize, at={(0.5,-0.30)}, anchor=north, legend columns=2, draw=none},
 ]
-\addplot+[fill=red!45, draw=red!60!black] coordinates {(Reported unlocalized,10) (Reported navigating,0)};
-\addplot+[fill=green!45, draw=green!45!black] coordinates {(Reported unlocalized,0) (Reported navigating,7)};
+\addplot+[fill=red!45, draw=red!60!black]     coordinates {(Unlocalized,10) (Navigating,0)};
+\addplot+[fill=green!45, draw=green!45!black] coordinates {(Unlocalized,0)  (Navigating,7)};
 \legend{failed, succeeded}
 \end{axis}
+
+% ---------------------------------------------------------------- (c) ----
+\begin{axis}[
+  at={(ax1.right of south east)}, xshift=7.2cm, anchor=left of south west,
+  width=0.30\textwidth, height=4.3cm,
+  ymode=log, ymin=0.05, ymax=400,
+  ylabel={Loop latency (s)}, ylabel style={font=\small},
+  symbolic x coords={FAQ,Unknown,Action,FAQ+nav,Nav},
+  xtick=data, x tick label style={font=\scriptsize, rotate=25, anchor=east},
+  tick label style={font=\scriptsize}, enlarge x limits=0.14,
+  grid=major, grid style={gray!20},
+  title={(c) Interaction loop, by exchange kind}, title style={font=\small},
+]
+% barres verticales min--max, avec la mediane en marqueur
+\addplot+[only marks, mark=-, mark size=5pt, draw=figdark, thick,
+  error bars/.cd, y dir=both, y explicit, error bar style={draw=figdark}]
+ table[x=k, y=med, y error minus=dn, y error plus=up] {
+k          med     dn      up
+FAQ        1.30    0.10    5.46
+Unknown    2.57    1.61    7.05
+Action     3.26    3.17    174.85
+{FAQ+nav}  21.96   4.58    2.57
+Nav        24.47   12.92   110.89
+};
+\draw[dashed, draw=gray!70] ({rel axis cs:0,0}|-{axis cs:FAQ,10})
+                         -- ({rel axis cs:1,0}|-{axis cs:Nav,10});
+\node[font=\tiny, text=gray!60!black, anchor=south east]
+  at ({rel axis cs:1,0}|-{axis cs:Nav,10}) {\SI{10}{\second}};
+\end{axis}
+
 \end{tikzpicture}
-\caption{(a)~Measured outcomes. The two leftmost tour bars contrast guided-tour legs before and
-after the map and its annotations stopped changing, the single largest effect we measured. The
-two arms of the bench comparison are indistinguishable: identical success rates ($p=1.00$) and
-overlapping completion times ($p=0.76$). (b)~In the field record, reported localization state
-separates success from failure perfectly, and the addressing scheme does not separate them at
-all.}
+\caption{(a)~Every success rate reported in this paper, with its interval. The two leftmost tour
+bars contrast guided-tour legs before and after the map and its annotations stopped changing, the
+largest effect we measured; the coordinate and annotation arms of the bench comparison are
+indistinguishable ($p=1.00$). (b)~In the field record, the state the robot reports separates
+success from failure perfectly, while the addressing scheme does not separate them at all.
+(c)~Median and range of the interaction loop per exchange kind, log scale. Exchanges that only
+look up an answer sit below \SI{10}{\second}; those that also move the robot sit above it,
+because the preparation sequence runs inside the loop. A single pooled latency would describe
+neither group.}
 \label{fig:results}
 \end{figure*}

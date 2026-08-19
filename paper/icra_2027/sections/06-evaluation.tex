@@ -56,40 +56,27 @@ been acknowledged.
 
 \input{figures/fig-vendor-map}
 
-Goal annotations are created in the vendor deployment application (Fig.~\ref{fig:vendormap})
-and resolved by the chassis marker manager. Testing H3 took us three attempts, and the two
-failed ones are the more instructive.
+Testing H3 took three attempts, and the two failed ones are the more instructive. Our first two
+campaigns recorded the annotation route failing in every trial against a coordinate route that
+always succeeded, which inverts H3 and also contradicted daily operation. Introspection dissolved
+the contradiction: the service our client called does not exist on this firmware, and the
+fallback we then tried declares one argument, whose name matched none of the three we were
+sending. We had measured a malformed call to an absent service, not a navigation strategy.
 
-Our first two campaigns recorded the annotation route failing outright, in every trial, against a
-coordinate route that always succeeded. Read at face value this inverts H3, and it also
-contradicted daily operation, where the annotation route is the one that works. Introspection
-dissolved the contradiction: the service our client called does not exist on this firmware, none
-of the \num{321} advertised services carries that name, and the fallback service we then tried
-declares a single argument, none of whose name matched the three we were sending. We had
-measured a malformed call to an absent service, not a navigation strategy.
+With the call corrected, the comparison is unambiguous (Fig.~\ref{fig:results}\,(a)). Both arms
+navigated to the same annotated target from a withdrawal point \SI{9.1}{\meter} away, automatic
+mode set and telemetry subscribed. Coordinate goals succeeded 10 times out of 10, median
+\SI{47.0}{\second}; annotation goals 10 out of 10, median \SI{45.3}{\second}. Neither reliability
+(Fisher, $p=1.00$) nor completion time (Mann--Whitney, $p=0.76$) separates them.
 
-With the call corrected to the introspected signature, the comparison is unambiguous
-(Fig.~\ref{fig:results}\,(a)). Both arms navigated to the same annotated target, from the same
-withdrawal point \SI{9.1}{\meter} away, with automatic mode set and telemetry subscribed.
-Coordinate goals succeeded in 10 of 10 trials, median \SI{47.0}{\second}; annotation goals
-succeeded in 10 of 10, median \SI{45.3}{\second}. Reliability does not separate the two
-(Fisher's exact test, two-sided, $p=1.00$) and neither does completion time (Mann--Whitney,
-two-sided, $p=0.76$).
-
-\textbf{H3 is therefore not supported}, and not for the reason the earlier data suggested.
-Annotation reuse is not more reliable than reconstructed coordinates; once the preconditions
-hold, both address the same planner equally well. This strengthens rather than weakens the
-paper's central claim. What decides the outcome is not how the goal is addressed but whether the
-preconditions the vendor application sets implicitly have been re-established explicitly, which
-is exactly what the field record of Section~\ref{sec:eval}-B shows at a larger scale. Annotation
-reuse remains preferable operationally, because it avoids drift between offline coordinates and
-the live map, but that is a maintenance argument rather than a reliability one.
-
-We met the mirror image of the same trap immediately afterwards, in our own verification script,
-which watched a status topic whose numbering comes from the underlying planner rather than from
-the vendor's state machine: the robot navigated correctly and the script saw nothing. A recovered
-interface misleads on the arguments one sends it and on the semantics of the replies one reads
-back (Section~\ref{sec:discussion}-A).
+\textbf{H3 is therefore not supported}, and not for the reason the earlier data suggested:
+annotation reuse is not more reliable, because once the preconditions hold both schemes address
+the same planner equally well. This strengthens the paper's central claim rather than weakening
+it. Reuse remains preferable operationally, since it avoids drift between offline coordinates and
+the live map, but that is a maintenance argument, not a reliability one. We met the mirror image
+of the same trap immediately afterwards, in our own verification script, which watched a status
+topic numbered by the underlying planner rather than by the vendor: the robot navigated correctly
+and the script saw nothing (Section~\ref{sec:discussion}-A).
 
 \input{figures/fig-results}
 
@@ -99,18 +86,16 @@ Table~\ref{tab:metrics} collects the measured indicators. We took none of them f
 sake, so the table states what each one is meant to settle; an indicator that settles nothing is
 padding, and we have left several such figures out.
 
-Guided-tour operation is the longest-running of them: \num{24} instrumented tours over seven
-weeks, dividing sharply at the point where the map and its annotations stopped changing. Before
-that, one leg in seven succeeded and no tour finished. After it, \num{80} consecutive legs
-succeeded with no navigation failure at all, and seven tours ran end to end, median
-\SI{10.8}{\minute}. Of the ten later sessions that did not finish, eight were stopped by the
-operator with every attempted leg successful, and two aborted on a speech failure rather than a
-navigation one. Legs within a tour are not independent, so the leg-level interval is the
-optimistic reading. That the only remaining abort mode is speech deserves note: the capability we
-had to recover outside the protocol (Section~\ref{sec:platform}-C) is the one that now fails the
-whole task when it fails.
+Guided-tour operation is the longest-running of them, and Fig.~\ref{fig:tourtimeline} reports all
+\num{24} instrumented sessions rather than the handful that succeeded. Completed tours have a
+median duration of \SI{10.8}{\minute}. Legs within a tour are not independent, so the leg-level
+interval is the optimistic reading. Two things in that figure are worth saying out loud: the
+decisive variable is the stability of the map artifacts rather than anything in our stack, and
+the only abort mode that survives to the right of the rule is speech, which is precisely the
+capability we had to recover outside the protocol (Section~\ref{sec:platform}-C).
 
 \input{tables/tab-metrics}
+\input{figures/fig-tour-timeline}
 
 Two negative results deserve as much visibility as the positive ones. On a controlled set of 12
 questions with four paraphrases each, question matching succeeded in 27 of 48 trials
