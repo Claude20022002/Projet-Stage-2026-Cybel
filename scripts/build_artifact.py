@@ -55,6 +55,9 @@ MANIFEST: list[tuple[str, str]] = [
     ("data/points.json",                  "data/points.json"),
     ("data/lab_tour.json",                "data/lab_tour.json"),
     ("data/hestim_knowledge_base.json",   "data/knowledge_base.json"),
+    # Presentation de l'artefact, redigee a la main et versionnee cote source :
+    # le dossier de sortie est efface a chaque construction.
+    ("paper/icra_2027/artifact/README.md", "README.md"),
 ]
 
 LOG_DIRS = [("data/logs/voice", "data/logs/voice"),
@@ -158,12 +161,6 @@ def main() -> int:
             continue
         for f in sorted(src_dir.glob("*.log")):
             copy_file(f, out / rel_dst / f.name, counters)
-
-    # README : conserve entre deux constructions s'il existe deja, car il est
-    # ecrit a la main et le script n'a aucun moyen de le regenerer.
-    readme_src = out / "README.md"
-    if not readme_src.exists():
-        print("  NOTE  README.md absent — a rediger avant publication")
 
     # Paquet sdk minimal : le __init__ du dépôt de travail tire tout le SDK.
     (out / "sdk" / "__init__.py").write_text(
