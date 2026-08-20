@@ -121,8 +121,14 @@ def verify(out: Path) -> list[str]:
     for path in sorted(out.rglob("*")):
         if not path.is_file():
             continue
+        if path.suffix in {".pyc", ".pyo"} or "__pycache__" in path.parts:
+            hits.append(f"{path.relative_to(out)}: bytecode compilé — "
+                        f"contient le chemin source absolu, donc l'utilisateur")
+            continue
         try:
-            text = path.read_text(encoding="utf-8", errors="replace")
+            # latin1 ne rejette aucun octet : on inspecte aussi les binaires,
+            # où un chemin absolu se lit tout aussi bien que dans du texte.
+            text = path.read_bytes().decode("latin1")
         except OSError:
             continue
         for n, line in enumerate(text.splitlines(), 1):
@@ -161,6 +167,15 @@ def main() -> int:
             continue
         for f in sorted(src_dir.glob("*.log")):
             copy_file(f, out / rel_dst / f.name, counters)
+
+    # .gitignore : un simple import cree des __pycache__, et les .pyc portent
+    # le chemin absolu du fichier source — donc le nom d'utilisateur.
+    (out / ".gitignore").write_text(
+        "__pycache__/
+*.py[cod]
+.venv/
+", encoding="utf-8")
+    counters["copied"] += 1
 
     # Paquet sdk minimal : le __init__ du dépôt de travail tire tout le SDK.
     (out / "sdk" / "__init__.py").write_text(
