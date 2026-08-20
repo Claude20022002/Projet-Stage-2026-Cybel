@@ -159,6 +159,12 @@ def main() -> int:
         for f in sorted(src_dir.glob("*.log")):
             copy_file(f, out / rel_dst / f.name, counters)
 
+    # README : conserve entre deux constructions s'il existe deja, car il est
+    # ecrit a la main et le script n'a aucun moyen de le regenerer.
+    readme_src = out / "README.md"
+    if not readme_src.exists():
+        print("  NOTE  README.md absent — a rediger avant publication")
+
     # Paquet sdk minimal : le __init__ du dépôt de travail tire tout le SDK.
     (out / "sdk" / "__init__.py").write_text(
         '"""Subset of the robot SDK needed to reproduce the results in this repository."""\n',
