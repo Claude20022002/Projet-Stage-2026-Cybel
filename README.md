@@ -1,4 +1,4 @@
-# CYBEL: Plateforme de commande pour le robot de réception CIOT TY1251D-03195
+# CYBEL: Plateforme de commande pour le robot de réception
 
 Reverse-engineering non destructif d'un robot de réception commercial fermé (châssis ROS +
 tête Android), puis reconstruction d'une plateforme ouverte offrant les mêmes fonctionnalités
