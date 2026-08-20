@@ -171,10 +171,7 @@ def main() -> int:
     # .gitignore : un simple import cree des __pycache__, et les .pyc portent
     # le chemin absolu du fichier source — donc le nom d'utilisateur.
     (out / ".gitignore").write_text(
-        "__pycache__/
-*.py[cod]
-.venv/
-", encoding="utf-8")
+        "\n".join(["__pycache__/", "*.py[cod]", ".venv/", ""]), encoding="utf-8")
     counters["copied"] += 1
 
     # Paquet sdk minimal : le __init__ du dépôt de travail tire tout le SDK.
