@@ -1,4 +1,4 @@
-# CYBEL — Plateforme de commande pour le robot de réception CIOT TY1251D-03195
+# CYBEL: Plateforme de commande pour le robot de réception
 
 Reverse-engineering non destructif d'un robot de réception commercial fermé (châssis ROS +
 tête Android), puis reconstruction d'une plateforme ouverte offrant les mêmes fonctionnalités
@@ -82,12 +82,12 @@ Procédure détaillée, pas à pas : **[docs/labo/DEMARRAGE_ET_DEPANNAGE.md](doc
 
 Résumé de l'ordre de démarrage habituel sur la tête Android du robot :
 
-1. **Deployment Tool** (app constructeur) — vérifier que le châssis répond.
-2. **Termux** — démarre le backend embarqué (`.\scripts\kiosk_test.ps1 demarrer` depuis le PC,
+1. **Deployment Tool** (app constructeur) - vérifier que le châssis répond.
+2. **Termux** - démarre le backend embarqué (`.\scripts\kiosk_test.ps1 demarrer` depuis le PC,
    ou automatique si déjà configuré au démarrage).
-3. **CYBEL Accueil** — lancer l'app kiosque visiteur.
+3. **CYBEL Accueil** - lancer l'app kiosque visiteur.
 4. Si le robot ne semble pas localisé (`nav_status` bloqué, ne bouge pas alors que l'app dit
-   que ça a marché) : **relocaliser depuis Deployment Tool**, pas depuis l'app CYBEL — voir
+   que ça a marché) : **relocaliser depuis Deployment Tool**, pas depuis l'app CYBEL - voir
    [dépannage](#dépannage-rapide) ci-dessous.
 
 ```powershell
@@ -106,10 +106,10 @@ Guide complet avec arbre de décision : **[docs/labo/DEMARRAGE_ET_DEPANNAGE.md](
 |----------|----------------|--------|
 | « Backend ne répond pas » dans l'app | Le moteur web (port 8001) est arrêté | `.\scripts\kiosk_test.ps1 redemarrer` |
 | Toujours en panne après redémarrage | Dépendances Python manquantes sur la tablette | `.\scripts\kiosk_test.ps1 reparer` puis `demarrer` |
-| L'app dit "succès" mais le robot ne bouge pas (navigation, retour borne, relocalisation) | `nav_status` bloqué sur un code inhabituel | **Ouvrir Deployment Tool** et relocaliser/déplacer manuellement — méthode fiable confirmée en direct |
+| L'app dit "succès" mais le robot ne bouge pas (navigation, retour borne, relocalisation) | `nav_status` bloqué sur un code inhabituel | **Ouvrir Deployment Tool** et relocaliser/déplacer manuellement - méthode fiable confirmée en direct |
 | Le kiosque garde l'ancienne interface après une mise à jour | La WebView garde l'ancien code en mémoire | Forcer l'arrêt de l'app puis la relancer (pas juste redémarrer le backend) |
 | Tunnel `adb forward` mort après avoir débranché/rebranché l'USB | Le tunnel ne survit pas à une reconnexion | Relancer `adb forward tcp:18001 tcp:8001` (`kiosk_test.ps1` le refait automatiquement) |
-| Robot mal prononcé en anglais | — (corrigé) | Locale TTS fr/en désormais correcte de bout en bout |
+| Robot mal prononcé en anglais | - (corrigé) | Locale TTS fr/en désormais correcte de bout en bout |
 | Aucune tablette détectée en USB | Câble ou autorisation débogage | Rebrancher, accepter "Débogage USB" sur la tablette |
 
 ---
@@ -173,4 +173,4 @@ robot, conception, rapport de stage). Points d'entrée fréquents :
 
 ---
 
-_Projet CYBEL — Robot CIOT TY1251D-03195 — HESTIM_
+_Projet CYBEL: Robot
