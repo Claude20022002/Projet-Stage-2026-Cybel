@@ -69,9 +69,13 @@ operator interface. Only embedding vectors leave the head. No image is stored or
 
 \subsection{Limitations}
 
-The evaluation is where this work is weakest. Our samples are small and the intervals in
-Table~\ref{tab:metrics} are wide to match; the bench comparison in particular cannot support a
-claim of difference at $n=3$ per arm, and we do not make one. We never instrumented
+The evaluation is uneven. Some samples are substantial, notably the \num{180} guided-tour legs;
+others are thin, and the intervals in Table~\ref{tab:metrics} are wide to match. The bench
+comparison needs care in particular. Ten trials per arm are enough to exclude a large difference
+between the two addressing schemes, and we found none, but they cannot exclude a small one: at
+this size the data are equally consistent with the two routes being identical and with one of
+them failing a few percent of the time. We claim only the former is not contradicted, not that
+equivalence is established. We never instrumented
 session-level connection reliability, so we describe the reconnection mechanism instead of
 quoting a figure we cannot stand behind. The vendor comparison covers capabilities, not measured
 task performance. H1 was confirmed in one direction only: observed names do appear in the
