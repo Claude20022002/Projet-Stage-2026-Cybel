@@ -65,11 +65,10 @@ where the capability has to be picked up instead.
 
 \subsection{Interaction layer}
 
-Visitor interaction runs entirely on the head. We abandoned free dictation early: a compact
-offline model holds no pronunciation for the proper nouns that matter on a campus, and it
-transcribed them unreliably in front of visitors. Recognition now works from a closed vocabulary
-rebuilt at request time out of the deployed annotations and the question set. The same
-limitation caught us again with the wake phrase. Built from the platform's invented name, it was
-consistently decoded as an unrelated word the model did in fact know; replacing it with a
-phonetically close phrase made of real words solved the problem. Face re-identification runs on
-the head at roughly \SI{1}{\hertz} and sends only embedding vectors, never images.
+Visitor interaction runs entirely on the head. We abandoned free dictation early, because a
+compact offline model has no pronunciation for the proper nouns that matter on a campus;
+recognition now works from a closed vocabulary rebuilt at request time from the deployed
+annotations and the question set. The same limitation caught the wake phrase, built from the
+platform's invented name and consistently decoded as an unrelated word the model did know, until
+we replaced it with a phonetically close phrase of real words. Face re-identification runs at
+roughly \SI{1}{\hertz} and sends embedding vectors only, never images.
