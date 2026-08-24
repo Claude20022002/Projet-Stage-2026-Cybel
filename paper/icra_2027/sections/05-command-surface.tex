@@ -35,8 +35,7 @@ The reconstructed platform is edge-first by necessity, since the robot's network
 guaranteed Internet path. A domain layer hides the robot behind one interface with two
 implementations, simulated and real. This let us exercise the logic under 169 unit tests without
 the physical machine, and it kept ordinary software defects separate from genuine protocol
-uncertainty, which during field sessions was the difference between a productive afternoon and a
-wasted one. Above it, an application layer exposes REST and WebSocket endpoints and runs either
+uncertainty. Above it, an application layer exposes REST and WebSocket endpoints and runs either
 on a development machine or on the Android head, so a visitor session needs no external
 computer. A presentation layer serves the visitor interface of Fig.~\ref{fig:robot} and the
 operator console.
