@@ -55,7 +55,7 @@ C.~Crick, G.~Jay, S.~Osentoski, B.~Pitzer, and O.~C. Jenkins, ``Rosbridge:
 
 \bibitem{rosbridge_suite}
 {Open Source Robotics Foundation}, ``rosbridge\_suite,''
-  \url{http://wiki.ros.org/rosbridge_suite}, {ROS} Wiki, accessed 2026.
+  \url{http://wiki.ros.org/rosbridge_suite}, {ROS} Wiki.
 
 \bibitem{demarinis2019scanning}
 N.~DeMarinis, S.~Tellex, V.~P. Kemerlis, G.~Konidaris, and R.~Fonseca,
@@ -99,7 +99,7 @@ P.~Warden, ``Speech commands: A dataset for limited-vocabulary speech
 
 \bibitem{vosk}
 {Alpha Cephei}, ``{Vosk}: Offline open-source speech recognition toolkit,''
-  \url{https://alphacephei.com/vosk/}, accessed 2026.
+  \url{https://alphacephei.com/vosk/}.
 
 \bibitem{schroff2015facenet}
 F.~Schroff, D.~Kalenichenko, and J.~Philbin, ``{FaceNet}: A unified embedding

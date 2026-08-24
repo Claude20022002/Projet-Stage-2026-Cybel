@@ -27,15 +27,13 @@ both cases the transport reported nothing wrong. An integrator who trusts a reco
 without introspecting it will not merely write faulty control code; they will collect faulty
 evidence about it, and publish it.
 
-From this follows a design rule, and the rule has a price. Pair every command with an
-independent observation of its effect, and re-establish explicitly every precondition the vendor
-application sets implicitly. That preparation sequence is what separates a working integration
-from a bench script that reports success and moves nothing. It is also not free. We had a
-standing complaint that the robot felt sluggish, and traced it to preparation steps being issued
-unconditionally on every command, which added two round trips and a fixed delay even when
-telemetry already confirmed the required state. Skipping them once the state is confirmed is the
-same discipline read backwards: do not re-issue a command whose effect the telemetry is already
-reporting.
+From this follows a design rule with a price. Pair every command with an independent observation
+of its effect, and re-establish explicitly every precondition the vendor application sets
+implicitly: that sequence is what separates a working integration from a bench script reporting
+success while nothing moves. It is not free. A standing complaint that the robot felt sluggish
+traced to preparation steps issued unconditionally, costing two round trips even when telemetry
+already confirmed the required state. Skipping them once the state is confirmed is the same
+discipline read backwards.
 
 \subsection{Generalization}
 
