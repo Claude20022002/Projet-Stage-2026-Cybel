@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 $Main  = "main"
-$Limit = 8
+$Limit = 9
 
 function Invoke-Build {
     pdflatex -interaction=nonstopmode "$Main.tex" | Out-Null
