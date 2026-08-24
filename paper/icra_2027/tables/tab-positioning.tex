@@ -1,32 +1,41 @@
-% Table I — positioning against the nearest categories of work.
+% Table I — positioning, by what each route presupposes.
 % Used by sections/02-related-work.
-% Rule: one row per line of work discussed in that section. If a citation is
-% added to the prose and does not earn a row here, it is decoration.
+%
+% NOTE ON FRAMING. This table merges two that used to be separate: a
+% related-work grid (Work / Emphasis / Distinction) and a route comparison.
+% They answered the same question — how is this different from what exists —
+% for papers and for approaches respectively, and the page budget does not
+% carry both. Rows are ROUTES to a control interface, each citing its
+% representative work, because that is the axis on which they actually differ.
+%
+% A latency column was deliberately not included: rosbridge is the transport
+% this work runs on, not a competitor, so comparing throughput would compare a
+% thing with itself. What separates these routes is what they require the
+% vendor to have provided first, which is the last column.
 \begin{table}[!t]
-\caption{Positioning relative to the nearest categories of work}
+\caption{Routes to a control interface on a closed service robot, and what each presupposes}
 \label{tab:positioning}
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-% Ragged right in the narrow author column: justifying 1.55 cm stretches the
-% space inside "Kim et al." into a gap. Note "et~al." is bound by a tie so it
-% can never break across lines.
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{1.55cm}p{2.5cm}p{3.0cm}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{1.75cm}ccc>{\raggedright\arraybackslash}p{2.3cm}@{}}
 \toprule
-\textbf{Work} & \textbf{Primary emphasis} & \textbf{Distinction in this paper} \\
+\textbf{Route} & \textbf{Offl.} & \textbf{Insp.} & \textbf{N.-d.} & \textbf{Presupposes} \\
 \midrule
-Kim \emph{et~al.}~\cite{kim2005reengineering} & Re-architecting a service robot &
-Vendor source and engineers available; here the product is sealed \\[2pt]
-M\"uhe \emph{et~al.}~\cite{muhe2010kuka} & Proprietary robot language &
-Published artifacts as input; here no artifact is published \\[2pt]
-DeMarinis \emph{et~al.}~\cite{demarinis2019scanning} & Exposed \ros{} systems at scale &
-Same black-box stance, applied constructively to one owned unit \\[2pt]
-Glauser \emph{et~al.}~\cite{glauser2023interop} & Interoperable interface for social robots &
-Assumes a usable SDK; we recover one where none exists \\[2pt]
-Giese \emph{et~al.}~\cite{giese2018xiaomi} & Companion-app protocol recovery (IoT) &
-Transposed to a robot whose app drives a separate \ros{} computer \\[2pt]
-\textbf{This work} & \textbf{Non-destructive protocol reconstruction} &
-\textbf{Hypothesis-driven method; execution verified against state, not transport} \\
+Vendor SDK~\cite{glauser2023interop} & varies & no & yes &
+A published SDK, kept current by the vendor \\[2pt]
+Vendor cloud API & no & no & yes &
+A subscription and a network path off site \\[2pt]
+Bridge integration~\cite{crick2012rosbridge,aragao2016yarp} & yes & yes & yes &
+Control of the \ros{} graph, and known message definitions \\[2pt]
+Re-architecting with vendor support~\cite{kim2005reengineering} & yes & yes & yes &
+Source code and access to the vendor's engineers \\[2pt]
+Companion-app recovery~\cite{giese2018xiaomi,muhe2010kuka} & --- & yes & yes &
+An artifact that already speaks the protocol \\[2pt]
+Firmware replacement & yes & yes & \textbf{no} &
+Root access; voids warranty, unrecoverable if it fails \\[2pt]
+\textbf{This work} & \textbf{yes} & \textbf{yes} & \textbf{yes} &
+\textbf{Only lawful possession of the robot} \\
 \bottomrule
 \end{tabular}
 \end{table}
