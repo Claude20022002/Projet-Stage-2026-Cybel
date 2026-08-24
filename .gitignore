@@ -28,3 +28,5 @@ Thumbs.db
 android/CybelVisitorKioskTest/assets/vosk-model-fr.zip
 android/CybelVisitorKioskTest/assets/vosk-model-fr/
 android/CybelFaceBridge/assets/face_embedding.tflite
+
+/paper/exemple/remarque.txt

@@ -135,4 +135,15 @@ E.~B. Wilson, ``Probable inference, the law of succession, and statistical
 L.~D. Brown, T.~T. Cai, and A.~DasGupta, ``Interval estimation for a binomial
   proportion,'' \emph{Statistical Science}, vol.~16, no.~2, pp. 101--133, 2001.
 
+\bibitem{dmca1201f}
+``Digital millennium copyright act, {\S}1201(f): Reverse engineering,'' 17
+  U.S.C. {\S}1201(f), 1998, permits circumvention and analysis for the sole
+  purpose of achieving interoperability of an independently created program.
+
+\bibitem{eusoftwaredirective}
+{European Parliament and Council}, ``Directive 2009/24/ec on the legal
+  protection of computer programs, article 6: Decompilation,'' 2009, permits
+  decompilation where indispensable to obtain information necessary for
+  interoperability.
+
 \end{thebibliography}

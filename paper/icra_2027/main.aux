@@ -27,7 +27,7 @@
 \citation{demarinis2019scanning}
 \citation{glauser2023interop}
 \citation{giese2018xiaomi}
-\citation{quigley2009ros}
+\citation{crick2012rosbridge,aragao2016yarp}
 \@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{section.2}\protected@file@percent }
 \newlabel{sec:related}{{II}{2}{Related Work}{section.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Re-engineering commercial robot platforms}{2}{subsection.2.1}\protected@file@percent }
@@ -37,22 +37,25 @@
 \newlabel{tab:positioning}{{I}{2}{Positioning relative to the nearest categories of work}{table.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}Protocol recovery from companion software}{2}{subsection.2.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-E}}Edge robotics and on-device interaction}{2}{subsection.2.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {III}Platform and Access Model}{2}{section.3}\protected@file@percent }
-\newlabel{sec:access}{{III}{2}{Platform and Access Model}{section.3}{}}
+\citation{quigley2009ros}
 \citation{cybel2026}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Routes to a control interface on a commercial service robot}}{3}{table.2}\protected@file@percent }
+\newlabel{tab:routes}{{II}{3}{Routes to a control interface on a commercial service robot}{table.2}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Three network segments on a product marketed as a single device. Conflating the head's DHCP address with the chassis address was the most frequent operator error we observed.}}{3}{figure.2}\protected@file@percent }
 \newlabel{fig:network}{{2}{3}{Three network segments on a product marketed as a single device. Conflating the head's DHCP address with the chassis address was the most frequent operator error we observed}{figure.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III}Platform and Access Model}{3}{section.3}\protected@file@percent }
+\newlabel{sec:access}{{III}{3}{Platform and Access Model}{section.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Each vantage point answers a different question and is blind to the others. A recovered command is accepted only after state telemetry confirms a physical effect.}}{3}{figure.3}\protected@file@percent }
+\newlabel{fig:vantage}{{3}{3}{Each vantage point answers a different question and is blind to the others. A recovered command is accepted only after state telemetry confirms a physical effect}{figure.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {IV}Methodology}{3}{section.4}\protected@file@percent }
 \newlabel{sec:method}{{IV}{3}{Methodology}{section.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Principles}{3}{subsection.4.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Vantage points and their blind spots}{3}{subsection.4.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Each vantage point answers a different question and is blind to the others. A recovered command is accepted only after state telemetry confirms a physical effect.}}{3}{figure.3}\protected@file@percent }
-\newlabel{fig:vantage}{{3}{3}{Each vantage point answers a different question and is blind to the others. A recovered command is accepted only after state telemetry confirms a physical effect}{figure.3}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Reverse-engineering pipeline}}{3}{table.2}\protected@file@percent }
-\newlabel{tab:phases}{{II}{3}{Reverse-engineering pipeline}{table.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}The seven-phase pipeline}{3}{subsection.4.3}\protected@file@percent }
 \citation{chin2011android}
 \citation{wilson1927,brown2001interval}
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Reverse-engineering pipeline}}{4}{table.3}\protected@file@percent }
+\newlabel{tab:phases}{{III}{4}{Reverse-engineering pipeline}{table.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {V}Recovered Command Surface and Edge Platform}{4}{section.5}\protected@file@percent }
 \newlabel{sec:platform}{{V}{4}{Recovered Command Surface and Edge Platform}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Command and telemetry}{4}{subsection.5.1}\protected@file@percent }
@@ -61,28 +64,29 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Interaction layer}{4}{subsection.5.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {VI}Experimental Evaluation}{4}{section.6}\protected@file@percent }
 \newlabel{sec:eval}{{VI}{4}{Experimental Evaluation}{section.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}H1 confirmed, H2 rejected}{4}{subsection.6.1}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces The transport lane is identical whether or not the command executes. Only an independent state topic distinguishes the two lower cases. Drawn from the field record of Section~\ref {sec:eval}-B, where all ten failures were acknowledged and none moved the robot.}}{5}{figure.4}\protected@file@percent }
 \newlabel{fig:h4}{{4}{5}{The transport lane is identical whether or not the command executes. Only an independent state topic distinguishes the two lower cases. Drawn from the field record of Section~\ref {sec:eval}-B, where all ten failures were acknowledged and none moved the robot}{figure.4}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces The vendor deployment application: the \SI {1235}{\meter \squared } map used throughout, the eleven annotations the chassis marker manager holds, and the localization confidence that gates every navigation command. These are the artifacts H3 proposed reusing.}}{5}{figure.5}\protected@file@percent }
-\newlabel{fig:vendormap}{{5}{5}{The vendor deployment application: the \SI {1235}{\meter \squared } map used throughout, the eleven annotations the chassis marker manager holds, and the localization confidence that gates every navigation command. These are the artifacts H3 proposed reusing}{figure.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}H1 confirmed, H2 rejected}{5}{subsection.6.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}H4: transport acknowledgment is not execution}{5}{subsection.6.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}H3: addressing scheme versus preparation}{5}{subsection.6.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces The vendor deployment application: the \SI {1235}{\meter \squared } map used throughout, the eleven annotations the chassis marker manager holds, and the localization confidence that gates every navigation command. These are the artifacts H3 proposed reusing.}}{5}{figure.5}\protected@file@percent }
+\newlabel{fig:vendormap}{{5}{5}{The vendor deployment application: the \SI {1235}{\meter \squared } map used throughout, the eleven annotations the chassis marker manager holds, and the localization confidence that gates every navigation command. These are the artifacts H3 proposed reusing}{figure.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-D}}System indicators}{5}{subsection.6.4}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces (a)~Every success rate reported in this paper, with its interval. The two leftmost tour bars contrast guided-tour legs before and after the map and its annotations stopped changing, the largest effect we measured; the coordinate and annotation arms of the bench comparison are indistinguishable ($p=1.00$). (b)~In the field record, the state the robot reports separates success from failure perfectly, while the addressing scheme does not separate them at all. (c)~Median and range of the interaction loop per exchange kind, log scale. Exchanges that only look up an answer sit below \SI {10}{\second }; those that also move the robot sit above it, because the preparation sequence runs inside the loop. A single pooled latency would describe neither group.}}{6}{figure.6}\protected@file@percent }
 \newlabel{fig:results}{{6}{6}{(a)~Every success rate reported in this paper, with its interval. The two leftmost tour bars contrast guided-tour legs before and after the map and its annotations stopped changing, the largest effect we measured; the coordinate and annotation arms of the bench comparison are indistinguishable ($p=1.00$). (b)~In the field record, the state the robot reports separates success from failure perfectly, while the addressing scheme does not separate them at all. (c)~Median and range of the interaction loop per exchange kind, log scale. Exchanges that only look up an answer sit below \SI {10}{\second }; those that also move the robot sit above it, because the preparation sequence runs inside the loop. A single pooled latency would describe neither group}{figure.6}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Measured indicators, June--July 2026, and what each one is for. Legs within a tour are not independent observations, so the leg-level interval is optimistic. Rows marked $^{\dagger }$ are campaign readings for which no machine-readable log was archived.}}{6}{table.3}\protected@file@percent }
-\newlabel{tab:metrics}{{III}{6}{Measured indicators, June--July 2026, and what each one is for. Legs within a tour are not independent observations, so the leg-level interval is optimistic. Rows marked $^{\dagger }$ are campaign readings for which no machine-readable log was archived}{table.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-E}}Comparison with the vendor application}{6}{subsection.6.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Measured indicators, June--July 2026, and what each one is for. Legs within a tour are not independent observations, so the leg-level interval is optimistic. Rows marked $^{\dagger }$ are campaign readings for which no machine-readable log was archived.}}{6}{table.4}\protected@file@percent }
+\newlabel{tab:metrics}{{IV}{6}{Measured indicators, June--July 2026, and what each one is for. Legs within a tour are not independent observations, so the leg-level interval is optimistic. Rows marked $^{\dagger }$ are campaign readings for which no machine-readable log was archived}{table.4}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces All \num {34} instrumented guided tours. To the left of the rule, while the map and its annotations were still being edited, one navigation leg in seven succeeded and no tour finished. To the right, \num {180} consecutive legs succeeded with no navigation failure and 17 tours ran end to end, the last ten of them in one uninterrupted campaign. Operator stops are not failures: every leg they had attempted had succeeded. The two late aborts ended on a speech failure, not a navigation one.}}{7}{figure.7}\protected@file@percent }
 \newlabel{fig:tourtimeline}{{7}{7}{All \num {34} instrumented guided tours. To the left of the rule, while the map and its annotations were still being edited, one navigation leg in seven succeeded and no tour finished. To the right, \num {180} consecutive legs succeeded with no navigation failure and 17 tours ran end to end, the last ten of them in one uninterrupted campaign. Operator stops are not failures: every leg they had attempted had succeeded. The two late aborts ended on a speech failure, not a navigation one}{figure.7}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Capability comparison with the vendor application}}{7}{table.4}\protected@file@percent }
-\newlabel{tab:compare}{{IV}{7}{Capability comparison with the vendor application}{table.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Capability comparison with the vendor application}}{7}{table.5}\protected@file@percent }
+\newlabel{tab:compare}{{V}{7}{Capability comparison with the vendor application}{table.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-E}}Comparison with the vendor application}{7}{subsection.6.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {VII}Discussion}{7}{section.7}\protected@file@percent }
 \newlabel{sec:discussion}{{VII}{7}{Discussion}{section.7}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}What the study establishes}{7}{subsection.7.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}Generalization}{7}{subsection.7.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Ethics and data protection}{7}{subsection.7.3}\protected@file@percent }
+\citation{dmca1201f}
+\citation{eusoftwaredirective}
 \bibstyle{IEEEtran}
 \bibdata{references}
 \bibcite{kim2005reengineering}{1}
@@ -94,6 +98,10 @@
 \bibcite{rosbridge_suite}{7}
 \bibcite{demarinis2019scanning}{8}
 \bibcite{dieber2017security}{9}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Ethics and data protection}{8}{subsection.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}Limitations}{8}{subsection.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Conclusion}{8}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{References}{8}{section*.1}\protected@file@percent }
 \bibcite{comparetti2009prospex}{10}
 \bibcite{enck2014taintdroid}{11}
 \bibcite{chin2011android}{12}
@@ -108,7 +116,6 @@
 \bibcite{cybel2026}{21}
 \bibcite{wilson1927}{22}
 \bibcite{brown2001interval}{23}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-D}}Limitations}{8}{subsection.7.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {VIII}Conclusion}{8}{section.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{References}{8}{section*.1}\protected@file@percent }
-\gdef \@abspage@last{8}
+\bibcite{dmca1201f}{24}
+\bibcite{eusoftwaredirective}{25}
+\gdef \@abspage@last{9}

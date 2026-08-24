@@ -53,10 +53,23 @@ it transfers to a second vendor is a claim we would like to make and cannot yet 
 
 The robot belongs to our institution and was studied for interoperability. We analysed the
 vendor application in order to recover message schemas, not to extract or redistribute
-proprietary assets, and we bypassed no licensing or protection mechanism. Staying
-non-destructive was an ethical commitment and a practical one at the same time: it leaves the
-warranty and the update path intact, and it avoids producing a firmware fork that nobody would
-maintain.
+proprietary assets. Staying non-destructive was an ethical commitment and a practical one at
+the same time: it leaves the warranty and the update path intact, and it avoids producing a
+firmware fork that nobody would maintain.
+
+The legal position deserves stating, because reverse engineering invites the question. We
+circumvented no technological protection measure: the interfaces we used are exposed by the
+robot on its own network, and the application package was read as installed, so the
+anticircumvention provisions that govern the harder cases are not engaged here at all. What we
+did do, decompiling a vendor application to recover the message schemas needed to interoperate
+with hardware we own, is the activity that major jurisdictions exempt explicitly: the reverse
+engineering provision of the DMCA~\cite{dmca1201f} and Article~6 of the European software
+directive~\cite{eusoftwaredirective} both permit it for a lawful possessor, for the sole purpose
+of interoperability, where the information is not otherwise available, and provided the result
+is not used to reproduce the original. Our work meets each condition: the platform is ours, no
+SDK or schema documentation exists, we recovered only what was needed to issue commands, and we
+publish no vendor code. We cite these as the recognised international standard rather than as
+the law of any particular forum.
 
 Face re-identification processes biometric data, and that needed a separate judgement.
 Pretrained embedding models differ in the provenance of their training data, and several widely
