@@ -124,7 +124,7 @@ M.~Quigley, K.~Conley, B.~Gerkey, J.~Faust, T.~Foote, J.~Leibs, R.~Wheeler, and
 \bibitem{cybel2026}
 {Anonymous Authors}, ``Reverse-engineering scripts, edge platform and field
   logs,'' \url{https://anonymous.4open.science/r/recontruct-robot-service},
-  2026, anonymised for review.
+  2026, anonymised.
 
 \bibitem{wilson1927}
 E.~B. Wilson, ``Probable inference, the law of succession, and statistical
@@ -137,13 +137,11 @@ L.~D. Brown, T.~T. Cai, and A.~DasGupta, ``Interval estimation for a binomial
 
 \bibitem{dmca1201f}
 ``Digital millennium copyright act, {\S}1201(f): Reverse engineering,'' 17
-  U.S.C. {\S}1201(f), 1998, permits circumvention and analysis for the sole
-  purpose of achieving interoperability of an independently created program.
+  U.S.C. {\S}1201(f), 1998, interoperability exemption.
 
 \bibitem{eusoftwaredirective}
 {European Parliament and Council}, ``Directive 2009/24/ec on the legal
-  protection of computer programs, article 6: Decompilation,'' 2009, permits
-  decompilation where indispensable to obtain information necessary for
-  interoperability.
+  protection of computer programs, article 6: Decompilation,'' 2009,
+  decompilation for interoperability.
 
 \end{thebibliography}
