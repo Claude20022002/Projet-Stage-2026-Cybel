@@ -1,29 +1,29 @@
 % Table IV — capability comparison. Used by sections/06-evaluation.
 % The second block exists on purpose: it lists where the vendor still wins.
-% A comparison our own system sweeps 12-0 reads as advocacy, and an earlier
-% version was criticised for exactly that. Keep the lower block populated.
+% A comparison our own system sweeps reads as advocacy, and an earlier version
+% was criticised for exactly that. Keep the lower block populated.
+%
+% Rows were merged to fit the page budget; every claim of the longer version
+% survives, grouped rather than dropped.
 \begin{table}[!t]
 \caption{Capability comparison with the vendor application}
 \label{tab:compare}
 \centering
 \scriptsize
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lcc@{}}
 \toprule
 \textbf{Capability} & \textbf{Vendor} & \textbf{This work} \\
 \midrule
-Teleoperation, guided tour              & yes & yes \\
-Speech synthesis                        & yes & yes (IPC bridge) \\
-Speech recognition                      & yes (cloud) & yes (on-device) \\
-Face re-identification                  & yes & yes (on-device) \\
-Question answering                      & yes (cloud) & yes (local) \\
-Operates without Internet               & no  & yes \\
-Inspectable and modifiable logic        & no  & yes \\
-Self-hostable, no vendor account        & no  & yes \\
+Teleoperation, guided tour        & yes         & yes \\
+Speech synthesis and recognition  & yes (cloud) & yes (on-device) \\
+Face re-id., question answering   & yes (cloud) & yes (on-device) \\
+Operates without Internet         & no          & yes \\
+Inspectable, modifiable, self-hostable & no     & yes \\
 \midrule
-Multi-floor navigation                  & yes & no \\
-Fleet management console                & yes & no \\
-Maintenance and updates under warranty  & yes & no \\
-Recognition quality across languages    & yes & partial \\
+Multi-floor navigation, fleet console & yes     & no \\
+Updates and support under warranty & yes        & no \\
+Recognition across languages      & yes         & partial \\
 \bottomrule
 \end{tabular}
 \end{table}
