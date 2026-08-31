@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-08-19T15:16:50.400102",
+  "collected_at": "2026-08-31T10:49:46.909337",
   "robot_host": "10.42.0.1",
   "backend_host": "172.16.0.30",
   "backend_port": 8001,
@@ -740,7 +740,7 @@
     "/web_video_server_1/get_loggers",
     "/web_video_server_1/set_logger_level"
   ],
-  "partial_saved_at": "2026-08-19T16:59:04.578731",
+  "partial_saved_at": "2026-08-31T13:41:27.130076",
   "teleop_trials": 10,
   "teleop_successes": 10,
   "teleop_success_rate_pct": 100.0,
@@ -1041,62 +1041,79 @@
   "tts_latency_adb_max_ms": 1130,
   "tts_latency_perceived_ms": 1051,
   "tts_note": "Latence ADB = commande→ack broadcast. Latence audio réelle ≈ +300 ms (init TextToSpeech Google).",
-  "tour_trials": 10,
-  "tour_trials_done": 10,
-  "tour_successes": 10,
-  "tour_completion_rate_pct": 100.0,
+  "tour_trials": 30,
+  "tour_trials_done": 13,
+  "tour_successes": 12,
+  "tour_completion_rate_pct": 40.0,
   "tour_results": [
     {
       "success": true,
-      "elapsed_s": 650.0,
+      "elapsed_s": 588.7,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 587.5,
+      "elapsed_s": 628.8,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 589.0,
+      "elapsed_s": 629.7,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 588.1,
+      "elapsed_s": 680.9,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 616.6,
+      "elapsed_s": 630.0,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 630.5,
+      "elapsed_s": 634.7,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 589.6,
+      "elapsed_s": 632.8,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 607.5,
+      "elapsed_s": 628.8,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 593.8,
+      "elapsed_s": 592.9,
       "error": null
     },
     {
       "success": true,
-      "elapsed_s": 591.3,
+      "elapsed_s": 608.8,
       "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 571.1,
+      "error": null
+    },
+    {
+      "success": true,
+      "elapsed_s": 608.5,
+      "error": null
+    },
+    {
+      "success": false,
+      "elapsed_s": 651.7,
+      "error": "backend injoignable sur 9 sondages consécutifs"
     }
   ],
-  "tour_session_duration_h": 1.7,
-  "tour_backend_url": "http://172.16.0.30:8001"
+  "tour_session_duration_h": 2.76,
+  "tour_backend_url": "http://172.16.0.36:8001",
+  "tour_skipped": true,
+  "reason": "backend_unreachable"
 }
