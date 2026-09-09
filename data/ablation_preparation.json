@@ -1,11 +1,11 @@
 {
-  "collected_at": "2026-09-09T12:28:54",
+  "collected_at": "2026-09-09T12:30:21",
   "target": "CNC ROUTEUR",
   "start": "EXTRUSION-SOUFFLAGE",
   "arrival_radius_m": 0.8,
   "criterion": "final pose within arrival_radius_m of the target coordinates",
   "trials_planned": 20,
-  "trials_done": 1,
+  "trials_done": 2,
   "results": [
     {
       "arm": "A",
@@ -20,6 +20,21 @@
       "nav_codes_seen": [
         601,
         603
+      ]
+    },
+    {
+      "arm": "B",
+      "trial": 1,
+      "success": true,
+      "elapsed_s": 42.7,
+      "distance_start_m": 8.45,
+      "distance_final_m": 0.74,
+      "nav_before": 601,
+      "nav_at_goal": 601,
+      "nav_final": 601,
+      "nav_codes_seen": [
+        601,
+        602
       ]
     }
   ]
