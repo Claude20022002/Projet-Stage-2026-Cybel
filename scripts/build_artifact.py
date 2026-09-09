@@ -38,6 +38,8 @@ MANIFEST: list[tuple[str, str]] = [
     ("scripts/measure_voice_latency.py",  "scripts/measure_voice_latency.py"),
     ("scripts/measure_faq_repeat_rate.py","scripts/measure_faq_repeat_rate.py"),
     ("scripts/introspect.py",             "scripts/introspect.py"),
+    ("scripts/inventory_stability.py",    "scripts/inventory_stability.py"),
+    ("scripts/ablate_preparation.py",     "scripts/ablate_preparation.py"),
     # Description de l'interface reconstruite + moteur nécessaire au résultat FAQ.
     # sdk/__init__.py n'est PAS repris : celui du dépôt de travail importe
     # avidement MockRobot, RealRobot et leurs dépendances, qui n'ont pas leur
@@ -55,6 +57,10 @@ MANIFEST: list[tuple[str, str]] = [
     ("data/points.json",                  "data/points.json"),
     ("data/lab_tour.json",                "data/lab_tour.json"),
     ("data/hestim_knowledge_base.json",   "data/knowledge_base.json"),
+    ("data/ablation_preparation.json",    "data/ablation_preparation.json"),
+    ("data/inventories/s0_2026-08-19.json", "data/inventories/s0_2026-08-19.json"),
+    ("data/inventories/s1_2026-09-09.json", "data/inventories/s1_2026-09-09.json"),
+    ("data/inventories/s2_2026-09-09.json", "data/inventories/s2_2026-09-09.json"),
     # Presentation de l'artefact, redigee a la main et versionnee cote source :
     # le dossier de sortie est efface a chaque construction.
     ("paper/icra_2027/artifact/README.md", "README.md"),
