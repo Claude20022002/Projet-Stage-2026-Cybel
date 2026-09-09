@@ -87,11 +87,9 @@ Guided-tour operation is the longest-running of them, and Fig.~\ref{fig:tourtime
 have a median duration of \SI{10.1}{\minute}. Legs within a tour are not independent, so the
 leg-level interval is the optimistic reading. Two things in that figure are worth saying out loud.
 The decisive variable is the stability of the map artifacts rather than anything in our stack.
-And after the rule, in \num{309} legs, exactly one failed: a goal was issued, acknowledged, and
-twenty seconds later the robot had not moved, which is the H4 event of
-Section~\ref{sec:eval}-B occurring spontaneously in service. A record with no failures at all
-would have invited the objection that we had not run long enough to see one; this one shows the
-failure mode our central hypothesis predicts, at the rate it predicts.
+And in \num{309} legs to its right, exactly one failed: a goal issued, acknowledged, and twenty
+seconds later the robot had not moved. That single failure is the H4 event of
+Section~\ref{sec:eval}-B, occurring unprompted in service.
 
 \input{tables/tab-metrics}
 \input{figures/fig-tour-timeline}
