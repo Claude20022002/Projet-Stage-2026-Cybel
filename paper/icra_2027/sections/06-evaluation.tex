@@ -91,19 +91,16 @@ Section~\ref{sec:eval}-B, occurring unprompted in service.
 \input{tables/tab-metrics}
 \input{figures/fig-tour-timeline}
 
-The interaction layer contributes three negative results, which we report because they bound what
-the recovered platform delivers. Question matching succeeded in 27 of 48 controlled trials
-(\SI{56.2}{\percent}), the failures being near misses routed to a neighbouring entry rather than
-outright non-matches, which argues for a wider synonym set rather than a different threshold. The
-wake phrase, made of ordinary words so that the recogniser would accept it, is ordinary enough to
-be said by accident: \num{20} of \num{55} logged events opened the microphone with no usable
-utterance following. Eighteen of those twenty were followed by no speech at all, so a spurious
-wake is almost never a spurious \emph{command}, and the cheap remedy is to stay quiet rather than
-to answer silence with a prompt. Finally, the interaction loop is not one distribution but two:
-\SI{1.3}{\second} median when the reply is a local lookup ($n=9$), \SI{22}{\second} when it also
-drives the robot ($n=13$), because the preparation sequence runs inside the loop. Averaging them
-describes neither, which is what an earlier revision of this paper reported as an unexplained
-outlier.
+The interaction layer contributes three negative results, bounding what the platform delivers.
+Question matching succeeded in 27 of 48 trials (\SI{56.2}{\percent}), the failures being near
+misses rather than outright non-matches, arguing for a wider synonym set over a different
+threshold. The wake phrase, built from ordinary words so the recogniser would accept it, is
+ordinary enough to trigger by accident: \num{20} of \num{55} logged events opened the microphone
+with no utterance following, eighteen of them followed by no speech at all, so the cheap remedy
+is silence rather than a prompt. Finally, the interaction loop is two distributions, not one:
+\SI{1.3}{\second} median for a local lookup ($n=9$), \SI{22}{\second} when it also drives the
+robot ($n=13$), because preparation runs inside the loop; averaging them, as an earlier revision
+did, describes neither.
 
 \subsection{Comparison with the vendor application}
 
