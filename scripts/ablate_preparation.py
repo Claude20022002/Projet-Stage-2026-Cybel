@@ -55,6 +55,12 @@ SETTLE = 5.0
 
 READY, MOVING, ARRIVED, ERROR = 601, 602, 603, 604
 
+# Mesure du 2026-09-09 (scripts/probe_nav_states.py) : pendant une navigation
+# par POI, nav_status vaut 601 du debut a la fin et ne passe JAMAIS par 602.
+# Un critere de succes fonde sur 602 declare donc tout en echec. La verite
+# terrain est la position : on juge l'arrivee sur la distance a la cible.
+ARRIVAL_RADIUS_M = 0.80
+
 
 async def send(ws, msg: dict) -> None:
     await ws.send(json.dumps(msg))
@@ -82,6 +88,11 @@ class State:
         self.nav = -1
         self.pose = None
 
+    def distance_to(self, goal: dict) -> float | None:
+        if not self.pose:
+            return None
+        return math.hypot(self.pose["x"] - goal["x"], self.pose["y"] - goal["y"])
+
     def update(self, msg: dict) -> None:
         if msg.get("topic") == "/robot_status":
             self.nav = msg["msg"].get("nav_status", self.nav)
@@ -98,22 +109,21 @@ async def pump(ws, st: State, seconds: float) -> None:
             continue
 
 
-async def wait_nav(ws, st: State, timeout: float) -> tuple[int, bool, float]:
-    """Attend l'arrivée. Retourne (code final, transition 602 vue, durée)."""
+async def wait_arrival(ws, st: State, goal: dict, timeout: float) -> tuple[bool, int, float, float]:
+    """Attend l'arrivee A LA POSITION du but. Retourne (arrive, code, duree, distance)."""
     t0 = time.time()
-    saw_moving = False
     while time.time() - t0 < timeout:
         try:
             st.update(json.loads(await asyncio.wait_for(ws.recv(), timeout=0.5)))
         except (asyncio.TimeoutError, TimeoutError):
             continue
-        if st.nav == MOVING:
-            saw_moving = True
-        if st.nav == ARRIVED and saw_moving:
-            return st.nav, saw_moving, time.time() - t0
+        d = st.distance_to(goal)
+        if d is not None and d <= ARRIVAL_RADIUS_M:
+            return True, st.nav, time.time() - t0, d
         if st.nav == ERROR:
-            return st.nav, saw_moving, time.time() - t0
-    return st.nav, saw_moving, time.time() - t0
+            return False, st.nav, time.time() - t0, d if d is not None else -1.0
+    d = st.distance_to(goal)
+    return False, st.nav, time.time() - t0, d if d is not None else -1.0
 
 
 async def cancel_all(ws) -> None:
