@@ -14,9 +14,12 @@ position de départ. Seule la préparation les sépare.
 DEUX LEÇONS DE LA PREMIÈRE VERSION, qui déclarait tout en échec :
 
 1. Le succès se juge sur la POSITION FINALE, pas sur un code d'état. La mesure
-   du 2026-09-09 (scripts/probe_nav_states.py) montre que pendant une
-   navigation par POI, nav_status vaut 601 du début à la fin et ne passe jamais
-   par 602. Tout critère fondé sur 602 est faux sur cette plateforme.
+   du 2026-09-09 (scripts/probe_nav_states.py, 4 essais) montre que pendant une
+   navigation par POI, nav_status peut rester à 601 du début à la fin sans
+   jamais passer par 602 — rarement observable, donc, pas absente : la
+   campagne d'ablation menée le même jour (10 essais par bras, ci-dessous) a
+   vu 602 apparaître dans 19 des 20 trajets. Dans les deux cas, un critère
+   fondé sur l'apparition de 602 est trop fragile pour juger un essai.
 
 2. La position de départ est vérifiée avant chaque essai, elle n'est pas
    supposée. Un essai qui ne part pas du point de retrait est écarté plutôt que

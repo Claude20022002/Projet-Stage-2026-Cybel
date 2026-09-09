@@ -2,9 +2,12 @@
 """Observe la machine à états pendant UNE navigation par POI.
 
 Écrit avant de corriger l'ablation, parce que la première version supposait que
-nav_status passe par 602 pendant un déplacement. Cette valeur n'a jamais été
-lue, dans aucun des quatre essais. Plutôt que de redessiner la perturbation sur
-une seconde hypothèse, on mesure ce que la machine fait vraiment.
+nav_status passe par 602 pendant un déplacement. Cette valeur n'a été lue dans
+aucun des quatre essais d'origine — rarement observable, donc, pas absente :
+la campagne d'ablation du 2026-09-09 (10 essais par bras) l'a vue passer par
+602 dans la quasi-totalité des trajets. Plutôt que de redessiner la
+perturbation sur une seconde hypothèse, on mesure ce que la machine fait
+vraiment.
 
 Journalise chaque changement d'état sur /robot_status et /navi_status, avec la
 pose et la distance à la cible, pendant un aller simple.
