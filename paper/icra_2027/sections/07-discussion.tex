@@ -27,13 +27,13 @@ both cases the transport reported nothing wrong. An integrator who trusts a reco
 without introspecting it will not merely write faulty control code; they will collect faulty
 evidence about it, and publish it.
 
-From this follows a design rule with a price. Pair every command with an independent observation
-of its effect, and re-establish explicitly every precondition the vendor application sets
-implicitly: that sequence is what separates a working integration from a bench script reporting
-success while nothing moves. It is not free. A standing complaint that the robot felt sluggish
-traced to preparation steps issued unconditionally, costing two round trips even when telemetry
-already confirmed the required state. Skipping them once the state is confirmed is the same
-discipline read backwards.
+From this follows a design rule, and we tested its price rather than assumed it. An ablation
+removed the preparation sequence entirely and compared ten such trials against ten with it kept,
+same start, target and \SI{9.1}{\meter} route as H3. Both arms succeeded ten of ten, median
+\SI{41.6}{\second} with preparation, \SI{41.2}{\second} without (Mann--Whitney, $p=0.50$): from an
+already-localized state the sequence costs nothing measurable. Its value is insurance against
+degraded states we could not safely induce on a robot in daily service, not speed, and the
+ablation leaves that case untested rather than closed.
 
 \subsection{Generalization}
 
