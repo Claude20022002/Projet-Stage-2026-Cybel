@@ -25,6 +25,8 @@ application names are replaced by neutral placeholders throughout; nothing else 
 | `data/navigation_events.json` | The 17 field commands behind H4 |
 | `data/faq_repeat_rate.json` | Per-trial question-matching outcomes |
 | `data/knowledge_base.json`, `points.json`, `lab_tour.json` | Deployment configuration |
+| `scripts/inventory_stability.py`, `data/inventories/*.json` | The phase-2 stopping criterion (Section IV-C): two same-session introspections are set-identical; the earlier one differs only by one idle subsystem |
+| `scripts/ablate_preparation.py`, `data/ablation_preparation.json` | The preparation-sequence ablation (Section VII-A): 10/10 both arms, no measurable time cost from a nominal state |
 
 Nothing is included that no claim in the paper rests on.
 
@@ -53,6 +55,10 @@ python scripts/introspect.py --host <chassis-ip>
 python scripts/test_poi_nav.py --host <chassis-ip> --dry-run    # verifies, does not move
 python scripts/test_poi_nav.py --host <chassis-ip>              # moves the robot
 python scripts/collect_paper_data.py --host <chassis-ip> --phase nav --nav-trials 10
+python scripts/inventory_stability.py --host <chassis-ip> --label a
+python scripts/inventory_stability.py --host <chassis-ip> --label b   # minutes later
+python scripts/inventory_stability.py --compare a b
+python scripts/ablate_preparation.py --host <chassis-ip> --trials 10
 ```
 
 Run `--dry-run` first. It checks the service signature and the target annotation without issuing
