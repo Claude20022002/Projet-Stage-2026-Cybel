@@ -207,6 +207,18 @@ les deux types séparément.
 
 ---
 
+## 4ter. Campagne du 9 septembre 2026
+
+Détail complet : [CAMPAGNE_2026-09-09.md](CAMPAGNE_2026-09-09.md).
+
+| Résultat | Traitement |
+|---|---|
+| Critère d'arrêt phase 2 vérifié (inventaire stable à sous-systèmes actifs constants ; l'écart avec août tient entièrement à la caméra basse, non démarrée alors) | §IV-C, `tab-phases.tex` |
+| Ablation de la séquence de préparation : 10/10 des deux bras, médianes 41,6 s / 41,2 s, $p=0,50$ — aucun coût mesurable depuis un état nominal | §VII-A, remplace l'affirmation non chiffrée qui s'y trouvait |
+| Correction : « `nav_status` n'atteint jamais 602 » était une généralisation sur 4 essais sans préparation ; la campagne d'ablation l'a vu dans 19/20 essais. Formulation corrigée en « rarement observable » dans les scripts concernés | `scripts/ablate_preparation.py`, `scripts/probe_nav_states.py` |
+
+---
+
 ## 5. Anonymisation appliquée
 
 Sur demande de l'auteure, l'article ne nomme ni l'établissement, ni le modèle du robot.
