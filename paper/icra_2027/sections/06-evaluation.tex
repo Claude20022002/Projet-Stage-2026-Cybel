@@ -32,12 +32,11 @@ on the command surface in a way that documentation, which may describe intention
 behaviour, is not. We did not test the converse. Whether commands exist that the application
 never uses remains open, and Section~\ref{sec:discussion} records it as a limitation.
 
-H2 is rejected. Wildcard subscription across several sessions returned one telemetry topic
-carrying odometry, and no payload we replayed changed the robot's state. The vendor library
-explains the result: its broker client is wired only to telemetry publishers, and the command
-path runs exclusively over the WebSocket bridge. On this platform the broker cannot carry
-commands at all. We report the rejection because MQTT is a reasonable first guess for anyone
-approaching a machine like this, and rediscovering that it leads nowhere is expensive.
+H2 is rejected. Wildcard subscription across several sessions returned only one telemetry topic,
+and no payload we replayed changed the robot's state: the vendor library shows its broker client
+wired solely to telemetry, the command path running exclusively over the WebSocket bridge. We
+report the rejection because MQTT is a reasonable first guess for anyone approaching a machine
+like this, and rediscovering that it leads nowhere is expensive.
 
 \subsection{H4: transport acknowledgment is not execution}
 
