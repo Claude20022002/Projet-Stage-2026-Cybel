@@ -11,22 +11,21 @@ Commercial service robots are increasingly sold as closed Android--\ros{} system
 SDK, no message schemas, and a vendor cloud that the owner cannot replace. A laboratory that
 owns such a robot cannot modify its interaction behaviour, nor establish which commands the
 machine accepts. We present a non-destructive methodology for recovering that command surface
-without vendor cooperation. Structured as four falsifiable hypotheses regarding protocol
-observability and verification, our approach is evaluated through a seven-phase pipeline that
-triangulates network mapping, \rosapi{} introspection, static analysis of the vendor
-application, and passive broker observation. We validate the methodology on a commercial
-reception robot, recovering enough of its command surface to rebuild teleoperation, autonomous
-navigation, speech output, and visitor interaction as an edge platform operating without the
-vendor cloud. Our primary empirical finding concerns verification rather than discovery: a
-transport-level acknowledgment reveals nothing about physical execution. In \num{17} logged
-field commands, the execution outcome was dictated entirely by the reported localization state.
-All ten failures occurred while unlocalized, and all seven successes occurred while navigating.
-Addressing scheme choice showed no effect, and a controlled bench comparison confirms that two
-addressing schemes expected to differ succeed equally often ($p=1.00$) in equal time ($p=0.76$)
-once preconditions hold. Reaching this conclusion required correcting our own instrumentation,
-which initially invoked an unexposed firmware service. We report field indicators with
-confidence intervals, a capability comparison against the vendor application, and transferability
-conditions for other closed platforms.
+without vendor cooperation, structured as four falsifiable hypotheses regarding protocol
+observability and verification and evaluated through a seven-phase pipeline that triangulates
+network mapping, \rosapi{} introspection, static analysis of the vendor application, and passive
+broker observation. We validate the methodology on a commercial reception robot, recovering
+enough of its command surface to rebuild teleoperation, autonomous navigation, speech output and
+visitor interaction as an edge platform operating without the vendor cloud. Our primary
+empirical finding concerns verification rather than discovery: a transport-level acknowledgment
+reveals nothing about physical execution. In \num{17} logged field commands, the execution
+outcome was dictated entirely by the reported localization state: all ten failures occurred
+while unlocalized, all seven successes while navigating. Addressing scheme showed no effect, and
+a bench comparison confirms it: two schemes expected to differ succeed equally often ($p=1.00$)
+in equal time ($p=0.76$) once preconditions hold. Reaching this required correcting our own
+instrumentation, which had invoked an unexposed firmware service. We report field indicators
+with confidence intervals, a capability comparison against the vendor application, and
+transferability conditions for other closed platforms.
 \end{abstract}
 
 \begin{IEEEkeywords}
