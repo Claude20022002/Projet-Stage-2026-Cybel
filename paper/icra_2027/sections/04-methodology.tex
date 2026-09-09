@@ -53,12 +53,22 @@ path of H2. Each one closed a branch of the search, which is worth as much as an
 We report the cost of the method because a procedure nobody can budget for is of little use to
 anyone else. Phases~1--6 took two weeks and phase~7 a further week, spread over eight sessions
 with the physical robot and carried out by one full-time engineer. We decompiled two
-applications; a full introspection archived at the end of the study enumerated \num{404} topics
-and \num{321} services. An earlier session had counted \num{455} and \num{308}, but we did not
-archive that inventory and cannot now say whether the difference reflects a genuinely
-state-dependent graph or an imprecise count. The stopping criterion for phase~2, a stable
-inventory across sessions, is therefore the one criterion in Table~\ref{tab:phases} we cannot
-claim to have verified. The exploration scripts, the recovered interface description and the
+applications, and archived full introspections rather than counts, which turns the phase~2
+stopping criterion into something testable.
+
+Within a session the inventory is exactly reproducible: two introspections \SI{45}{\second} apart
+returned set-identical results, \num{448} topics, \num{334} services and \num{64} nodes. Across
+sessions it is not, but it varies in a structured way. An inventory taken three weeks earlier is
+a strict subset of the later one: nothing disappeared, and the \num{44} topics and \num{13}
+services that appeared belong without exception to one subsystem, the downward-facing depth
+camera, which was not running on the earlier date. The upward-facing camera's \num{115} topics
+were identical on both dates. The phase~2 criterion should therefore be read as stability under a
+fixed set of running subsystems, not as a single number; an integrator who counts once and
+assumes the graph is closed will miss whatever was idle that day. This also explains a still
+earlier count of \num{455} topics, taken before we archived inventories and which we can no
+longer diff, but which falls in the range the mechanism predicts.
+
+The exploration scripts, the recovered interface description and the
 logs behind every measured result reported here are released with this
 paper~\cite{cybel2026}; the two indicators in Table~\ref{tab:metrics} that carry no archived
 log are marked as such rather than implying an archive that does not exist.
