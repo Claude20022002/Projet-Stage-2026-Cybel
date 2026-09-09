@@ -1,0 +1,53 @@
+{
+  "collected_at": "2026-09-09T12:20:06",
+  "target": "CNC ROUTEUR",
+  "withdraw": "EXTRUSION-SOUFFLAGE",
+  "trials_planned": 10,
+  "trials_done": 4,
+  "results": [
+    {
+      "arm": "A",
+      "trial": 1,
+      "success": true,
+      "nav_final": 603,
+      "saw_moving": true,
+      "elapsed_s": 19.4,
+      "distance_m": 2.78,
+      "nav_perturbed": 601,
+      "nav_before_goal": 601
+    },
+    {
+      "arm": "B",
+      "trial": 1,
+      "success": false,
+      "nav_final": 603,
+      "saw_moving": false,
+      "elapsed_s": 90.2,
+      "distance_m": 8.8,
+      "nav_perturbed": 603,
+      "nav_before_goal": 603
+    },
+    {
+      "arm": "A",
+      "trial": 2,
+      "success": false,
+      "nav_final": 603,
+      "saw_moving": false,
+      "elapsed_s": 90.0,
+      "distance_m": 8.84,
+      "nav_perturbed": 603,
+      "nav_before_goal": 603
+    },
+    {
+      "arm": "B",
+      "trial": 2,
+      "success": false,
+      "nav_final": 603,
+      "saw_moving": false,
+      "elapsed_s": 90.4,
+      "distance_m": 8.8,
+      "nav_perturbed": 603,
+      "nav_before_goal": 603
+    }
+  ]
+}
