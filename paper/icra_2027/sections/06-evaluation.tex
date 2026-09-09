@@ -84,14 +84,15 @@ sake, so the table states what each one is meant to settle; an indicator that se
 padding, and we have left several such figures out.
 
 Guided-tour operation is the longest-running of them, and Fig.~\ref{fig:tourtimeline} reports all
-\num{34} instrumented sessions rather than the ones that succeeded. Completed tours have a median
-duration of \SI{10.2}{\minute}, and the ten that close the record ran back to back in a single
-\SI{1.7}{\hour} campaign without operator intervention. Legs within a tour are not independent, so
-the leg-level interval is the optimistic reading. Two things in that figure are worth saying out
-loud: the decisive variable is the stability of the map artifacts rather than anything in our
-stack, and the only abort mode that survives to the right of the rule is speech, which is
-precisely the capability we had to recover outside the protocol
-(Section~\ref{sec:platform}-C).
+\num{47} instrumented sessions over ten weeks rather than the ones that succeeded. Completed tours
+have a median duration of \SI{10.1}{\minute}. Legs within a tour are not independent, so the
+leg-level interval is the optimistic reading. Two things in that figure are worth saying out loud.
+The decisive variable is the stability of the map artifacts rather than anything in our stack.
+And after the rule, in \num{309} legs, exactly one failed: a goal was issued, acknowledged, and
+twenty seconds later the robot had not moved, which is the H4 event of
+Section~\ref{sec:eval}-B occurring spontaneously in service. A record with no failures at all
+would have invited the objection that we had not run long enough to see one; this one shows the
+failure mode our central hypothesis predicts, at the rate it predicts.
 
 \input{tables/tab-metrics}
 \input{figures/fig-tour-timeline}
