@@ -136,11 +136,14 @@ L.~D. Brown, T.~T. Cai, and A.~DasGupta, ``Interval estimation for a binomial
   proportion,'' \emph{Statistical Science}, vol.~16, no.~2, pp. 101--133, 2001.
 
 \bibitem{dmca1201f}
-``Digital millennium copyright act, {\S}1201(f),'' 17 U.S.C. {\S}1201(f),
-  reverse engineering, 1998.
+{U.S. Congress}, ``Digital millennium copyright act, section 1201(f): Reverse
+  engineering,'' Pub. L. No. 105-304, 112 Stat. 2860, codified at 17 U.S.C.
+  {\S}1201(f), 1998.
 
 \bibitem{eusoftwaredirective}
-``Directive 2009/24/ec, article 6: Decompilation,'' European Parliament and
-  Council, 2009.
+{European Parliament and Council of the European Union}, ``Directive
+  2009/24/{EC} on the legal protection of computer programs, article 6:
+  Decompilation,'' Official Journal of the European Union, L 111/16, 5 May
+  2009, 2009.
 
 \end{thebibliography}
