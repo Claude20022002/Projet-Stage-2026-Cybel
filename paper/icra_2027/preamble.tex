@@ -20,6 +20,22 @@
 \usetikzlibrary{arrows.meta,positioning,fit,calc,decorations.pathreplacing}
 \usepackage[section]{placeins}
 \usepackage{stfloats}
+\usepackage{float}
+
+% Section VI queues four floats (Fig. 5, Table III, Fig. 6, Table IV) behind
+% dense text. LaTeX's defaults (totalnumber=3, floatpagefraction=0.5 with a
+% high textfraction) push the fourth onto a page of its own rather than the
+% blank space left after the third, which is why a lightly filled page kept
+% appearing between Table IV and the discussion. These relax the limit
+% without changing how anything looks — floats still land in source order.
+\setcounter{totalnumber}{6}
+\setcounter{topnumber}{4}
+\setcounter{dbltopnumber}{2}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\floatpagefraction}{0.4}
+\renewcommand{\dblfloatpagefraction}{0.4}
 
 % Images live in assets/ ; \includegraphics needs only the base name.
 \graphicspath{{assets/}}
