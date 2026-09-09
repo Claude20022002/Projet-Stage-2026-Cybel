@@ -44,14 +44,12 @@ like this, and rediscovering that it leads nowhere is expensive.
 
 The bridge acknowledges any syntactically valid message it can route to a subscriber. That
 acknowledgment is produced above the chassis safety and mode-arbitration layer, which means it
-certifies the first hop and nothing beyond it (Fig.~\ref{fig:h4}). Our field record shows what
-this costs in practice. Across \num{17} logged navigation commands, the outcome followed the
-reported localization state exactly: all ten failures happened while the robot reported itself
-unlocalized, all seven successes while it reported navigating. The same split holds for both
-goal-addressing schemes, coordinate goals failing five times and succeeding once, named
-annotations failing five times and succeeding six. In this record the addressing scheme explains
-nothing and the precondition state explains everything. Every one of the failed commands had
-been acknowledged.
+certifies the first hop and nothing beyond it (Fig.~\ref{fig:h4}). Across \num{17} logged
+navigation commands, the outcome followed the reported localization state exactly: all ten
+failures happened while unlocalized, all seven successes while navigating. The same split holds
+for both goal-addressing schemes, coordinate goals failing five times and succeeding once, named
+annotations failing five times and succeeding six --- the addressing scheme explains nothing, the
+precondition state explains everything, and every failed command had been acknowledged.
 
 \subsection{H3: addressing scheme versus preparation}
 
