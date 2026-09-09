@@ -10,7 +10,7 @@
 MAIN   = main
 LATEX  = pdflatex -interaction=nonstopmode
 BIBTEX = bibtex
-LIMIT  = 9
+LIMIT  = 8
 
 SOURCES = $(MAIN).tex preamble.tex references.bib \
           $(wildcard sections/*.tex) $(wildcard figures/*.tex) \
