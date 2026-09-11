@@ -48,6 +48,13 @@
 % columns end at their natural height instead.
 \raggedbottom
 
+% IEEEtran hardcodes \footnotesize inside \thebibliography. With the page
+% budget no longer razor-thin, bump the reference list back up to \small
+% for readability; the label width IEEEtran precomputes at \footnotesize is
+% close enough at \small that entry numbers still line up.
+\let\IEEEtranoriginalbibliography\thebibliography
+\renewcommand{\thebibliography}[1]{\IEEEtranoriginalbibliography{#1}\small}
+
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
 \sisetup{detect-all,range-phrase={--},range-units=single}
 
