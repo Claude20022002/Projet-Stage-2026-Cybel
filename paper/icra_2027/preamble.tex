@@ -40,6 +40,14 @@
 % Images live in assets/ ; \includegraphics needs only the base name.
 \graphicspath{{assets/}}
 
+% IEEEtran defaults to \flushbottom, which stretches each column's glue to
+% reach the full page height. Where a column has almost no natural stretch
+% (a short subsection heading followed by a table placed "here" in the next
+% column), the class concentrates that stretch into the one flexible gap it
+% can find, opening a large blank band under the heading. Ragged bottoms let
+% columns end at their natural height instead.
+\raggedbottom
+
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
 \sisetup{detect-all,range-phrase={--},range-units=single}
 
