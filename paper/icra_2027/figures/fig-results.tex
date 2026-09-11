@@ -13,13 +13,22 @@
 % Panel (c): min / median / max per exchange kind, log scale because the
 % range spans three decades. Negative latencies (clock skew between the
 % recognition app and the backend) are excluded; see Limitations.
+%
+% Panel widths and gaps are sized to stay inside \textwidth (516pt = 18.13cm
+% for this class) with margin to spare: 0.32+0.27+0.27 = 0.86\textwidth plus
+% two 0.4cm gaps is about 16.4cm, leaving room for the tick/axis-label
+% overhang pgfplots adds outside the nominal width. An earlier version at
+% 0.36+0.30+0.30 plus fixed 1.15cm/7.2cm offsets from panel (a) alone summed
+% past \textwidth and bled into the margin (reviewer-caught). Panel (c) is
+% now anchored off panel (b)'s right edge, not panel (a)'s, so the three
+% panels chain left to right instead of two competing offsets from one point.
 \begin{figure*}[!t]
 \centering
 \begin{tikzpicture}
 
 % ---------------------------------------------------------------- (a) ----
 \begin{axis}[
-  name=ax1, width=0.36\textwidth, height=4.3cm,
+  name=ax1, width=0.32\textwidth, height=4.3cm,
   ybar, bar width=8pt, ymin=0, ymax=115,
   ylabel={Success rate (\%)}, ylabel style={font=\small},
   symbolic x coords={Teleop.,Legs before,Legs after,Coord.,Annot.,Question},
@@ -45,8 +54,9 @@ Question       56.2  14.0  13.0
 
 % ---------------------------------------------------------------- (b) ----
 \begin{axis}[
-  at={(ax1.right of south east)}, xshift=1.15cm, anchor=left of south west,
-  width=0.30\textwidth, height=4.3cm,
+  name=ax2,
+  at={(ax1.right of south east)}, xshift=0.4cm, anchor=left of south west,
+  width=0.27\textwidth, height=4.3cm,
   ybar stacked, bar width=22pt, ymin=0, ymax=12,
   ylabel={Field commands}, ylabel style={font=\small},
   symbolic x coords={Unlocalized,Navigating},
@@ -63,8 +73,8 @@ Question       56.2  14.0  13.0
 
 % ---------------------------------------------------------------- (c) ----
 \begin{axis}[
-  at={(ax1.right of south east)}, xshift=7.2cm, anchor=left of south west,
-  width=0.30\textwidth, height=4.3cm,
+  at={(ax2.right of south east)}, xshift=0.4cm, anchor=left of south west,
+  width=0.27\textwidth, height=4.3cm,
   ymode=log, ymin=0.05, ymax=400,
   ylabel={Loop latency (s)}, ylabel style={font=\small},
   symbolic x coords={FAQ,Unknown,Action,FAQ+nav,Nav},
