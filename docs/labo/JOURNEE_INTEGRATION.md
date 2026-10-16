@@ -2,7 +2,8 @@
 
 Mode « événement » : les deux écrans affichent les visuels de l'école et le robot fait des
 annonces vocales. **Le mode événement seul ne fait pas bouger le robot** ; la circulation au
-rez-de-chaussée est un script séparé, lancé depuis le PC (voir [Circulation](#circulation)).
+rez-de-chaussée se lance à part, depuis le panneau staff de l'écran tactile (voir plus bas),
+ou en secours depuis le PC.
 
 ## Réseau : ce qui passe par le câble, ce qui passe par le Wi-Fi
 
@@ -73,10 +74,56 @@ coupé (il propose la visite du labo, hors sujet à Ghandi).
 - Dessous : `adb push nouvelle.jpg /sdcard/Cybel/ecran-dessous.jpg` puis
   `adb shell am startservice -n com.cybel.secondscreen/.SecondScreenService`.
 
-## Circulation
+## Panneau staff dans CYBEL Accueil (méthode principale)
+
+Tout se lance depuis l'écran tactile du robot, sans PC :
+
+1. **Appui long de 3 s dans le coin haut-gauche** de l'écran (zone invisible de 140 px), quel
+   que soit l'écran affiché, y compris le visuel de l'événement.
+2. Saisir le **code staff** (4 chiffres, `event.staff_pin` dans `kiosk_config.ghandi.json`).
+   Le code est vérifié par le backend et n'est jamais envoyé au kiosque.
+3. Le panneau affiche l'état du robot (batterie, localisation, arrêt d'urgence) et propose :
+   - **Activer / désactiver le mode événement** : visuels sur les deux écrans, kiosque
+     verrouillé. Le kiosque se recharge pour appliquer le changement.
+   - **Démarrer la circulation** (exige le mode événement actif) / **Arrêter la
+     circulation** (gros bouton rouge, sans code).
+   - **Faire une annonce maintenant**.
+   - Les derniers événements de la circulation (départs, arrivées, échecs avec leur raison).
+4. Le panneau se ferme seul après 2 min sans toucher.
+
+La circulation tourne alors **sur le robot** (backend Termux) : le PC peut être éteint ou hors
+de portée. Elle reprend la chaîne des visites guidées (préparation, POI, arrivée vérifiée sur la
+position et la vitesse), annonce à chaque arrivée, et applique les mêmes garde-fous que le
+script PC : arrêt d'urgence, localisation, batterie basse (retour au point de charge), deux
+trajets ratés d'affilée. Paramètres dans `kiosk_config.ghandi.json` → `event.circulation` :
+
+```json
+"circulation": {
+  "stops": ["POINT-CHARGE", "POINT-ECRAN"],
+  "dwell_seconds": 20,
+  "battery_min": 25,
+  "min_localization": 60,
+  "return_point": "POINT-CHARGE",
+  "announce_on_arrival": true,
+  "max_failed_legs": 2
+}
+```
+
+Les POI sont relus sur la carte active à chaque démarrage : un POI déplacé dans Deployment Tool
+est pris en compte sans redéploiement. Un POI absent de la carte bloque le démarrage avec son
+nom.
+
+**Changer le code staff** avant la semaine : modifier `staff_pin`, puis
+`bash scripts/deploy_event.sh`.
+
+Mêmes routes, utilisables depuis le PC par le Wi-Fi :
+`GET /api/event/circulation`, `POST /api/event/circulation/start {"pin": …}`,
+`POST /api/event/circulation/stop`, `POST /api/event/mode {"pin": …, "enabled": …}`.
+
+## Circulation depuis le PC (secours)
 
 [`scripts/circulation.py`](../../scripts/circulation.py), lancé depuis le PC connecté au Wi-Fi
-du robot. Boucle sur une liste de POI de la carte active, pause à chaque arrêt, annonce vocale
+du robot. À utiliser si le panneau n'est pas déployé. Ne pas lancer les deux en même temps. Boucle sur une liste de POI de la carte active, pause à chaque arrêt, annonce vocale
 optionnelle à l'arrivée.
 
 ```bash
@@ -129,4 +176,28 @@ et s'appelle `POINT-CHARGE`, alors que le retour borne du backend (`go_home`) at
 `POINT-RECHARGE` ; `circulation.py` prend son point de retour en option et n'est pas concerné.
 
 Pour la journée, ajouter dans Deployment Tool les POI du parcours (MAJUSCULES et tirets, au
-moins 2–3 m de dégagement autour), puis les passer à `--stops`.
+moins 2–3 m de dégagement autour), puis les mettre dans `event.circulation.stops` (panneau
+staff) ou `--stops` (script PC).
+
+## Retrait après la semaine d'intégration
+
+Tout le code temporaire porte le marqueur `TEMPORAIRE-INTEGRATION-2026` :
+
+```bash
+git grep -n "TEMPORAIRE-INTEGRATION-2026"
+```
+
+1. Sur le robot : `bash scripts/deploy_event.sh --restore` (config labo, écran du dessous
+   libéré), puis `adb uninstall com.cybel.secondscreen` si l'écran du dessous n'est plus utile.
+2. Supprimer les fichiers dédiés : `sdk/integration_event.py`,
+   `tests/unit/test_integration_event.py`, `frontend-kiosk/src/staffPanel.ts`,
+   `frontend-kiosk/src/staffPanel.css`, `frontend-kiosk/public/event/`,
+   `data/kiosk_config.ghandi.json`, `scripts/deploy_event.sh`, `scripts/circulation.py`.
+3. Dans `frontend-kiosk/src/app.ts` : retirer l'import et l'appel `initStaffPanel()` (marqués).
+4. Dans `scripts/termux/cybel_lite.py` : supprimer le bloc entre « TEMPORAIRE-INTEGRATION-2026 »
+   et « FIN TEMPORAIRE-INTEGRATION-2026 », les routes `/api/event/*`, la constante
+   `INTEGRATION_EVENT_MODULE`, le filtrage de `staff_pin` dans `kiosk_config_get`, et le
+   démarrage automatique des annonces dans `_lifespan`.
+5. Optionnel : garder le mode événement du kiosque (`event` dans `types.ts`, `home.ts`,
+   `style.css`) et `CybelSecondScreen`, réutilisables pour un autre événement.
+6. `npm run build`, `python -m pytest tests/unit -q`, puis redéployer.

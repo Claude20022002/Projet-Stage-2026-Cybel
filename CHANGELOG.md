@@ -26,6 +26,15 @@ Procédure complète : [docs/labo/JOURNEE_INTEGRATION.md](docs/labo/JOURNEE_INTE
   chaîne de la campagne d'ablation (annulation, état prêt, `/poi`), succès jugé sur la
   position finale, détection « but acquitté, robot immobile » (H4), garde-fous arrêt
   d'urgence / localisation / batterie, journal JSONL.
+- **Panneau staff dans CYBEL Accueil** (temporaire, marqueur `TEMPORAIRE-INTEGRATION-2026`) :
+  appui long 3 s coin haut-gauche → code staff → activer le mode événement, démarrer /
+  arrêter la circulation, annonce immédiate. La circulation tourne alors sur le robot
+  (`sdk/integration_event.py`, routes `/api/event/mode|circulation/*` de `cybel_lite.py`),
+  sans PC, avec la chaîne de navigation des visites guidées. Code staff vérifié côté
+  backend et masqué dans `GET /api/kiosk/config`. 16 tests unitaires du moteur. Procédure
+  de retrait dans la doc.
+- `scripts/circulation.py` (secours PC) : reconnexion automatique à rosbridge, attente de
+  télémétrie jusqu'à 10 s, pas de faux « robot immobile » sur pose périmée.
 - `scripts/deploy_event.sh` : déploiement et `--restore` de la config labo (sauvegardée une
   fois dans `kiosk_config.before_event.json` sur la tablette).
 - Constat réseau : le PC sur le Wi-Fi du robot (10.42.0.x) joint le backend de la tête à son
