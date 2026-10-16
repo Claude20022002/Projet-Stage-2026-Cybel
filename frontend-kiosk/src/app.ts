@@ -867,7 +867,13 @@ export async function initApp(): Promise<void> {
     onWakeDetected();
   };
   render();
-  initStaffPanel(); // TEMPORAIRE-INTEGRATION-2026
+  // TEMPORAIRE-INTEGRATION-2026 : isolé — une panne du panneau ne doit jamais
+  // interrompre l'initialisation du kiosque (mode événement, verrouillage).
+  try {
+    initStaffPanel();
+  } catch (err) {
+    console.error("Panneau staff indisponible", err);
+  }
   startClock();
   startTelemetry();
   // Config d'abord, seule : le mode événement doit s'afficher même si la visite

@@ -76,6 +76,12 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export function initStaffPanel(): void {
+  // Le bundle est chargé dans <head> sans defer (index.html, WebView Android 7.1) :
+  // au démarrage, <body> n'existe pas encore.
+  if (!document.body) {
+    document.addEventListener("DOMContentLoaded", initStaffPanel);
+    return;
+  }
   root = document.createElement("div");
   root.id = "staff-root";
   document.body.appendChild(root);
