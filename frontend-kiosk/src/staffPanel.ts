@@ -92,12 +92,14 @@ export function initStaffPanel(): void {
 
 // ---- cycle de vie -------------------------------------------------------------
 function open(next: View): void {
+  console.log("[staff] open " + next);
   view = next;
   touchIdle();
   render();
 }
 
 function close(): void {
+  console.log("[staff] close");
   view = "closed";
   pin = "";
   pinError = "";
