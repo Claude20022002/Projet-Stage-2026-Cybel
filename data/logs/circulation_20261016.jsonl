@@ -28,3 +28,6 @@
 {"at": "2026-10-16T17:13:39", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 603, "distance_m": 15.76}
 {"at": "2026-10-16T17:14:05", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 26.2, "nav": 601, "distance_m": 0.66}
 {"at": "2026-10-16T17:14:12", "event": "annonce", "texte": "HESTIM fête ses vingt ans d'innovation. Bonne rentrée à toutes et à tous !"}
+{"at": "2026-10-16T17:14:41", "event": "depart", "vers": "POINT-ECRAN", "tentative": 1, "nav": 603, "distance_m": 15.92}
+{"at": "2026-10-16T17:15:08", "event": "arrivee", "vers": "POINT-ECRAN", "raison": "arrive", "duree_s": 26.5, "nav": 601, "distance_m": 0.63}
+{"at": "2026-10-16T17:15:14", "event": "annonce", "texte": "Bonjour et bienvenue à la semaine d'intégration de HESTIM ! Je suis le robot d'accueil de l'école."}
