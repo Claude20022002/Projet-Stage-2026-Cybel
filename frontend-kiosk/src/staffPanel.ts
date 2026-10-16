@@ -83,6 +83,7 @@ export function initStaffPanel(): void {
     document.addEventListener("DOMContentLoaded", initStaffPanel);
     return;
   }
+  console.log("[staff] init");
   root = document.createElement("div");
   root.id = "staff-root";
   document.body.appendChild(root);
@@ -282,10 +283,12 @@ function bind(): void {
       return t ? { x: t.clientX, y: t.clientY } : { x: m.clientX, y: m.clientY };
     };
     const cancelPress = () => {
+      if (timer !== null) console.log("[staff] cancel");
       if (timer !== null) window.clearTimeout(timer);
       timer = null;
     };
     const startPress = (e: Event) => {
+      console.log("[staff] press " + e.type);
       e.preventDefault();
       ({ x: startX, y: startY } = point(e));
       cancelPress();
