@@ -24,3 +24,5 @@
 {"at": "2026-10-16T17:12:30", "event": "depart", "vers": "POINT-ECRAN", "tentative": 1, "nav": 603, "distance_m": 15.92}
 {"at": "2026-10-16T17:13:04", "event": "arrivee", "vers": "POINT-ECRAN", "raison": "arrive", "duree_s": 33.9, "nav": 601, "distance_m": 0.74}
 {"at": "2026-10-16T17:13:10", "event": "annonce", "texte": "Hello, and welcome to HESTIM integration week! Scan the QR code on my screen to learn more."}
+{"at": "2026-10-16T17:13:30", "event": "cycle", "numero": 3}
+{"at": "2026-10-16T17:13:39", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 603, "distance_m": 15.76}
