@@ -56,3 +56,27 @@
 {"at": "2026-10-16T17:27:18", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 602, "batterie": 79, "localisation": 86.9, "pose": "(8.13,-13.71)"}
 {"at": "2026-10-16T17:27:19", "event": "cycle", "numero": 1}
 {"at": "2026-10-16T17:27:37", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 602, "distance_m": 15.93}
+{"at": "2026-10-16T17:28:05", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 28.3, "nav": 601, "distance_m": 0.79}
+{"at": "2026-10-16T17:28:11", "event": "annonce", "texte": "Hello, and welcome to HESTIM integration week! Scan the QR code on my screen to learn more."}
+{"at": "2026-10-16T17:30:51", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 602, "batterie": 78, "localisation": 87.2, "pose": "(0.06,0.18)"}
+{"at": "2026-10-16T17:30:56", "event": "refus", "raison": "arrêt d'urgence enclenché"}
+{"at": "2026-10-16T17:33:17", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 603, "batterie": 77, "localisation": 84.4, "pose": "(8.05,-13.58)"}
+{"at": "2026-10-16T17:33:20", "event": "cycle", "numero": 1}
+{"at": "2026-10-16T17:33:24", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 603, "distance_m": 15.77}
+{"at": "2026-10-16T17:33:53", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 29.1, "nav": 601, "distance_m": 0.8}
+{"at": "2026-10-16T17:33:59", "event": "annonce", "texte": "HESTIM fête ses vingt ans d'innovation. Bonne rentrée à toutes et à tous !"}
+{"at": "2026-10-16T17:36:08", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 602, "batterie": 76, "localisation": 92.0, "pose": "(0.07,0.02)"}
+{"at": "2026-10-16T17:36:13", "event": "refus", "raison": "arrêt d'urgence enclenché"}
+{"at": "2026-10-16T17:37:07", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 602, "batterie": 76, "localisation": 92.0, "pose": "(0.07,0.02)"}
+{"at": "2026-10-16T17:37:10", "event": "cycle", "numero": 1}
+{"at": "2026-10-16T17:37:18", "event": "reconnexion", "erreur": "ConnectionClosedError"}
+{"at": "2026-10-16T17:37:30", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 602, "distance_m": 0.0}
+{"at": "2026-10-16T17:37:31", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 0.3, "nav": 602, "distance_m": 0.0}
+{"at": "2026-10-16T17:37:37", "event": "annonce", "texte": "Bonjour et bienvenue à la semaine d'intégration de HESTIM ! Je suis le robot d'accueil de l'école."}
+{"at": "2026-10-16T17:38:03", "event": "depart", "vers": "POINT-ECRAN", "tentative": 1, "nav": 603, "distance_m": 15.81}
+{"at": "2026-10-16T17:38:29", "event": "arrivee", "vers": "POINT-ECRAN", "raison": "arrive", "duree_s": 26.3, "nav": 601, "distance_m": 0.8}
+{"at": "2026-10-16T17:38:35", "event": "annonce", "texte": "Scannez le QR code affiché sur mon écran pour en savoir plus sur la semaine d'intégration."}
+{"at": "2026-10-16T17:38:55", "event": "cycle", "numero": 2}
+{"at": "2026-10-16T17:39:01", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 603, "distance_m": 15.8}
+{"at": "2026-10-16T17:39:27", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 26.0, "nav": 601, "distance_m": 0.74}
+{"at": "2026-10-16T17:39:32", "event": "annonce", "texte": "Hello, and welcome to HESTIM integration week! Scan the QR code on my screen to learn more."}
