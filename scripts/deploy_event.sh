@@ -2,8 +2,9 @@
 # =============================================================================
 # Mode événement (journée d'intégration HESTIM, bâtiment Ghandi) — robot en USB/ADB.
 #
-#   Écran du dessus  : kiosque CybelVisitorKioskTest en mode événement
-#                      (visuel plein écran, toucher et voix sans effet).
+#   Écran du dessus  : kiosque CybelVisitorKioskTest ; le mode événement (visuel
+#                      plein écran, toucher et voix sans effet) s'active depuis le
+#                      panneau staff — désactivé par défaut, l'app s'ouvre normalement.
 #   Écran du dessous : CybelSecondScreen (display HDMI 1), image sur /sdcard.
 #   Voix             : annonces périodiques du backend Termux (/api/event/*).
 #
@@ -150,21 +151,36 @@ fi
 MSYS_NO_PATHCONV=1 adb shell "pm path $SCREEN_PKG" >/dev/null 2>&1 || fail "$SCREEN_PKG absent — relancez avec --apk"
 MSYS_NO_PATHCONV=1 adb shell "mkdir -p /sdcard/Cybel" >/dev/null 2>&1
 MSYS_NO_PATHCONV=1 adb push "$(win "$BOTTOM_IMAGE")" "$BOTTOM_IMAGE_DEVICE" >/dev/null 2>&1 || fail "push image écran du dessous échoué"
-MSYS_NO_PATHCONV=1 adb shell "appops set $SCREEN_PKG SYSTEM_ALERT_WINDOW allow; pm grant $SCREEN_PKG android.permission.READ_EXTERNAL_STORAGE; am startservice -n $SCREEN_SERVICE --es path $BOTTOM_IMAGE_DEVICE" >/dev/null 2>&1
-sleep 2
-if MSYS_NO_PATHCONV=1 adb shell "dumpsys window windows" | grep -A1 "u0 $SCREEN_PKG" | grep -q "mDisplayId=1"; then
-  ok "visuel affiché sur l'écran du dessous (display 1)"
+MSYS_NO_PATHCONV=1 adb shell "appops set $SCREEN_PKG SYSTEM_ALERT_WINDOW allow; pm grant $SCREEN_PKG android.permission.READ_EXTERNAL_STORAGE" >/dev/null 2>&1
+ok "image prête ($BOTTOM_IMAGE_DEVICE)"
+# Par défaut le mode événement est désactivé : l'app s'ouvre normalement, et c'est
+# le panneau staff qui l'active (écran du dessus + écran du dessous ensemble).
+if grep -q '"enabled": *true' "$EVENT_CONFIG"; then
+  MSYS_NO_PATHCONV=1 adb shell "am startservice -n $SCREEN_SERVICE --es path $BOTTOM_IMAGE_DEVICE" >/dev/null 2>&1
+  sleep 2
+  if MSYS_NO_PATHCONV=1 adb shell "dumpsys window windows" | grep -A1 "u0 $SCREEN_PKG" | grep -q "mDisplayId=1"; then
+    ok "visuel affiché sur l'écran du dessous (display 1)"
+  else
+    ko "pas de fenêtre sur le display 1 — adb logcat -s CybelSecondScreen"
+  fi
 else
-  ko "pas de fenêtre sur le display 1 — adb logcat -s CybelSecondScreen"
+  MSYS_NO_PATHCONV=1 adb shell "am startservice -n $SCREEN_SERVICE -a com.cybel.secondscreen.HIDE" >/dev/null 2>&1
+  ok "écran du dessous libre (le panneau staff l'affichera à l'activation)"
 fi
 
 # ---- 5. Kiosque + validation -------------------------------------------------
 step "5. Kiosque (écran du dessus) + validation"
 restart_kiosk_app && ok "kiosque relancé"
 EVENT_STATUS="$(curl -s -m 5 "http://127.0.0.1:$PORT_LOCAL/api/event/status")"
-echo "$EVENT_STATUS" | grep -q '"enabled": *true' \
-  && ok "mode événement actif ($(echo "$EVENT_STATUS" | grep -o '"announcements": *\[[^]]*\]' | grep -o '"text"' | wc -l) annonces)" \
-  || ko "mode événement inactif : $EVENT_STATUS"
+ANNOUNCES="$(echo "$EVENT_STATUS" | grep -o '"announcements": *\[[^]]*\]' | grep -o '"text"' | wc -l)"
+if echo "$EVENT_STATUS" | grep -q '"enabled": *true'; then
+  ok "mode événement ACTIF ($ANNOUNCES annonces)"
+elif [ -n "$EVENT_STATUS" ]; then
+  ok "mode événement prêt, désactivé : l'activer depuis le panneau staff ($ANNOUNCES annonces)"
+else
+  ko "backend injoignable pour /api/event/status"
+fi
+echo "Panneau staff : appui long 3 s en haut à gauche de l'écran tactile."
 
 echo ""
 echo "Tester une annonce : curl -X POST http://127.0.0.1:$PORT_LOCAL/api/event/announce/say"

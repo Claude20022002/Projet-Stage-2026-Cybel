@@ -17,7 +17,7 @@
   "kiosk_variant_label_fr": "Journée d'intégration — Ghandi",
   "kiosk_variant_label_en": "Integration day — Ghandi",
   "event": {
-    "enabled": true,
+    "enabled": false,
     "name": "Semaine d'intégration HESTIM",
     "top_image": "/kiosk/event/ecran-dessus.jpg",
     "staff_pin": "4817",

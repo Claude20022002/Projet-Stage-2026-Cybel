@@ -39,6 +39,10 @@ bash scripts/deploy_event.sh --apk      # idem + (ré)installe CybelSecondScreen
 bash scripts/deploy_event.sh --restore  # revient à la config d'avant l'événement
 ```
 
+Le déploiement laisse le **mode événement désactivé** : CYBEL Accueil s'ouvre normalement, et
+le mode s'active depuis le panneau staff (les deux écrans ensemble). Attention, redéployer
+remet ce réglage à « désactivé ».
+
 Depuis **PowerShell**, `bash` lance celui de WSL (absent ici : « execvpe(/bin/bash) failed »).
 Appeler Git Bash explicitement :
 
