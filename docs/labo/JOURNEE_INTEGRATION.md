@@ -39,6 +39,13 @@ bash scripts/deploy_event.sh --apk      # idem + (ré)installe CybelSecondScreen
 bash scripts/deploy_event.sh --restore  # revient à la config d'avant l'événement
 ```
 
+Depuis **PowerShell**, `bash` lance celui de WSL (absent ici : « execvpe(/bin/bash) failed »).
+Appeler Git Bash explicitement :
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" scripts/deploy_event.sh
+```
+
 ## Annonces vocales
 
 Par le Wi-Fi (ou `localhost:18001` avec le câble, tunnel ouvert par le script) :
@@ -85,11 +92,17 @@ Tout se lance depuis l'écran tactile du robot, sans PC :
 3. Le panneau affiche l'état du robot (batterie, localisation, arrêt d'urgence) et propose :
    - **Activer / désactiver le mode événement** : visuels sur les deux écrans, kiosque
      verrouillé. Le kiosque se recharge pour appliquer le changement.
-   - **Démarrer la circulation** (exige le mode événement actif) / **Arrêter la
-     circulation** (gros bouton rouge, sans code).
+   - **Démarrer la circulation** (exige le mode événement actif), en **deux appuis** :
+     « Démarrer », puis « Confirmer le départ » dans les 10 s, avec le rappel de vérifier que
+     le passage est dégagé et le câble USB débranché. **Arrêter la circulation** : gros bouton
+     rouge, un seul appui, sans code.
    - **Faire une annonce maintenant**.
    - Les derniers événements de la circulation (départs, arrivées, échecs avec leur raison).
-4. Le panneau se ferme seul après 2 min sans toucher.
+4. **Le panneau ne masque jamais l'affiche** : c'est une page à part. On passe de l'un à
+   l'autre avec « ← Revenir à l'affiche » et l'appui long. L'affiche revient d'elle-même dès
+   que la circulation démarre et après 60 s sans toucher. Le code reste mémorisé 10 min :
+   pendant ce temps, l'appui long rouvre le panneau directement. « Verrouiller » l'oublie
+   tout de suite.
 
 La circulation tourne alors **sur le robot** (backend Termux) : le PC peut être éteint ou hors
 de portée. Elle reprend la chaîne des visites guidées (préparation, POI, arrivée vérifiée sur la

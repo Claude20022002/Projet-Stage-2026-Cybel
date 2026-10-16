@@ -33,6 +33,16 @@ Procédure complète : [docs/labo/JOURNEE_INTEGRATION.md](docs/labo/JOURNEE_INTE
   sans PC, avec la chaîne de navigation des visites guidées. Code staff vérifié côté
   backend et masqué dans `GET /api/kiosk/config`. 16 tests unitaires du moteur. Procédure
   de retrait dans la doc.
+- **Bug corrigé dans l'attente d'arrivée** (`wait_for_navigation_arrival`, utilisée aussi par
+  la visite guidée) : tant qu'aucun `/robot_pose` n'est reçu, la pose valait 0,0, et un POI
+  proche de l'origine de la carte passait pour atteint dès le premier `/robot_status`.
+  Constaté sur la carte Ghandi (POINT-CHARGE à 6 cm de l'origine) : « arrivée » déclarée 9 s
+  après le départ, robot encore à 11 m. Plus d'arrivée sans position réelle. Invisible au labo,
+  où aucun POI n'est à moins de 0,45 m de l'origine.
+- Panneau staff : page à part qui ne masque jamais l'affiche (retour automatique au démarrage
+  de la circulation et après 60 s), départ en deux appuis avec confirmation, initialisation
+  isolée (le bundle est chargé avant `<body>` : un plantage du panneau empêchait le kiosque
+  d'appliquer le mode événement et le verrouillage).
 - `scripts/circulation.py` (secours PC) : reconnexion automatique à rosbridge, attente de
   télémétrie jusqu'à 10 s, pas de faux « robot immobile » sur pose périmée.
 - `scripts/deploy_event.sh` : déploiement et `--restore` de la config labo (sauvegardée une
