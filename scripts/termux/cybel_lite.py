@@ -36,6 +36,8 @@ LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
 SPEECH_TIMING_MODULE = CYBEL_HOME / "sdk" / "speech_timing.py"
 TOUR_TRACE_MODULE = CYBEL_HOME / "sdk" / "tour_trace.py"
 TOUR_NAVIGATION_MODULE = CYBEL_HOME / "sdk" / "tour_navigation.py"
+# TEMPORAIRE-INTEGRATION-2026 : circulation de la semaine d'intégration.
+INTEGRATION_EVENT_MODULE = CYBEL_HOME / "sdk" / "integration_event.py"
 
 
 def _load_module_from_file(module_name: str, path: Path):
@@ -1717,7 +1719,11 @@ def load_kiosk_config() -> dict:
 
 
 async def kiosk_config_get(_: Request) -> JSONResponse:
-    return JSONResponse(load_kiosk_config())
+    config = load_kiosk_config()
+    # TEMPORAIRE-INTEGRATION-2026 : le code staff ne quitte jamais le backend.
+    if isinstance(config.get("event"), dict):
+        config["event"] = {k: v for k, v in config["event"].items() if k != "staff_pin"}
+    return JSONResponse(config)
 
 
 async def kiosk_config_put(request: Request) -> JSONResponse:
@@ -1756,6 +1762,9 @@ async def kiosk_config_put(request: Request) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
+# TEMPORAIRE-INTEGRATION-2026 — tout ce bloc (jusqu'à « FIN TEMPORAIRE ») est à
+# retirer après la semaine d'intégration, cf. docs/labo/JOURNEE_INTEGRATION.md.
+#
 # Mode événement (journée d'intégration…) : annonces vocales périodiques.
 # Uniquement de la parole — aucune commande châssis. Textes et intervalle dans
 # kiosk_config.json → "event". Éviter le mot « Cybel » dans les textes : c'est
@@ -1893,6 +1902,180 @@ async def event_announce_say(request: Request) -> JSONResponse:
     except RuntimeError as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
     return JSONResponse(result, status_code=200 if result["ok"] else 400)
+
+
+# ---- Panneau staff du kiosque : mode événement + circulation ----------------
+# Lancer la circulation (mouvement) ou changer le mode demande le code staff
+# (kiosk_config.json → event.staff_pin, jamais renvoyé au kiosque). L'arrêt,
+# lui, est toujours permis sans code : c'est l'action sûre.
+SECOND_SCREEN_SERVICE = "com.cybel.secondscreen/.SecondScreenService"
+SECOND_SCREEN_HIDE = "com.cybel.secondscreen.HIDE"
+CIRCULATION_LEG_TIMEOUT_S = 240.0
+_circulation_engine = None
+
+
+def _integration_event_module():
+    return _load_module_from_file("cybel_integration_event", INTEGRATION_EVENT_MODULE)
+
+
+def staff_pin_ok(pin) -> bool:
+    expected = str(event_config().get("staff_pin") or "")
+    return bool(expected) and str(pin or "") == expected
+
+
+async def _json_body(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _pin_refused() -> JSONResponse:
+    return JSONResponse({"ok": False, "error": "Code staff incorrect"}, status_code=403)
+
+
+def set_second_screen(show: bool) -> bool:
+    """Affiche / libère l'écran du dessous (app CybelSecondScreen)."""
+    cmd = f"am startservice -n {SECOND_SCREEN_SERVICE}"
+    if not show:
+        cmd += f" -a {SECOND_SCREEN_HIDE}"
+    for attempt in (cmd, f"su -c '{cmd}'"):
+        try:
+            result = subprocess.run(["sh", "-c", attempt], capture_output=True, timeout=5)
+            if result.returncode == 0:
+                return True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return False
+
+
+async def _circulation_navigate(name: str) -> tuple[bool, str]:
+    """Même chaîne que la visite guidée : préparation + POI, puis arrivée vérifiée
+    sur la position et la vitesse (wait_for_navigation_arrival), pas sur l'acquittement."""
+    from types import SimpleNamespace
+
+    point = find_point(name)
+    if not point:
+        return False, f"POI « {name} » absent de la carte active"
+    await navigate_to_point(name)
+    stop = SimpleNamespace(
+        x=float(point["x"]), y=float(point["y"]), target_point=name, equipment_fr=name
+    )
+    return await wait_for_navigation_arrival(timeout=CIRCULATION_LEG_TIMEOUT_S, stop=stop)
+
+
+async def _circulation_read_status() -> dict:
+    return robot_status_payload(await fetch_robot_snapshot(timeout=4.0))
+
+
+async def _circulation_announce() -> None:
+    await speak_event_announcement()
+
+
+async def _circulation_cancel() -> None:
+    await cancel_navigation_full()
+
+
+def circulation_payload() -> dict:
+    event = event_config()
+    status = (
+        _circulation_engine.get_status().to_dict()
+        if _circulation_engine is not None
+        else {"state": "idle", "history": []}
+    )
+    return {
+        "event_enabled": bool(event.get("enabled")),
+        "config": event.get("circulation") or {},
+        "status": status,
+        "announcer_running": event_announcer_running(),
+    }
+
+
+async def event_staff_verify(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    if not staff_pin_ok(body.get("pin")):
+        return _pin_refused()
+    return JSONResponse({"ok": True})
+
+
+async def event_mode(request: Request) -> JSONResponse:
+    """Active / désactive le mode événement (écran du dessus + écran du dessous)."""
+    body = await _json_body(request)
+    if not staff_pin_ok(body.get("pin")):
+        return _pin_refused()
+    enabled = bool(body.get("enabled"))
+    if not enabled and _circulation_engine is not None and _circulation_engine.is_running():
+        await _circulation_engine.stop()
+    config = load_kiosk_config()
+    event = dict(config.get("event") or {})
+    event["enabled"] = enabled
+    config["event"] = event
+    KIOSK_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(KIOSK_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    screen_ok = set_second_screen(enabled)
+    return JSONResponse({"ok": True, "enabled": enabled, "second_screen": screen_ok})
+
+
+async def event_circulation_get(_: Request) -> JSONResponse:
+    return JSONResponse(circulation_payload())
+
+
+async def event_circulation_start(request: Request) -> JSONResponse:
+    global _circulation_engine
+    body = await _json_body(request)
+    if not staff_pin_ok(body.get("pin")):
+        return _pin_refused()
+    event = event_config()
+    # Mode événement exigé : le kiosque est alors verrouillé (ni visite ni
+    # navigation vocale ne peuvent se superposer à la circulation).
+    if not event.get("enabled"):
+        return JSONResponse(
+            {"ok": False, "error": "Activez d'abord le mode événement"}, status_code=409
+        )
+    if _circulation_engine is not None and _circulation_engine.is_running():
+        return JSONResponse({"ok": False, "error": "Circulation déjà en cours"}, status_code=409)
+    if get_tour_engine().is_running():
+        return JSONResponse({"ok": False, "error": "Une visite est en cours"}, status_code=409)
+    module = _integration_event_module()
+    try:
+        config = module.CirculationConfig.from_dict(event.get("circulation"))
+    except (ValueError, TypeError) as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+    sync_ok, _, sync_err = await sync_poi_from_ros_map()
+    if not sync_ok:
+        return JSONResponse({"ok": False, "error": sync_err}, status_code=503)
+    missing = [n for n in [*config.stops, config.return_point] if not find_point(n)]
+    if missing:
+        return JSONResponse(
+            {"ok": False, "error": f"POI absents de la carte active : {', '.join(missing)}"},
+            status_code=400,
+        )
+    if config.announce_on_arrival and event_announcer_running():
+        # Une annonce à chaque arrivée remplace la boucle périodique (sinon double parole).
+        await event_announce_stop(request)
+    _circulation_engine = module.CirculationEngine(
+        config,
+        navigate=_circulation_navigate,
+        read_status=_circulation_read_status,
+        announce=_circulation_announce,
+        cancel=_circulation_cancel,
+    )
+    result = _circulation_engine.start()
+    return JSONResponse({**result, **circulation_payload()})
+
+
+async def event_circulation_stop(_: Request) -> JSONResponse:
+    if _circulation_engine is None:
+        await cancel_navigation_full()
+        return JSONResponse({"ok": True, **circulation_payload()})
+    await _circulation_engine.stop()
+    return JSONResponse({"ok": True, **circulation_payload()})
+
+
+# ---- FIN TEMPORAIRE-INTEGRATION-2026 ----------------------------------------
 
 
 def robot_status_payload(snap: dict) -> dict:
@@ -2639,6 +2822,11 @@ def build_app() -> Starlette:
         Route("/api/event/announce/start", event_announce_start, methods=["POST"]),
         Route("/api/event/announce/stop", event_announce_stop, methods=["POST"]),
         Route("/api/event/announce/say", event_announce_say, methods=["POST"]),
+        Route("/api/event/staff/verify", event_staff_verify, methods=["POST"]),
+        Route("/api/event/mode", event_mode, methods=["POST"]),
+        Route("/api/event/circulation", event_circulation_get, methods=["GET"]),
+        Route("/api/event/circulation/start", event_circulation_start, methods=["POST"]),
+        Route("/api/event/circulation/stop", event_circulation_stop, methods=["POST"]),
         WebSocketRoute("/ws/telemetry", telemetry_ws),
     ]
     if KIOSK_DIST.is_dir():

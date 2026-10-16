@@ -10,6 +10,8 @@ import {
   renderWelcome,
 } from "./screens/home";
 import { connectKioskTelemetry } from "./telemetry";
+// TEMPORAIRE-INTEGRATION-2026 : panneau staff de la semaine d'intégration.
+import { initStaffPanel } from "./staffPanel";
 import type {
   ActiveFlow,
   DetectedPerson,
@@ -865,6 +867,7 @@ export async function initApp(): Promise<void> {
     onWakeDetected();
   };
   render();
+  initStaffPanel(); // TEMPORAIRE-INTEGRATION-2026
   startClock();
   startTelemetry();
   // Config d'abord, seule : le mode événement doit s'afficher même si la visite

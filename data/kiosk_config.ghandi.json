@@ -20,6 +20,16 @@
     "enabled": true,
     "name": "Semaine d'intégration HESTIM",
     "top_image": "/kiosk/event/ecran-dessus.jpg",
+    "staff_pin": "4817",
+    "circulation": {
+      "stops": ["POINT-CHARGE", "POINT-ECRAN"],
+      "dwell_seconds": 20,
+      "battery_min": 25,
+      "min_localization": 60,
+      "return_point": "POINT-CHARGE",
+      "announce_on_arrival": true,
+      "max_failed_legs": 2
+    },
     "announce_autostart": false,
     "announce_interval_seconds": 90,
     "announcements": [
