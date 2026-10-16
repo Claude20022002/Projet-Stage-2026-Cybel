@@ -1085,6 +1085,12 @@ async def wait_for_navigation_arrival(
         return 0.0, 0.0
 
     def _arrived(robot: dict, nav_status: int) -> bool:
+        # Sans /robot_pose reçu, x/y valent None et deviendraient 0,0 : un POI
+        # proche de l'origine de la carte (POINT-CHARGE à Ghandi, à 6 cm) passait
+        # pour atteint dès le premier /robot_status — constaté le 2026-10-16,
+        # robot encore à 11 m. Pas d'arrivée sans position réelle.
+        if robot.get("x") is None or robot.get("y") is None:
+            return False
         return _tour_navigation.evaluate_navigation_arrival(
             nav_status=nav_status,
             saw_active=saw_active,
