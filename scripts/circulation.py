@@ -54,6 +54,7 @@ LEG_TIMEOUT_S = 180.0       # ~16 m entre les deux POI actuels ; 9 m prenaient ~
 PROGRESS_WINDOW_S = 20.0    # but acquitté mais robot immobile depuis 20 s -> non exécuté
 PROGRESS_MIN_M = 0.30
 MAX_FAILED_LEGS = 2
+TELEMETRY_TIMEOUT_S = 10.0
 
 
 class Telemetry:
@@ -241,9 +242,17 @@ class Circulation:
             self.ws = ws
             for topic in ("/robot_status", "/robot_pose"):
                 await self.send({"op": "subscribe", "topic": topic, "throttle_rate": 200})
-            await self.pump(2.0)
+            # Le Wi-Fi du robot a des allers-retours jusqu'à ~1,6 s : une attente
+            # fixe de 2 s a déjà échoué (2026-10-16). On attend jusqu'à
+            # TELEMETRY_TIMEOUT_S, en sortant dès que les deux topics sont arrivés.
+            end = time.time() + TELEMETRY_TIMEOUT_S
+            while time.time() < end and (self.tel.nav == -1 or self.tel.pose is None):
+                await self.pump(0.5)
             if self.tel.nav == -1 or self.tel.pose is None:
-                print("Télémétrie châssis absente. Abandon.")
+                missing = [t for t, ok in (("/robot_status", self.tel.nav != -1),
+                                           ("/robot_pose", self.tel.pose is not None)) if not ok]
+                print(f"Télémétrie châssis absente après {TELEMETRY_TIMEOUT_S:.0f} s "
+                      f"({', '.join(missing)}). Vérifier le Wi-Fi du robot, puis relancer.")
                 return 2
 
             st = self.robot_status()
