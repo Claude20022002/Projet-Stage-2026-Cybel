@@ -57,6 +57,9 @@ let data: CirculationPayload | null = null;
 let robot: RobotStatus | null = null;
 let pollTimer: number | null = null;
 let idleTimer: number | null = null;
+let confirmingStart = false;
+let confirmTimer: number | null = null;
+const CONFIRM_TIMEOUT_MS = 10_000;
 let root: HTMLElement;
 
 async function post<T>(path: string, body: object = {}): Promise<T> {
@@ -83,7 +86,6 @@ export function initStaffPanel(): void {
     document.addEventListener("DOMContentLoaded", initStaffPanel);
     return;
   }
-  console.log("[staff] init");
   root = document.createElement("div");
   root.id = "staff-root";
   document.body.appendChild(root);
@@ -92,16 +94,15 @@ export function initStaffPanel(): void {
 
 // ---- cycle de vie -------------------------------------------------------------
 function open(next: View): void {
-  console.log("[staff] open " + next);
   view = next;
   touchIdle();
   render();
 }
 
 function close(): void {
-  console.log("[staff] close");
   view = "closed";
   pin = "";
+  confirmingStart = false;
   pinError = "";
   feedback = "";
   data = null;
@@ -246,9 +247,13 @@ function renderPanel(): string {
           ${
             running
               ? `<button type="button" class="staff-btn staff-btn--danger" data-act="circ-stop">Arrêter la circulation</button>`
-              : `<button type="button" class="staff-btn staff-btn--go" data-act="circ-start" ${busy || !enabled ? "disabled" : ""}>Démarrer la circulation</button>`
+              : confirmingStart
+                ? `<button type="button" class="staff-btn staff-btn--go" data-act="circ-confirm" ${busy ? "disabled" : ""}>Confirmer le départ</button>
+                   <button type="button" class="staff-btn staff-btn--ghost" data-act="circ-cancel">Annuler</button>`
+                : `<button type="button" class="staff-btn staff-btn--go" data-act="circ-start" ${busy || !enabled ? "disabled" : ""}>Démarrer la circulation</button>`
           }
         </div>
+        ${confirmingStart && !running ? `<p class="staff-hint">Le robot va se déplacer : vérifier que le passage est dégagé et que le câble USB est débranché.</p>` : ""}
         ${!enabled && !running ? `<p class="staff-hint">Activer d'abord le mode événement.</p>` : ""}
       </section>
 
@@ -285,12 +290,10 @@ function bind(): void {
       return t ? { x: t.clientX, y: t.clientY } : { x: m.clientX, y: m.clientY };
     };
     const cancelPress = () => {
-      if (timer !== null) console.log("[staff] cancel");
       if (timer !== null) window.clearTimeout(timer);
       timer = null;
     };
     const startPress = (e: Event) => {
-      console.log("[staff] press " + e.type);
       e.preventDefault();
       ({ x: startX, y: startY } = point(e));
       cancelPress();
@@ -338,6 +341,21 @@ function bind(): void {
           void act("Désactivation du mode événement", () => post("/api/event/mode", { pin, enabled: false }), true);
           break;
         case "circ-start":
+          // Deux appuis distincts pour mettre le robot en mouvement.
+          confirmingStart = true;
+          if (confirmTimer !== null) window.clearTimeout(confirmTimer);
+          confirmTimer = window.setTimeout(() => {
+            confirmingStart = false;
+            render();
+          }, CONFIRM_TIMEOUT_MS);
+          render();
+          break;
+        case "circ-cancel":
+          confirmingStart = false;
+          render();
+          break;
+        case "circ-confirm":
+          confirmingStart = false;
           void act("Démarrage de la circulation", () => post("/api/event/circulation/start", { pin }));
           break;
         case "circ-stop":
