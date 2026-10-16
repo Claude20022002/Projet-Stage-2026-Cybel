@@ -55,7 +55,9 @@ PROGRESS_WINDOW_S = 20.0    # but acquitté mais robot immobile depuis 20 s -> n
 PROGRESS_MIN_M = 0.30
 MAX_FAILED_LEGS = 2
 TELEMETRY_TIMEOUT_S = 10.0
-STALE_TELEMETRY_S = 3.0     # au-delà, la pose n'est plus fiable pour juger la progression
+STALE_TELEMETRY_S = 3.0
+RECONNECT_TIMEOUT_S = 30.0  # au-delà, le Wi-Fi est considéré perdu : fin de la circulation
+HTTP_ATTEMPTS = 3     # au-delà, la pose n'est plus fiable pour juger la progression
 TOPICS = ("/robot_status", "/robot_pose")
 
 
@@ -110,8 +112,16 @@ class Circulation:
             url, data=data, method="POST" if body is not None else "GET",
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        # Un gel Wi-Fi ponctuel ne doit pas arrêter la circulation : quelques essais.
+        for attempt in range(1, HTTP_ATTEMPTS + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except OSError:
+                if attempt == HTTP_ATTEMPTS:
+                    raise
+                time.sleep(2.0)
+        raise AssertionError("inatteignable")
 
     def robot_status(self) -> dict:
         return self.http("/api/robot/status")
@@ -149,11 +159,15 @@ class Circulation:
             await self.ws.close()
         except Exception:
             pass
+        deadline = time.time() + RECONNECT_TIMEOUT_S
         while True:
             try:
                 await self.connect()
                 return
             except (OSError, asyncio.TimeoutError, websockets.WebSocketException):
+                if time.time() > deadline:
+                    raise ConnectionError(
+                        f"rosbridge injoignable depuis {RECONNECT_TIMEOUT_S:.0f} s") from error
                 await asyncio.sleep(2.0)
 
     async def send(self, msg: dict) -> None:

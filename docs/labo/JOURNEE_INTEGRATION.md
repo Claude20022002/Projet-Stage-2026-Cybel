@@ -111,7 +111,11 @@ enclenché, si la localisation est faible ou si le châssis est déconnecté. Il
 jamais lui-même : la relocalisation fait tourner le robot sur place, c'est à l'opérateur de la
 lancer depuis Deployment Tool.
 
-**Si le Wi-Fi tombe**, le robot termine au plus le trajet en cours puis reste sur place : le
+**Coupures Wi-Fi.** Le lien gèle par moments (5 s sans message mesurées en 60 s le
+2026-10-16). Le script le tolère : il se reconnecte à rosbridge et se réabonne seul (ligne
+`reconnexion` dans le journal), réessaie ses appels au backend, et ne déclare pas « robot
+immobile » sur une pose périmée. Si rosbridge reste injoignable plus de 30 s, la circulation
+s'arrête. Dans ce cas le robot termine au plus son trajet en cours puis reste sur place : le
 PC ne peut plus lui envoyer de nouveau but. Garder le PC à portée du Wi-Fi du robot.
 
 **Journal** : `data/logs/circulation_AAAAMMJJ.jsonl`, une ligne par événement (départ,
