@@ -13,6 +13,7 @@
 import "./staffPanel.css";
 
 const LONG_PRESS_MS = 3000;
+const LONG_PRESS_SLOP_PX = 25;
 const POLL_MS = 2000;
 const IDLE_CLOSE_MS = 120_000;
 const PIN_LENGTH = 4;
@@ -273,17 +274,34 @@ function bind(): void {
   const hotspot = document.getElementById("staff-hotspot");
   if (hotspot) {
     let timer: number | null = null;
-    const startPress = (e: Event) => {
-      e.preventDefault();
-      timer = window.setTimeout(() => open("pin"), LONG_PRESS_MS);
+    let startX = 0;
+    let startY = 0;
+    const point = (e: Event): { x: number; y: number } => {
+      const t = (e as TouchEvent).touches?.[0];
+      const m = e as MouseEvent;
+      return t ? { x: t.clientX, y: t.clientY } : { x: m.clientX, y: m.clientY };
     };
     const cancelPress = () => {
       if (timer !== null) window.clearTimeout(timer);
       timer = null;
     };
+    const startPress = (e: Event) => {
+      e.preventDefault();
+      ({ x: startX, y: startY } = point(e));
+      cancelPress();
+      timer = window.setTimeout(() => open("pin"), LONG_PRESS_MS);
+    };
+    // Un doigt posé tremble : n'annuler qu'au-delà d'un vrai glissement.
+    const movePress = (e: Event) => {
+      const { x, y } = point(e);
+      if (Math.abs(x - startX) > LONG_PRESS_SLOP_PX || Math.abs(y - startY) > LONG_PRESS_SLOP_PX) {
+        cancelPress();
+      }
+    };
     hotspot.addEventListener("touchstart", startPress);
     hotspot.addEventListener("mousedown", startPress);
-    for (const evt of ["touchend", "touchcancel", "touchmove", "mouseup", "mouseleave"]) {
+    hotspot.addEventListener("touchmove", movePress);
+    for (const evt of ["touchend", "touchcancel", "mouseup", "mouseleave"]) {
       hotspot.addEventListener(evt, cancelPress);
     }
   }
