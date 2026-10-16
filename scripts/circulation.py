@@ -55,6 +55,8 @@ PROGRESS_WINDOW_S = 20.0    # but acquitté mais robot immobile depuis 20 s -> n
 PROGRESS_MIN_M = 0.30
 MAX_FAILED_LEGS = 2
 TELEMETRY_TIMEOUT_S = 10.0
+STALE_TELEMETRY_S = 3.0     # au-delà, la pose n'est plus fiable pour juger la progression
+TOPICS = ("/robot_status", "/robot_pose")
 
 
 class Telemetry:
@@ -63,12 +65,18 @@ class Telemetry:
     def __init__(self) -> None:
         self.nav = -1
         self.pose: dict | None = None
+        self.updated_at = 0.0
 
     def update(self, msg: dict) -> None:
         if msg.get("topic") == "/robot_status":
             self.nav = msg["msg"].get("nav_status", self.nav)
+            self.updated_at = time.time()
         elif msg.get("topic") == "/robot_pose":
             self.pose = msg["msg"]
+            self.updated_at = time.time()
+
+    def stale(self) -> bool:
+        return time.time() - self.updated_at > STALE_TELEMETRY_S
 
     def dist(self, point: dict) -> float | None:
         if not self.pose:
@@ -125,8 +133,45 @@ class Circulation:
             self.log("annonce_echec", erreur=exc)
 
     # ---- rosbridge ---------------------------------------------------------
+    # Le Wi-Fi du robot gèle par moments (5 s sans message mesurées le
+    # 2026-10-16) et rosbridge peut fermer la connexion : toute lecture ou
+    # écriture passe par ici et reconnecte (+ réabonnement) au besoin.
+    async def connect(self) -> None:
+        url = f"ws://{self.args.host}:{self.args.port}"
+        self.ws = await websockets.connect(url, open_timeout=12, ping_interval=None)
+        for topic in TOPICS:
+            await self.ws.send(json.dumps(
+                {"op": "subscribe", "topic": topic, "throttle_rate": 200}))
+
+    async def reconnect(self, error: Exception) -> None:
+        self.log("reconnexion", erreur=type(error).__name__)
+        try:
+            await self.ws.close()
+        except Exception:
+            pass
+        while True:
+            try:
+                await self.connect()
+                return
+            except (OSError, asyncio.TimeoutError, websockets.WebSocketException):
+                await asyncio.sleep(2.0)
+
     async def send(self, msg: dict) -> None:
-        await self.ws.send(json.dumps(msg))
+        try:
+            await self.ws.send(json.dumps(msg))
+        except (OSError, websockets.ConnectionClosed) as exc:
+            await self.reconnect(exc)
+            await self.ws.send(json.dumps(msg))
+
+    async def recv_once(self, timeout: float) -> None:
+        try:
+            raw = await asyncio.wait_for(self.ws.recv(), timeout=timeout)
+        except (asyncio.TimeoutError, TimeoutError):
+            return
+        except (OSError, websockets.ConnectionClosed) as exc:
+            await self.reconnect(exc)
+            return
+        self.tel.update(json.loads(raw))
 
     async def fire(self, service: str, args: dict) -> None:
         await self.send({"op": "call_service", "id": f"c{int(time.time() * 1000)}",
@@ -135,10 +180,7 @@ class Circulation:
     async def pump(self, seconds: float) -> None:
         end = time.time() + seconds
         while time.time() < end:
-            try:
-                self.tel.update(json.loads(await asyncio.wait_for(self.ws.recv(), timeout=0.3)))
-            except (asyncio.TimeoutError, TimeoutError):
-                continue
+            await self.recv_once(0.3)
 
     async def cancel_all(self) -> None:
         for svc in ("/move_base/cancel", "/path_follower/cancel"):
@@ -166,12 +208,14 @@ class Circulation:
         while time.time() - t0 < LEG_TIMEOUT_S:
             if self.stop_requested():
                 return False, "arret_demande", time.time() - t0
-            try:
-                self.tel.update(json.loads(await asyncio.wait_for(self.ws.recv(), timeout=0.5)))
-            except (asyncio.TimeoutError, TimeoutError):
-                pass
+            await self.recv_once(0.5)
             d = self.tel.dist(point)
             if d is None:
+                continue
+            if self.tel.stale():
+                # Pose figée par une coupure Wi-Fi, pas par le robot : on ne juge
+                # pas la progression sur une donnée périmée.
+                best_at = time.time()
                 continue
             if d <= ARRIVAL_RADIUS_M:
                 return True, "arrive", time.time() - t0
@@ -237,11 +281,9 @@ class Circulation:
         if self.stop_file.exists():
             self.stop_file.unlink()
 
-        url = f"ws://{self.args.host}:{self.args.port}"
-        async with websockets.connect(url, open_timeout=12, ping_interval=None) as ws:
-            self.ws = ws
-            for topic in ("/robot_status", "/robot_pose"):
-                await self.send({"op": "subscribe", "topic": topic, "throttle_rate": 200})
+        asyncio.get_running_loop().set_exception_handler(_quiet_connection_reset)
+        await self.connect()
+        try:
             # Le Wi-Fi du robot a des allers-retours jusqu'à ~1,6 s : une attente
             # fixe de 2 s a déjà échoué (2026-10-16). On attend jusqu'à
             # TELEMETRY_TIMEOUT_S, en sortant dès que les deux topics sont arrivés.
@@ -300,6 +342,16 @@ class Circulation:
             finally:
                 await self.cancel_all()
                 print("Annulation envoyée, robot arrêté.", flush=True)
+        finally:
+            await self.ws.close()
+
+
+def _quiet_connection_reset(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+    """Sous Windows, une connexion fermée par rosbridge laisse une trace
+    ConnectionResetError sans conséquence (la reconnexion est gérée) : on la tait."""
+    if isinstance(context.get("exception"), ConnectionResetError):
+        return
+    loop.default_exception_handler(context)
 
 
 def main() -> None:
