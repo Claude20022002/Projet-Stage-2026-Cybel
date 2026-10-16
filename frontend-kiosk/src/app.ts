@@ -87,6 +87,11 @@ function tr() {
   return t[lang];
 }
 
+/** Mode événement : visuel plein écran, kiosque verrouillé (cf. KioskEvent). */
+function eventMode(): boolean {
+  return Boolean(config?.event?.enabled && config.event.top_image);
+}
+
 function resetStandbyTimer(): void {
   lastInteractionAt = Date.now();
   if (standbyTimer !== null) window.clearTimeout(standbyTimer);
@@ -184,6 +189,9 @@ function personalizedGreeting(): string | null {
  * à quelques instants d'écart. */
 function tryGreetAndOfferTour(): void {
   if (!config) return;
+  // La proposition de visite mène à la visite du labo : hors sujet (et source de
+  // mouvement) pendant un événement, où les annonces vocales passent par le backend.
+  if (eventMode()) return;
   if (busy || activeFlow) return;
   if (pendingQuestion) return; // dialogue déjà en cours, ne pas l'interrompre
   if (screen !== "standby" && screen !== "welcome") return;
@@ -519,6 +527,7 @@ function kioskVariantLabel(): string | undefined {
 function render(): void {
   const app = document.getElementById("app");
   if (!app) return;
+  if (eventMode()) screen = "standby";
 
   app.innerHTML = `
     <div class="kiosk" data-screen="${screen}">
@@ -756,6 +765,9 @@ function startVoice(): void {
 /** Appelé par l'app native quand « Hé Cybel » est détecté ; la capture de la
  * commande a déjà démarré côté natif, on bascule juste l'UI en écoute. */
 function onWakeDetected(): void {
+  // Une commande vocale peut lancer une navigation : ignorée en mode événement.
+  // Le natif réarme seul l'écoute du mot d'éveil (repli de 6 s).
+  if (eventMode()) return;
   if (busy || voiceState !== "idle") return;
   pendingWakeEvent = true;
   enterListeningState();
@@ -780,6 +792,7 @@ async function onVoiceTranscript(transcript: string, ok: boolean): Promise<void>
     window.clearTimeout(voiceTimer);
     voiceTimer = null;
   }
+  if (eventMode()) return;
   const text = (transcript || "").trim();
   if (pendingWakeEvent) {
     pendingWakeEvent = false;
@@ -854,6 +867,14 @@ export async function initApp(): Promise<void> {
   render();
   startClock();
   startTelemetry();
+  // Config d'abord, seule : le mode événement doit s'afficher même si la visite
+  // ou les destinations échouent (carte d'un autre bâtiment, POI absents).
+  try {
+    config = await api.getConfig();
+    render();
+  } catch {
+    /* rechargée ci-dessous avec le reste */
+  }
   try {
     const [tourInfo, tourStatus, dests, actions, kioskConfig, robot, speech] = await Promise.all([
       api.getTour(),

@@ -88,6 +88,16 @@ export interface KioskConfig {
   presence_speak_welcome?: boolean;
   face_recognition_enabled?: boolean;
   face_recognition_threshold?: number;
+  event?: KioskEvent;
+}
+
+/** Mode événement (ex. journée d'intégration) : l'écran tactile affiche un visuel
+ * plein écran et le kiosque est verrouillé — ni toucher ni voix ne déclenchent
+ * de navigation. L'écran du dessous est géré à part (CybelSecondScreen). */
+export interface KioskEvent {
+  enabled: boolean;
+  name?: string;
+  top_image?: string;
 }
 
 export interface ReceptionAction {

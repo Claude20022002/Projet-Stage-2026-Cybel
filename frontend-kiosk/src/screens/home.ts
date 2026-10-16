@@ -18,6 +18,14 @@ export function renderStandby(lang: Lang, config: KioskConfig | null): string {
     : "CYBEL";
   const logo = config?.logo_url || "/kiosk/logo.svg";
 
+  if (config?.event?.enabled && config.event.top_image) {
+    return `
+    <main class="screen screen--event" id="screen-event">
+      <img class="event__visual" src="${config.event.top_image}" alt="${config.event.name || org}" />
+    </main>
+  `;
+  }
+
   return `
     <main class="screen screen--standby" id="screen-standby">
       <div class="standby__pulse" aria-hidden="true"></div>

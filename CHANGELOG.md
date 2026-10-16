@@ -1,5 +1,38 @@
 # Changelog CYBEL
 
+## [0.6.0] — 2026-10-16
+
+### Journée d'intégration HESTIM (bâtiment Ghandi) — deux écrans, annonces vocales, circulation
+
+Procédure complète : [docs/labo/JOURNEE_INTEGRATION.md](docs/labo/JOURNEE_INTEGRATION.md).
+
+- **Écran du dessous enfin pilotable.** `dumpsys display` montre que c'est un second
+  affichage Android de la tête (« HDMI Screen », display 1, `FLAG_PRESENTATION`), pas un
+  afficheur séparé du cloud constructeur. Nouvelle app `android/CybelSecondScreen` : un
+  Service au premier plan qui pose une `Presentation` plein écran (fenêtre
+  `TYPE_SYSTEM_ALERT`, accordée par `appops`) avec une image de `/sdcard/Cybel/`.
+  Indépendante du kiosque : survit à un plantage de la WebView et à l'ouverture de
+  Deployment Tool ; relancée au boot. Validée par `screencap -d 1`.
+- **Mode événement du kiosque** (`kiosk_config.json` → `event`) : visuel plein écran sur
+  l'écran tactile, toucher et commandes vocales ignorés (un visiteur ne peut lancer ni la
+  visite du labo ni une navigation), accueil sur présence coupé. La config est désormais
+  chargée seule au démarrage, pour que le mode s'affiche même si la visite ou les
+  destinations échouent sur une autre carte.
+- **Annonces vocales** (`cybel_lite.py`, `/api/event/status|announce/say|start|stop`) :
+  boucle périodique qui saute son tour si le robot parle déjà, démarrage automatique
+  optionnel. Les textes évitent le mot « Cybel », déclencheur du mot d'éveil (vérifié :
+  aucun réveil pendant les annonces FR et EN).
+- **Circulation** (`scripts/circulation.py`) pilotée depuis le PC par le Wi-Fi, sans câble :
+  chaîne de la campagne d'ablation (annulation, état prêt, `/poi`), succès jugé sur la
+  position finale, détection « but acquitté, robot immobile » (H4), garde-fous arrêt
+  d'urgence / localisation / batterie, journal JSONL.
+- `scripts/deploy_event.sh` : déploiement et `--restore` de la config labo (sauvegardée une
+  fois dans `kiosk_config.before_event.json` sur la tablette).
+- Constat réseau : le PC sur le Wi-Fi du robot (10.42.0.x) joint le backend de la tête à son
+  adresse Wi-Fi (172.16.2.138:8001), routé par le châssis. `adb` par Wi-Fi est refusé.
+- Les build-tools 35.0.0 attendus par les autres `build.sh` ne sont plus installés (34.0.0
+  seulement) ; `CybelSecondScreen/build.sh` prend la version installée la plus récente.
+
 ## [0.5.0] — 2026-07-23
 
 ### Session de validation terrain complète (branche `feature/nav-performance`) — bugs "commande acquittée mais robot immobile", TTS anglais, données papier, UI kiosque

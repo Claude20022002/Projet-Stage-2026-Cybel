@@ -32,6 +32,7 @@ Procédures sur le robot physique, sync POI, tests kiosque A/B.
 | [labo/KIOSK_AB_COMPARISON.md](labo/KIOSK_AB_COMPARISON.md) | Comparaison kiosque coords vs POI |
 | [SENTRYMOVE_POI_SYNC.md](SENTRYMOVE_POI_SYNC.md) | Sync POI ROS → `points.json` |
 | [COLLECTE_MESURES.md](COLLECTE_MESURES.md) | **Campagnes de mesures : lancement, wake lock, dépannage des coupures** |
+| [labo/JOURNEE_INTEGRATION.md](labo/JOURNEE_INTEGRATION.md) | **Journée d'intégration (Ghandi) : deux écrans + annonces vocales** |
 
 ---
 

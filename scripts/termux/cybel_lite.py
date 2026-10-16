@@ -1704,6 +1704,7 @@ def load_kiosk_config() -> dict:
         "presence_speak_welcome": True,
         "face_recognition_enabled": False,
         "face_recognition_threshold": DEFAULT_FACE_RECOGNITION_THRESHOLD,
+        "event": {"enabled": False},
     }
     if not KIOSK_CONFIG_PATH.is_file():
         return default
@@ -1741,6 +1742,7 @@ async def kiosk_config_put(request: Request) -> JSONResponse:
         "presence_speak_welcome",
         "face_recognition_enabled",
         "face_recognition_threshold",
+        "event",
     }
     current = load_kiosk_config()
     for key, value in body.items():
@@ -1751,6 +1753,146 @@ async def kiosk_config_put(request: Request) -> JSONResponse:
         json.dump(current, f, ensure_ascii=False, indent=2)
         f.write("\n")
     return JSONResponse({"ok": True, "config": current})
+
+
+# ---------------------------------------------------------------------------
+# Mode événement (journée d'intégration…) : annonces vocales périodiques.
+# Uniquement de la parole — aucune commande châssis. Textes et intervalle dans
+# kiosk_config.json → "event". Éviter le mot « Cybel » dans les textes : c'est
+# un déclencheur du mot d'éveil (VoiceRecognizer.WAKE_TRIGGERS), le robot
+# rouvrirait son propre micro en s'entendant.
+# ---------------------------------------------------------------------------
+EVENT_MIN_INTERVAL_SECONDS = 20.0
+_event_announcer: dict = {
+    "task": None,
+    "next_index": 0,
+    "count": 0,
+    "last_text": "",
+    "last_at": None,
+    "last_error": None,
+}
+
+
+def event_config() -> dict:
+    event = load_kiosk_config().get("event")
+    return event if isinstance(event, dict) else {}
+
+
+def event_announcements(event: dict) -> list[dict]:
+    return [
+        item
+        for item in event.get("announcements") or []
+        if isinstance(item, dict) and str(item.get("text", "")).strip()
+    ]
+
+
+def event_announce_interval(event: dict) -> float:
+    try:
+        interval = float(event.get("announce_interval_seconds", 120))
+    except (TypeError, ValueError):
+        interval = 120.0
+    return max(EVENT_MIN_INTERVAL_SECONDS, interval)
+
+
+def event_announcer_running() -> bool:
+    task = _event_announcer["task"]
+    return task is not None and not task.done()
+
+
+async def speak_event_announcement(index: int | None = None) -> dict:
+    """Prononce l'annonce `index`, ou la suivante dans l'ordre de la config."""
+    items = event_announcements(event_config())
+    if not items:
+        return {"ok": False, "error": "Aucune annonce (kiosk_config.json → event.announcements)"}
+    if index is None:
+        index = _event_announcer["next_index"] % len(items)
+    if not 0 <= index < len(items):
+        return {"ok": False, "error": f"Index hors limites (0–{len(items) - 1})"}
+    item = items[index]
+    text = str(item["text"]).strip()
+    lang = str(item.get("lang", "fr"))
+    await speak_local_and_wait(text, lang)
+    _event_announcer.update(
+        next_index=(index + 1) % len(items),
+        count=_event_announcer["count"] + 1,
+        last_text=text,
+        last_at=datetime.now(timezone.utc).isoformat(),
+        last_error=None,
+    )
+    return {"ok": True, "index": index, "text": text, "lang": lang}
+
+
+async def _event_announcer_loop() -> None:
+    while True:
+        event = event_config()
+        # Ne pas couper une parole en cours (accueil, visite) : on réessaie plus tard.
+        if _speech_state["speaking"] or get_tour_engine().is_running():
+            await asyncio.sleep(EVENT_MIN_INTERVAL_SECONDS)
+            continue
+        try:
+            result = await speak_event_announcement()
+            if not result["ok"]:
+                _event_announcer["last_error"] = result["error"]
+        except Exception as exc:
+            _event_announcer["last_error"] = str(exc)
+            print(f"Annonce événement échouée : {exc}")
+        await asyncio.sleep(event_announce_interval(event))
+
+
+def start_event_announcer() -> None:
+    if not event_announcer_running():
+        _event_announcer["task"] = asyncio.create_task(_event_announcer_loop())
+
+
+def event_status_payload() -> dict:
+    event = event_config()
+    return {
+        "enabled": bool(event.get("enabled")),
+        "name": event.get("name", ""),
+        "announcer_running": event_announcer_running(),
+        "announce_interval_seconds": event_announce_interval(event),
+        "announcements": event_announcements(event),
+        **{k: v for k, v in _event_announcer.items() if k != "task"},
+    }
+
+
+async def event_status(_: Request) -> JSONResponse:
+    return JSONResponse(event_status_payload())
+
+
+async def event_announce_start(_: Request) -> JSONResponse:
+    if not event_announcements(event_config()):
+        return JSONResponse(
+            {"ok": False, "error": "Aucune annonce configurée"}, status_code=400
+        )
+    start_event_announcer()
+    return JSONResponse({"ok": True, **event_status_payload()})
+
+
+async def event_announce_stop(_: Request) -> JSONResponse:
+    task = _event_announcer["task"]
+    if task is not None:
+        task.cancel()
+        _event_announcer["task"] = None
+    return JSONResponse({"ok": True, **event_status_payload()})
+
+
+async def event_announce_say(request: Request) -> JSONResponse:
+    """Annonce immédiate (test ou déclenchement manuel) ; body optionnel {"index": n}."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        body = {}
+    index = body.get("index") if isinstance(body, dict) else None
+    if index is not None and not isinstance(index, int):
+        return JSONResponse({"ok": False, "error": "index doit être un entier"}, status_code=400)
+    if _speech_state["speaking"]:
+        return JSONResponse({"ok": False, "error": "Parole déjà en cours"}, status_code=409)
+    try:
+        result = await speak_event_announcement(index)
+    except RuntimeError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
+    return JSONResponse(result, status_code=200 if result["ok"] else 400)
 
 
 def robot_status_payload(snap: dict) -> dict:
@@ -2493,6 +2635,10 @@ def build_app() -> Starlette:
         Route("/api/tour/stops/{stop_id}", tour_delete_stop, methods=["DELETE"]),
         Route("/api/speech/say", say, methods=["POST"]),
         Route("/api/speech/stop", stop_speech, methods=["POST"]),
+        Route("/api/event/status", event_status, methods=["GET"]),
+        Route("/api/event/announce/start", event_announce_start, methods=["POST"]),
+        Route("/api/event/announce/stop", event_announce_stop, methods=["POST"]),
+        Route("/api/event/announce/say", event_announce_say, methods=["POST"]),
         WebSocketRoute("/ws/telemetry", telemetry_ws),
     ]
     if KIOSK_DIST.is_dir():
@@ -2504,6 +2650,9 @@ def build_app() -> Starlette:
     async def _lifespan(_: Starlette):
         asyncio.create_task(_telemetry_broadcast_loop())
         asyncio.create_task(_people_listener_loop())
+        event = event_config()
+        if event.get("enabled") and event.get("announce_autostart"):
+            start_event_announcer()
         yield
 
     return Starlette(routes=routes, lifespan=_lifespan)

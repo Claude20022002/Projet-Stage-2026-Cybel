@@ -1,0 +1,44 @@
+{
+  "organization_name_fr": "HESTIM — Semaine d'intégration",
+  "organization_name_en": "HESTIM — Integration week",
+  "welcome_message_fr": "Bienvenue à la semaine d'intégration de HESTIM !",
+  "welcome_message_en": "Welcome to HESTIM integration week!",
+  "logo_url": "/kiosk/logo.svg",
+  "standby_timeout_seconds": 90,
+  "featured_destinations": [],
+  "reception_actions": [],
+  "presence_welcome_enabled": false,
+  "presence_max_distance_m": 3.0,
+  "presence_cooldown_seconds": 90,
+  "presence_speak_welcome": false,
+  "face_recognition_enabled": false,
+  "face_recognition_threshold": 0.82,
+  "kiosk_variant": "poi",
+  "kiosk_variant_label_fr": "Journée d'intégration — Ghandi",
+  "kiosk_variant_label_en": "Integration day — Ghandi",
+  "event": {
+    "enabled": true,
+    "name": "Semaine d'intégration HESTIM",
+    "top_image": "/kiosk/event/ecran-dessus.jpg",
+    "announce_autostart": false,
+    "announce_interval_seconds": 90,
+    "announcements": [
+      {
+        "lang": "fr",
+        "text": "Bonjour et bienvenue à la semaine d'intégration de HESTIM ! Je suis le robot d'accueil de l'école."
+      },
+      {
+        "lang": "fr",
+        "text": "Scannez le QR code affiché sur mon écran pour en savoir plus sur la semaine d'intégration."
+      },
+      {
+        "lang": "en",
+        "text": "Hello, and welcome to HESTIM integration week! Scan the QR code on my screen to learn more."
+      },
+      {
+        "lang": "fr",
+        "text": "HESTIM fête ses vingt ans d'innovation. Bonne rentrée à toutes et à tous !"
+      }
+    ]
+  }
+}

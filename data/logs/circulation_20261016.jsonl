@@ -1,0 +1,8 @@
+{"at": "2026-10-16T16:59:44", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 603, "batterie": 86, "localisation": 79.0, "pose": "(8.13,-13.70)"}
+{"at": "2026-10-16T17:00:24", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 603, "batterie": 86, "localisation": 85.9, "pose": "(8.13,-13.70)"}
+{"at": "2026-10-16T17:00:25", "event": "cycle", "numero": 1}
+{"at": "2026-10-16T17:00:31", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 603, "distance_m": 15.92}
+{"at": "2026-10-16T17:00:58", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 26.3, "nav": 601, "distance_m": 0.75}
+{"at": "2026-10-16T17:01:16", "event": "depart", "vers": "POINT-ECRAN", "tentative": 1, "nav": 603, "distance_m": 15.85}
+{"at": "2026-10-16T17:01:46", "event": "arrivee", "vers": "POINT-ECRAN", "raison": "arrive", "duree_s": 29.7, "nav": 601, "distance_m": 0.62}
+{"at": "2026-10-16T17:01:57", "event": "fin", "raison": "1 cycle(s) terminés"}
