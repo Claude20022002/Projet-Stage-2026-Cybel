@@ -3,6 +3,12 @@
  *
  * Appui long (3 s) dans le coin haut-gauche de l'écran tactile → code staff →
  * panneau : mode événement (les deux écrans), circulation, annonce immédiate.
+ *
+ * Le panneau est une page à part, pas une fenêtre posée sur l'affiche : on
+ * navigue entre les deux (« Revenir à l'affiche », appui long pour revenir).
+ * L'affiche reprend la main dès que la circulation démarre et après 60 s sans
+ * toucher ; le code reste mémorisé UNLOCK_MS pour revenir au panneau sans le
+ * retaper.
  * Le code est vérifié par le backend ; le démarrer/arrêter la circulation passe
  * par /api/event/circulation/*. Arrêter ne demande pas de code.
  *
@@ -15,7 +21,8 @@ import "./staffPanel.css";
 const LONG_PRESS_MS = 3000;
 const LONG_PRESS_SLOP_PX = 25;
 const POLL_MS = 2000;
-const IDLE_CLOSE_MS = 120_000;
+const IDLE_CLOSE_MS = 60_000;
+const UNLOCK_MS = 10 * 60_000;
 const PIN_LENGTH = 4;
 
 type View = "closed" | "pin" | "panel";
@@ -57,6 +64,7 @@ let data: CirculationPayload | null = null;
 let robot: RobotStatus | null = null;
 let pollTimer: number | null = null;
 let idleTimer: number | null = null;
+let unlockedUntil = 0;
 let confirmingStart = false;
 let confirmTimer: number | null = null;
 const CONFIRM_TIMEOUT_MS = 10_000;
@@ -93,28 +101,52 @@ export function initStaffPanel(): void {
 }
 
 // ---- cycle de vie -------------------------------------------------------------
-function open(next: View): void {
-  view = next;
+function unlocked(): boolean {
+  return pin.length === PIN_LENGTH && Date.now() < unlockedUntil;
+}
+
+/** Appui long : panneau direct si le code est encore mémorisé, sinon clavier. */
+function openFromPoster(): void {
+  if (unlocked()) {
+    showPanel();
+    return;
+  }
+  pin = "";
+  view = "pin";
   touchIdle();
   render();
 }
 
-function close(): void {
+function showPanel(): void {
+  view = "panel";
+  unlockedUntil = Date.now() + UNLOCK_MS;
+  touchIdle();
+  if (pollTimer === null) pollTimer = window.setInterval(() => void refresh(), POLL_MS);
+  render();
+  void refresh();
+}
+
+/** Retour à l'affiche ; le code reste mémorisé tant que la session n'expire pas. */
+function backToPoster(): void {
   view = "closed";
-  pin = "";
   confirmingStart = false;
   pinError = "";
   feedback = "";
-  data = null;
   if (pollTimer !== null) window.clearInterval(pollTimer);
   if (idleTimer !== null) window.clearTimeout(idleTimer);
   pollTimer = idleTimer = null;
   render();
 }
 
+function lock(): void {
+  pin = "";
+  unlockedUntil = 0;
+  backToPoster();
+}
+
 function touchIdle(): void {
   if (idleTimer !== null) window.clearTimeout(idleTimer);
-  idleTimer = window.setTimeout(close, IDLE_CLOSE_MS);
+  idleTimer = window.setTimeout(backToPoster, IDLE_CLOSE_MS);
 }
 
 async function refresh(): Promise<void> {
@@ -138,9 +170,7 @@ async function submitPin(): Promise<void> {
   try {
     await post("/api/event/staff/verify", { pin });
     pinError = "";
-    view = "panel";
-    await refresh();
-    pollTimer = window.setInterval(() => void refresh(), POLL_MS);
+    showPanel();
   } catch {
     pinError = "Code incorrect";
     pin = "";
@@ -150,7 +180,11 @@ async function submitPin(): Promise<void> {
   }
 }
 
-async function act(label: string, run: () => Promise<unknown>, reload = false): Promise<void> {
+async function act(
+  label: string,
+  run: () => Promise<unknown>,
+  after: "stay" | "reload" | "poster" = "stay"
+): Promise<void> {
   if (busy) return;
   busy = true;
   feedback = `${label}…`;
@@ -158,9 +192,15 @@ async function act(label: string, run: () => Promise<unknown>, reload = false): 
   try {
     await run();
     feedback = `${label} : OK`;
-    if (reload) {
+    if (after === "reload") {
       // Le kiosque relit sa config (mode événement) au démarrage.
       window.location.reload();
+      return;
+    }
+    if (after === "poster") {
+      // Le robot roule : l'affiche ne doit pas rester masquée.
+      busy = false;
+      backToPoster();
       return;
     }
   } catch (err) {
@@ -193,7 +233,7 @@ function renderPin(): string {
       <div class="staff-pin">${dots}</div>
       <p class="staff-error">${pinError}</p>
       <div class="staff-keypad">${keys}</div>
-      <button type="button" class="staff-btn staff-btn--ghost" data-act="close">Annuler</button>
+      <button type="button" class="staff-btn staff-btn--ghost" data-act="poster">Revenir à l'affiche</button>
     </div>`;
 }
 
@@ -218,9 +258,11 @@ function renderPanel(): string {
   return `
     <div class="staff-modal">
       <header class="staff-head">
+        <button type="button" class="staff-btn staff-btn--back" data-act="poster">← Revenir à l'affiche</button>
         <h2>Semaine d'intégration</h2>
-        <button type="button" class="staff-btn staff-btn--ghost" data-act="close">Fermer</button>
+        <button type="button" class="staff-btn staff-btn--ghost" data-act="lock">Verrouiller</button>
       </header>
+      <p class="staff-hint-small">Retour automatique à l'affiche après 60 s sans toucher. Appui long 3 s en haut à gauche pour revenir ici.</p>
 
       <section class="staff-robot">
         <span>Batterie <b>${robot ? `${robot.battery} %` : "—"}</b></span>
@@ -273,7 +315,7 @@ function render(): void {
   if (view === "closed") {
     root.innerHTML = hotspot;
   } else {
-    root.innerHTML = `<div class="staff-backdrop">${view === "pin" ? renderPin() : renderPanel()}</div>`;
+    root.innerHTML = `<div class="staff-page">${view === "pin" ? renderPin() : renderPanel()}</div>`;
   }
   bind();
 }
@@ -297,7 +339,7 @@ function bind(): void {
       e.preventDefault();
       ({ x: startX, y: startY } = point(e));
       cancelPress();
-      timer = window.setTimeout(() => open("pin"), LONG_PRESS_MS);
+      timer = window.setTimeout(openFromPoster, LONG_PRESS_MS);
     };
     // Un doigt posé tremble : n'annuler qu'au-delà d'un vrai glissement.
     const movePress = (e: Event) => {
@@ -331,14 +373,17 @@ function bind(): void {
     btn.addEventListener("click", () => {
       touchIdle();
       switch (btn.dataset.act) {
-        case "close":
-          close();
+        case "poster":
+          backToPoster();
+          break;
+        case "lock":
+          lock();
           break;
         case "mode-on":
-          void act("Activation du mode événement", () => post("/api/event/mode", { pin, enabled: true }), true);
+          void act("Activation du mode événement", () => post("/api/event/mode", { pin, enabled: true }), "reload");
           break;
         case "mode-off":
-          void act("Désactivation du mode événement", () => post("/api/event/mode", { pin, enabled: false }), true);
+          void act("Désactivation du mode événement", () => post("/api/event/mode", { pin, enabled: false }), "reload");
           break;
         case "circ-start":
           // Deux appuis distincts pour mettre le robot en mouvement.
@@ -356,7 +401,7 @@ function bind(): void {
           break;
         case "circ-confirm":
           confirmingStart = false;
-          void act("Démarrage de la circulation", () => post("/api/event/circulation/start", { pin }));
+          void act("Démarrage de la circulation", () => post("/api/event/circulation/start", { pin }), "poster");
           break;
         case "circ-stop":
           void act("Arrêt de la circulation", () => post("/api/event/circulation/stop"));
