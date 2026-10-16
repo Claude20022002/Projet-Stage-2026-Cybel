@@ -8,3 +8,8 @@
 {"at": "2026-10-16T17:01:57", "event": "fin", "raison": "1 cycle(s) terminés"}
 {"at": "2026-10-16T17:05:48", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 603, "batterie": 84, "localisation": 88.3, "pose": "(8.05,-13.55)"}
 {"at": "2026-10-16T17:08:06", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 603, "batterie": 84, "localisation": 86.2, "pose": "(8.05,-13.55)"}
+{"at": "2026-10-16T17:08:52", "event": "demarrage", "arrets": "POINT-CHARGE,POINT-ECRAN", "nav": 603, "batterie": 84, "localisation": 83.3, "pose": "(8.05,-13.55)"}
+{"at": "2026-10-16T17:08:54", "event": "cycle", "numero": 1}
+{"at": "2026-10-16T17:08:59", "event": "depart", "vers": "POINT-CHARGE", "tentative": 1, "nav": 603, "distance_m": 15.75}
+{"at": "2026-10-16T17:09:30", "event": "arrivee", "vers": "POINT-CHARGE", "raison": "arrive", "duree_s": 31.0, "nav": 601, "distance_m": 0.6}
+{"at": "2026-10-16T17:09:36", "event": "annonce", "texte": "HESTIM fête ses vingt ans d'innovation. Bonne rentrée à toutes et à tous !"}
