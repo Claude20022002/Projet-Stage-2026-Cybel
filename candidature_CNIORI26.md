@@ -10,52 +10,47 @@
 
 ## Résumé (≈ 500 mots)
 
-**CYBEL — Reconquérir un robot de service fermé : rétro-ingénierie non destructive et
-plateforme de commande ouverte.**
+**CYBEL — Et si un robot « fermé » pouvait rouvrir ses portes ?**
 
-Les robots de service mobiles — accueil, guidage, télépresence — se généralisent, mais ils
-arrivent presque toujours sous la forme d'une **boîte noire** : application propriétaire,
-protocole non documenté, aucune API publique. L'utilisateur ne peut ni adapter le comportement
-du robot, ni l'auditer, ni le faire dialoguer avec son propre système d'information. Il reste
-dépendant d'un cloud constructeur, avec les risques de sécurité et de confidentialité que cela
-implique. **CYBEL** répond directement à ce verrou sur un robot de réception réel, le CIOT
-TY1251D-03195, composé d'un châssis de navigation sous ROS et d'une tête Android, et dont aucune
-documentation n'était disponible.
+Un robot d'accueil flambant neuf arrive au laboratoire. Il sait se déplacer, guider, parler — à
+une seule condition : qu'on ne lui demande rien d'autre que ce que son fabricant a prévu. Pas
+d'API, pas de documentation, pas d'accès à son protocole interne. On peut le regarder
+fonctionner, pas le comprendre, et encore moins le faire évoluer. Comme la plupart des robots de
+service d'aujourd'hui, c'est une boîte noire pilotée par un cloud constructeur sur lequel
+l'utilisateur n'a aucune prise — ni technique, ni sécuritaire, ni éthique. C'est précisément ce
+mur que le projet CYBEL a choisi de franchir, sur un robot bien réel : le CIOT TY1251D-03195, un
+châssis de navigation sous ROS surmonté d'une tête Android, livré sans la moindre notice.
 
-Notre contribution est une **méthodologie de rétro-ingénierie non destructive, guidée par
-hypothèses**, pensée pour être généralisable à d'autres plateformes fermées. En sept phases
-(cartographie réseau, introspection ROS via rosbridge/rosapi, observation passive MQTT, analyse
-statique des APK constructeur, inspection de trames, intégration *edge*, validation terrain),
-nous reconstruisons le protocole interne du robot **sans jamais le modifier physiquement ni
-contourner ses sécurités matérielles**. Chaque commande découverte est validée par falsification
-de quatre hypothèses. L'une d'elles livre un résultat central : **un accusé de réception au
-niveau transport ne garantit pas l'exécution physique** (« transport ≠ exécution ») — un piège
-que l'on retrouve aussi bien dans la pile du constructeur que, de façon instructive, dans notre
-propre code, et qui impose de vérifier le mouvement réel du robot (deltas de pose, codes d'état)
-plutôt que la seule réponse réseau.
+Plutôt que de forcer la machine, nous avons adopté une démarche de détective : une
+rétro-ingénierie **non destructive, guidée par hypothèses**. En sept étapes — cartographier le
+réseau, interroger les services ROS, écouter passivement les échanges, analyser les applications
+du constructeur, inspecter les trames, intégrer notre propre code à bord, valider sur le terrain
+— nous avons reconstruit le langage interne du robot **sans jamais le modifier physiquement ni
+contourner ses sécurités**. Chaque commande supposée était mise à l'épreuve avant d'être tenue
+pour acquise. Cette rigueur a révélé un piège aussi contre-intuitif qu'universel : **qu'un robot
+accuse réception d'un ordre ne prouve en rien qu'il l'exécute**. Le « transport » n'est pas
+l'« exécution » — une leçon que nous avons retrouvée jusque dans notre propre code, et qui oblige
+à vérifier le mouvement réel du robot plutôt que la simple réponse réseau.
 
-Sur cette compréhension reconstruite, nous avons bâti une **plateforme de commande ouverte et
-modulaire** : un SDK Python (implémentations simulée et réelle interchangeables), un backend
-FastAPI (REST + WebSocket), une interface opérateur web (carte SLAM, LiDAR, téléopération,
-diagnostics), et un kiosque visiteur tactile bilingue. L'ensemble se déploie **de façon
-autonome et embarquée sur la tête Android du robot** (Termux), sans PC ni cloud : l'intelligence
-reste **à bord**, en cohérence avec une approche *edge* et respectueuse de la vie privée — la
-reconnaissance faciale fonctionne **sur l'appareil, sans qu'aucune image ne quitte le robot**,
-et le chatbot vocal (reconnaissance à vocabulaire fermé, mot d'éveil) fonctionne **hors-ligne**.
+Sur cette compréhension patiemment reconstituée, nous avons bâti une **plateforme de commande
+ouverte** : un SDK Python, un backend FastAPI, une interface opérateur (carte SLAM, LiDAR,
+téléopération) et un kiosque visiteur tactile bilingue. Son originalité : **tout tourne à bord
+du robot, sans PC ni cloud**. L'intelligence reste locale, et la vie privée avec elle — la
+reconnaissance faciale s'effectue sur l'appareil, sans qu'aucune image n'en sorte, et
+l'assistant vocal fonctionne entièrement hors-ligne.
 
-Les résultats ont été **validés sur le robot physique** : des centaines de topics et services
-ROS caractérisés, une navigation guidée multi-arrêts fiable, une synthèse vocale bilingue FR/EN
-via un pont Android natif, et une reconnaissance faciale opérationnelle en conditions réelles.
-Le robot a d'ailleurs assuré l'animation d'un événement institutionnel (circulation autonome et
-annonces vocales) piloté par notre plateforme.
+Le tout a été validé sur le robot physique : des centaines de services ROS caractérisés, une
+visite guidée multi-arrêts fiable, une voix bilingue FR/EN, une reconnaissance des visages
+opérationnelle en conditions réelles. Le robot a même animé un événement institutionnel —
+circulation autonome et annonces vocales — entièrement piloté par notre plateforme.
 
-Au-delà du cas d'étude, CYBEL démontre qu'il est possible de **rouvrir un système robotique
-propriétaire de manière méthodique, sûre et reproductible**, question clé pour la souveraineté
-technologique, la cybersécurité des réseaux de robots et l'intégration de ces machines dans des
-environnements intelligents (Industrie 4.0, ville, établissements recevant du public). Nos
-perspectives — extension à un calculateur compagnon embarqué (Raspberry Pi 5) pour une IA de
-bord plus puissante, et passage à un graphe ROS 2 — prolongent cette démarche vers des robots de
-service **réellement ouverts, interopérables et maîtrisés de bout en bout**.
+Mais CYBEL dépasse son cas d'étude. Il démontre qu'on peut **rouvrir un système robotique
+propriétaire de façon méthodique, sûre et reproductible** : une question de souveraineté
+technologique, de cybersécurité des flottes de robots et d'intégration de ces machines dans nos
+espaces intelligents — industrie, ville, lieux publics. Demain, un calculateur embarqué plus
+puissant (Raspberry Pi 5) et un passage à ROS 2 porteront cette intelligence encore plus loin.
+
+Redonner la main sur les robots qui nous entourent : voilà, en une phrase, ce que défend CYBEL.
 
 *(≈ 500 mots)*
 
