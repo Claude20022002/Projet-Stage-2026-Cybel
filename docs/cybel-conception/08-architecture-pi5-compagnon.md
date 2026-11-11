@@ -431,8 +431,11 @@ tests, sans aucun lien avec le robot.
 
 ### 11.4 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
 
-1. Ajouter le Wi-Fi du robot (`TY1251D-03195`) dans `/etc/netplan/60-reseau.yaml`, à côté du
-   réseau existant, puis `sudo netplan apply`. Vérifier une adresse en `10.42.0.x`.
+1. **Préparé le 2026-11-11** : le Wi-Fi du robot (`TY1251D-03195`) est dans un fichier séparé,
+   `/etc/netplan/61-wifi-robot.yaml`, que netplan combine avec `60-reseau.yaml`. Le Pi rejoint
+   le réseau à portée (box ou robot). Le mot de passe vient de `MOT_DE_PASSE_WIFI_ROBOT` dans le
+   `.env` du PC (ignoré par git) et n'est écrit nulle part ailleurs. Au labo : vérifier une
+   adresse en `10.42.0.x` sur `wlan0`.
 2. Lancer le backend avec `ROBOT_MOCK=false` et `ROBOT_HOST=10.42.0.1`, **robot sous
    surveillance** : la télémétrie (batterie, pose, `nav_status`) doit arriver.
 3. Mesurer la latence rosbridge depuis le Pi et la comparer au PC (p50/p95), avec le nombre de

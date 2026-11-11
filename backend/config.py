@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     class Config:
         env_file = str(ROOT / ".env")
         env_file_encoding = "utf-8"
+        # .env sert aussi à d'autres outils (ex. MOT_DE_PASSE_WIFI_ROBOT pour le Pi) :
+        # sans cela, toute variable inconnue empêche le backend de démarrer.
+        extra = "ignore"
 
 
 settings = Settings()
