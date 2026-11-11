@@ -406,7 +406,8 @@ tests, sans aucun lien avec le robot.
    `sudo apt install -y python3-venv python3-pip` et `sudo usermod -aG video cybel`.
 7. Clé SSH dédiée créée sur le PC (`ssh-keygen -t ed25519 -N "" -f ~/.ssh/cybel_pi`) puis ajoutée à
    `~/.ssh/authorized_keys` du Pi, pour les connexions non interactives.
-8. Déploiement du code depuis le PC, sans dépôt distant :
+8. Déploiement du code depuis le PC, sans dépôt distant. **Remplacé depuis par
+   `scripts/deploy_pi.sh` (11.5)** ; procédure manuelle d'origine :
 
    ```bash
    git archive --format=tar HEAD sdk backend scripts tests frontend frontend-kiosk data pytest.ini \
@@ -472,15 +473,44 @@ CybelFaceBridge (adresse à vérifier dans `BackendClient.java`). L'adresse de l
 le réseau du robot est à relever : `172.16.x` par le Wi-Fi de l'école routé par le châssis lors
 des essais de septembre, `192.168.20.1` sur le lien interne.
 
-### 11.5 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
+### 11.5 Service au démarrage et déploiement (2026-11-11)
+
+`cybel_lite` tourne sur le Pi comme **service systemd utilisateur** `cybel`
+(`scripts/pi/cybel.service`) : démarrage au boot, redémarrage 5 s après un plantage, au plus
+10 tentatives en 5 min. Service utilisateur pour que le déploiement le redémarre **sans sudo**.
+
+| Fichier sur le Pi | Rôle | Écrasé au déploiement ? |
+|---|---|---|
+| `~/cybel/` (code) | `sdk`, `backend`, `scripts`, `tests`, `frontend*` | Oui |
+| `~/cybel/data/` | visiteurs, POI synchronisés, config modifiée par le panneau | **Non** : seuls les fichiers absents sont ajoutés |
+| `~/cybel/cybel-pi.env` | port 8001, `ROBOT_HOST`, `CYBEL_HEAD_AGENT_URL` (modèle `scripts/pi/cybel-pi.env.example`) | Non, créé une fois |
+| `~/cybel/.secrets.env` | `CYBEL_HEAD_TOKEN` (600) | Oui, recopié depuis le `.env` du PC |
+
+```bash
+bash scripts/deploy_pi.sh               # build kiosque, copie, dépendances si changées, redémarrage, contrôle
+bash scripts/deploy_pi.sh --tests       # + tests unitaires sur le Pi
+journalctl --user -u cybel -f           # sur le Pi : journal du service
+```
+
+**Vérifié** : premier déploiement complet (199/199 tests sur le Pi, service actif, `/api/health`
+répond) ; second déploiement sans réinstallation des dépendances ni perte de `cybel-pi.env` ;
+processus tué → relancé par systemd en 5 s ; un fichier de `data/` modifié sur le Pi survit au
+déploiement.
+
+**Une seule commande administrateur reste à faire, une fois, sur le Pi** :
+`sudo loginctl enable-linger cybel`. Sans elle, le service ne démarre au boot qu'à l'ouverture
+d'une session de `cybel`.
+
+### 11.6 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
 
 1. **Préparé le 2026-11-11** : le Wi-Fi du robot (`TY1251D-03195`) est dans un fichier séparé,
    `/etc/netplan/61-wifi-robot.yaml`, que netplan combine avec `60-reseau.yaml`. Le Pi rejoint
    le réseau à portée (box ou robot). Le mot de passe vient de `MOT_DE_PASSE_WIFI_ROBOT` dans le
    `.env` du PC (ignoré par git) et n'est écrit nulle part ailleurs. Au labo : vérifier une
    adresse en `10.42.0.x` sur `wlan0`.
-2. Lancer le backend avec `ROBOT_MOCK=false` et `ROBOT_HOST=10.42.0.1`, **robot sous
-   surveillance** : la télémétrie (batterie, pose, `nav_status`) doit arriver.
+2. Le service `cybel` vise déjà `ROBOT_HOST=10.42.0.1` (11.5) : une fois le Pi sur le Wi-Fi du
+   robot, **robot sous surveillance**, la télémétrie (batterie, pose, `nav_status`) doit arriver
+   sur `http://<pi>:8001/api/robot/status`.
 3. Mesurer la latence rosbridge depuis le Pi et la comparer au PC (p50/p95), avec le nombre de
    reconnexions sur une durée fixe.
 
