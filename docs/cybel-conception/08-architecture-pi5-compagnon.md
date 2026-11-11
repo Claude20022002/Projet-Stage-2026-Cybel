@@ -7,6 +7,11 @@
 >
 > Fait suite à l'étude de viabilité [07-upgrade-calculateur-embarque.md](07-upgrade-calculateur-embarque.md),
 > qui classe cette option en tête (★★★★★).
+>
+> **État au 2026-11-11 : phase P0 terminée** — Pi 5 sous Ubuntu 26.04.1 LTS, backend CYBEL en
+> simulation, 185/185 tests unitaires. Détail et procédure suivie : [section 11](#11-avancement).
+> La cible logicielle est passée d'Ubuntu 24.04 + ROS 2 Jazzy à **Ubuntu 26.04 LTS + ROS 2
+> Lyrical Luth** (justification en 5.2).
 
 ---
 
@@ -67,7 +72,7 @@ Segments réseau observés :
 │   ╔═════════╪═══════════════════════════════════════╪═══════════════╗  │
 │   ║  AJOUT : RASPBERRY PI 5 (companion)              │               ║  │
 │   ║  ┌────────────────────────────────────────────┐ │               ║  │
-│   ║  │ Ubuntu 24.04 + (ROS 2 Jazzy)                │ │               ║  │
+│   ║  │ Ubuntu 26.04 LTS + (ROS 2 Lyrical)          │ │               ║  │
 │   ║  │ Backend CYBEL (FastAPI) + SDK rosbridge     │◄┘ WS 9090       ║  │
 │   ║  │ IA de bord (reco faciale, STT, dialogue)    │                 ║  │
 │   ║  │ (option) rosbridge→ROS2 republisher / Nav2  │                 ║  │
@@ -86,9 +91,9 @@ Segments réseau observés :
 
 | Élément | Spéc. / choix recommandé | Rôle | Justification / source |
 |---|---|---|---|
-| **Raspberry Pi 5** | 8 Go (ou 16 Go) RAM | Calculateur compagnon | 4× Cortex-A76 2,4 GHz ≫ RK3399 ; Ubuntu 24.04 Tier 1 pour ROS 2 |
+| **Raspberry Pi 5** | 8 Go (ou 16 Go) RAM | Calculateur compagnon | 4× Cortex-A76 2,4 GHz ≫ RK3399 ; Ubuntu 26.04 = plateforme Tier 1 de ROS 2 Lyrical (arm64). **Retenu : 8 Go** |
 | **Active Cooler** officiel | ventirad actif | Refroidissement | sans refroidissement, throttling en ~200 s sous charge ; l'Active Cooler stabilise à ~60–63 °C |
-| **Stockage** | SSD NVMe + HAT M.2, **ou** microSD A2 ≥ 32 Go | OS + modèles IA | NVMe = fiabilité et I/O ; microSD = plus simple pour prototyper |
+| **Stockage** | SSD NVMe + HAT M.2, **ou** microSD A2 ≥ 32 Go | OS + modèles IA | NVMe = fiabilité et I/O ; microSD = plus simple pour prototyper. **Retenu en P0 : microSD 64 Go** |
 | **Alim phase 1** | Alim USB-C PD 27 W (5,1 V/5 A) officielle, **ou** powerbank PD | Bench / prototype | 5 A requis pour le budget USB complet du Pi 5 (sinon ports USB bridés ~600 mA) |
 | **Alim phase 2** | Convertisseur buck 24 V→5,1 V, **5 A continu**, tolérance serrée | Alim depuis batterie robot | Pi sensible à la surtension (certains UBEC dérivent à 5,35 V) ; viser 5,1 V régulé |
 | **Protection** | Fusible/polyfuse en entrée buck, condensateur de découplage | Sécurité électrique | isoler le Pi du bruit des moteurs ; régulateur dédié, pas partagé moteurs |
@@ -107,6 +112,13 @@ Segments réseau observés :
   soutenue (IA continue). Avec l'Active Cooler, la Fondation mesure ~60–63 °C en charge
   prolongée (seuils de throttling : 80 °C soft, 85 °C hard).
 - Boîtier ventilé ou flux d'air ; attention à la poussière au sol (robot au rez-de-chaussée).
+- **Mesuré en P0** : 75,7 °C au repos **sans** refroidissement (Raspberry Pi OS), 33–35 °C avec
+  un ventilateur externe, y compris pendant les tests unitaires. Le ventilateur externe suffit sur
+  table ; l'Active Cooler reste **obligatoire avant le montage dans le robot** (P4).
+- **Sous Ubuntu 26.04, `vcgencmd` ne fonctionne pas** (`/dev/vcio` absent du noyau `raspi`, même
+  dans le groupe `video`). Lire la température par
+  `/sys/class/thermal/thermal_zone0/temp` (milli-degrés). L'état de bridage (`get_throttled`)
+  n'est pas disponible par ce chemin : à retrouver avant la mesure thermique de P4.
 
 ---
 
@@ -141,7 +153,7 @@ Trois stratégies de connexion au châssis, par ordre de simplicité :
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  RASPBERRY PI 5 — Ubuntu 24.04 LTS                          │
+│  RASPBERRY PI 5 — Ubuntu 26.04 LTS                          │
 │                                                             │
 │  ┌───────────────────────────────────────────────────────┐ │
 │  │ Présentation : kiosque + opérateur (servis par FastAPI)│ │
@@ -173,12 +185,21 @@ bord, beaucoup plus de RAM/CPU que Termux, IA lourde possible. **Zéro ROS à in
 dépendance sur les messages custom du châssis.** C'est le portage le plus sûr.
 
 **Niveau 1 — ROS 2 natif (évolution).**
-Installer **Ubuntu 24.04 + ROS 2 Jazzy** (`ros-jazzy-ros-base` + `ros-dev-tools`). Écrire un
+Installer **ROS 2 Lyrical Luth** sur l'Ubuntu 26.04 du Pi (`ros-lyrical-ros-base` +
+`ros-dev-tools`). Écrire un
 **node pont** `rclpy` qui s'abonne au châssis via **roslibpy** (client rosbridge Python) et
 **republie** les flux utiles (`/robot_pose`, `/scan`, `/robot_status`…) en topics ROS 2
 `/cybel/*`. On accède alors à l'écosystème moderne (**Nav2, rviz2, rosbag2, tf2**) **sans
 toucher au châssis**.
 
+> **Pourquoi Ubuntu 26.04 + Lyrical plutôt que 24.04 + Jazzy (choix du 2026-11-10).** ROS 2
+> Lyrical Luth (mai 2026) est une version LTS maintenue jusqu'en mai 2031, dont la plateforme
+> Tier 1 est Ubuntu 26.04 en amd64 **et arm64** : paquets officiels pour le Pi. Jazzy vise
+> Ubuntu 24.04 et n'a pas de paquets pour 26.04. Raspberry Pi OS (Debian 13 « trixie ») n'est
+> que Tier 3 pour Lyrical (compilation depuis les sources). Ubuntu 26.10, proposé aussi par
+> l'installeur, est une version intermédiaire (environ 9 mois de support) sans paquets ROS 2 :
+> écarté.
+>
 > **Pourquoi pas `ros1_bridge` directement ?** Le pont officiel ROS 1 ↔ ROS 2 exige un **master
 > ROS 1 accessible** et la **recompilation des types de messages custom** dans les deux
 > espaces de travail. Or le châssis n'expose pas un master ROS joignable mais **rosbridge**, et
@@ -238,7 +259,7 @@ d'exécution passe de Termux au Pi.
 
 | Phase | Contenu | Critère de sortie |
 |---|---|---|
-| **P0 — Bench** | Pi 5 + Ubuntu 24.04, alim USB-C PD, SDK CYBEL en mock | backend tourne, tests unitaires OK sur le Pi |
+| **P0 — Bench** ✅ 2026-11-11 | Pi 5 + Ubuntu 26.04 LTS, alim USB-C PD, SDK CYBEL en mock | backend tourne, tests unitaires OK sur le Pi — **atteint** (section 11) |
 | **P1 — Lien châssis** | Pi sur Wi-Fi AP robot, `ROBOT_MOCK=false`, rosbridge | télémétrie reçue, latence mesurée vs PC |
 | **P2 — Backend à bord** | backend CYBEL en `systemd` sur le Pi ; kiosque pointe sur le Pi | navigation POI + visite guidée depuis le Pi |
 | **P3 — TTS / IA** | endpoint TTS sur la tête ; reco faciale (tête ou caméra Pi) | accueil vocal + reco bout en bout |
@@ -287,10 +308,17 @@ Réutiliser l'esprit instrumenté du projet (cf. `paper/icra_2027/tools/stats.py
 - UBEC 5 V/3 A — avertissement tolérance (dérive jusqu'à 5,35 V) :
   https://thepihut.com/products/ubec-dc-dc-step-down-buck-converter-5v-3a-output
 
-### Logiciel — ROS 2 sur Pi 5
-- ROS 2 Jazzy — installation Ubuntu/Debian (doc officielle) : https://docs.ros.org/en/jazzy/Installation.html
-- Guide install ROS 2 Jazzy sur Ubuntu 24.04 : https://techoverflow.net/2024/12/08/how-to-install-ros2-jazzy-desktop-on-ubuntu-24-04/
-- Retour pratique Pi 5 + Ubuntu 24 + Jazzy : https://forum.dexterindustries.com/t/argh-they-want-us-to-try-ros-2-jazzy-jalisco/9729
+### Logiciel — Ubuntu et ROS 2 sur Pi 5
+- ROS 2 Lyrical Luth — plateformes prises en charge (Ubuntu 26.04 Tier 1, Debian 13 Tier 3) :
+  https://docs.ros.org/en/lyrical/Releases/lyrical/supported-platforms.html
+- ROS 2 Lyrical Luth — annonce de sortie (LTS jusqu'en mai 2031, amd64 + arm64) :
+  https://discourse.openrobotics.org/t/ros-2-lyrical-luth-released/55021
+- ROS 2 Lyrical — installation par paquets sur Ubuntu : https://docs.ros.org/en/lyrical/Installation/Ubuntu-Install-Debs.html
+- Ubuntu sur Raspberry Pi (Canonical) : https://ubuntu.com/raspberry-pi
+- Ubuntu sur Raspberry Pi — documentation matérielle (EEPROM minimale du Pi 5) :
+  https://ubuntu.com/hardware/docs/boards/how-to/ubuntu_supported/raspberry-pi/
+- Ubuntu 26.04 LTS sortie avec Linux 7.0 : https://www.cnx-software.com/2026/04/24/ubuntu-26-04-lts-resolute-raccoon-released-with-linux-7-0/
+- (Historique, option écartée) ROS 2 Jazzy — installation : https://docs.ros.org/en/jazzy/Installation.html
 
 ### Pont ROS 1 ↔ ROS 2 et rosbridge
 - `ros1_bridge` — page d'index (compatibilité, Noetic EOL mai 2025) : https://index.ros.org/p/ros1_bridge/
