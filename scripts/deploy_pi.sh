@@ -76,7 +76,7 @@ VERSION="$(git -C "$REPO" rev-parse --short HEAD)$(git -C "$REPO" diff --quiet H
         cd ~/cybel 2>/dev/null || { mkdir -p ~/cybel && cd ~/cybel; }
         rm -rf .incoming && mkdir .incoming && tar -xf - -C .incoming
         rm -rf ${CODE_DIRS[*]}
-        for d in ${CODE_DIRS[*]}; do [ -e .incoming/\$d ] && mv .incoming/\$d .; done
+        for d in ${CODE_DIRS[*]}; do if [ -e .incoming/\$d ]; then mv .incoming/\$d .; fi; done
         mkdir -p data && tar -C .incoming -cf - data | tar -C . -xf - --skip-old-files
         rm -rf .incoming
         echo '$VERSION' > .deploye" \
