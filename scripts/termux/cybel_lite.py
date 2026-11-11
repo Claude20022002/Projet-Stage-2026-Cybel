@@ -7,7 +7,6 @@ import json
 import math
 import os
 import re
-import subprocess
 import sys
 import time
 import uuid
@@ -36,6 +35,7 @@ LAB_TOUR_MODULE = CYBEL_HOME / "sdk" / "lab_tour.py"
 SPEECH_TIMING_MODULE = CYBEL_HOME / "sdk" / "speech_timing.py"
 TOUR_TRACE_MODULE = CYBEL_HOME / "sdk" / "tour_trace.py"
 TOUR_NAVIGATION_MODULE = CYBEL_HOME / "sdk" / "tour_navigation.py"
+ANDROID_BRIDGE_MODULE = CYBEL_HOME / "sdk" / "android_bridge.py"
 # TEMPORAIRE-INTEGRATION-2026 : circulation de la semaine d'intégration.
 INTEGRATION_EVENT_MODULE = CYBEL_HOME / "sdk" / "integration_event.py"
 
@@ -111,6 +111,11 @@ _lab_tour = _load_lab_tour_module()
 _speech_timing = _load_speech_timing_module()
 _tour_trace = _load_tour_trace_module()
 _tour_navigation = _load_tour_navigation_module()
+# Actions Android (voix, enrôlement facial, écran du dessous) : exécutées ici
+# quand ce backend tourne sur la tête, déléguées à l'agent de la tête
+# (scripts/termux/head_agent.py) quand CYBEL_HEAD_AGENT_URL est défini (Pi).
+_android_bridge = _load_module_from_file("cybel_android_bridge", ANDROID_BRIDGE_MODULE)
+ANDROID = _android_bridge.bridge_from_env()
 TourEngine = _lab_tour.TourEngine
 load_lab_tour = _lab_tour.load_lab_tour
 filter_tour_by_poi = _lab_tour.filter_tour_by_poi
@@ -130,12 +135,6 @@ LOCALIZATION_MIN_PERCENT = float(
         str(_tour_navigation.DEFAULT_LOCALIZATION_MIN_PERCENT),
     )
 )
-
-TTS_RECEIVER = "com.cybel.ttsbridge/.SpeakReceiver"
-TTS_ACTION = "com.cybel.ttsbridge.SPEAK"
-
-FACE_ENROLL_RECEIVER = "com.cybel.facebridge/.EnrollReceiver"
-FACE_ENROLL_ACTION = "com.cybel.facebridge.ENROLL"
 
 NAV_STATUS_LABELS = {
     600: "En initialisation",
@@ -291,24 +290,7 @@ def _tts_friendly(text: str) -> str:
 
 
 def speak_local(text: str, lang: str = "fr") -> bool:
-    text = _tts_friendly(text)
-    escaped = text.replace("'", "'\\''")
-    broadcast = (
-        f"am broadcast -n {TTS_RECEIVER} -a {TTS_ACTION} "
-        f"--es text '{escaped}' --es lang '{lang}'"
-    )
-    for cmd in (broadcast, f"su -c '{broadcast}'"):
-        try:
-            result = subprocess.run(
-                ["sh", "-c", cmd],
-                capture_output=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                return True
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    return False
+    return ANDROID.speak(_tts_friendly(text), lang)
 
 
 def trigger_face_enrollment(name: str, civility: str) -> bool:
@@ -316,24 +298,7 @@ def trigger_face_enrollment(name: str, civility: str) -> bool:
     programmatique de scripts/termux/enroll_visitor.sh. Permet un déclenchement
     distant (interface opérateur PC, via le backend PC qui relaie ici) plutôt
     qu'un accès direct ADB/Termux à la tablette."""
-    escaped_name = name.replace("'", "'\\''")
-    escaped_civility = civility.replace("'", "'\\''")
-    broadcast = (
-        f"am broadcast -n {FACE_ENROLL_RECEIVER} -a {FACE_ENROLL_ACTION} "
-        f"--es name '{escaped_name}' --es civility '{escaped_civility}'"
-    )
-    for cmd in (broadcast, f"su -c '{broadcast}'"):
-        try:
-            result = subprocess.run(
-                ["sh", "-c", cmd],
-                capture_output=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                return True
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    return False
+    return ANDROID.face_enroll(name, civility)
 
 
 async def ros_call_service(service: str, args: dict, timeout: float = 5.0) -> dict:
@@ -947,10 +912,7 @@ async def speak_local_and_wait(text: str, lang: str = "fr") -> None:
     try:
         if not speak_local(text, lang):
             raise RuntimeError("TTS échoué")
-        await _speech_timing.wait_for_tts_completion(
-            text,
-            _speech_timing.is_local_tts_service_running,
-        )
+        await _speech_timing.wait_for_tts_completion(text, ANDROID.tts_running)
     finally:
         _speech_state["speaking"] = False
 
@@ -1595,6 +1557,7 @@ async def health(_: Request) -> JSONResponse:
             "robot_host": ROBOT_HOST,
             "version": "0.2.0-lite",
             "mode": "termux-lite",
+            "android_bridge": ANDROID.mode,
         }
     )
 
@@ -1633,7 +1596,7 @@ async def say(request: Request) -> JSONResponse:
     if not text:
         return JSONResponse({"ok": False, "error": "Texte vide"}, status_code=400)
     if speak_local(text, lang):
-        return JSONResponse({"ok": True, "method": "local-broadcast", "text": text})
+        return JSONResponse({"ok": True, "method": f"{ANDROID.mode}-broadcast", "text": text})
     return JSONResponse({"ok": False, "error": "TTS échoué"}, status_code=400)
 
 
@@ -1914,8 +1877,6 @@ async def event_announce_say(request: Request) -> JSONResponse:
 # Lancer la circulation (mouvement) ou changer le mode demande le code staff
 # (kiosk_config.json → event.staff_pin, jamais renvoyé au kiosque). L'arrêt,
 # lui, est toujours permis sans code : c'est l'action sûre.
-SECOND_SCREEN_SERVICE = "com.cybel.secondscreen/.SecondScreenService"
-SECOND_SCREEN_HIDE = "com.cybel.secondscreen.HIDE"
 CIRCULATION_LEG_TIMEOUT_S = 240.0
 _circulation_engine = None
 
@@ -1943,17 +1904,7 @@ def _pin_refused() -> JSONResponse:
 
 def set_second_screen(show: bool) -> bool:
     """Affiche / libère l'écran du dessous (app CybelSecondScreen)."""
-    cmd = f"am startservice -n {SECOND_SCREEN_SERVICE}"
-    if not show:
-        cmd += f" -a {SECOND_SCREEN_HIDE}"
-    for attempt in (cmd, f"su -c '{cmd}'"):
-        try:
-            result = subprocess.run(["sh", "-c", attempt], capture_output=True, timeout=5)
-            if result.returncode == 0:
-                return True
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    return False
+    return ANDROID.second_screen(show)
 
 
 async def _circulation_navigate(name: str) -> tuple[bool, str]:

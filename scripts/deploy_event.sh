@@ -132,6 +132,9 @@ push_root "$REPO/scripts/termux/cybel_lite.py" "$CYBEL_TREE/scripts/termux/cybel
 ok "cybel_lite.py (routes /api/event/*)"
 push_root "$REPO/sdk/integration_event.py" "$CYBEL_TREE/sdk/integration_event.py"
 ok "sdk/integration_event.py (moteur de circulation)"
+# Chargé au démarrage de cybel_lite : sans lui, le backend ne démarre plus.
+push_root "$REPO/sdk/android_bridge.py" "$CYBEL_TREE/sdk/android_bridge.py"
+ok "sdk/android_bridge.py (actions Android : voix, enrôlement, écran du dessous)"
 push_root "$REPO/frontend-kiosk/dist" "$CYBEL_TREE/frontend-kiosk/dist"
 ok "frontend-kiosk/dist"
 push_root "$EVENT_CONFIG" "$CYBEL_TREE/data/kiosk_config.json"

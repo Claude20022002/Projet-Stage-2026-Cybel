@@ -216,7 +216,7 @@ toucher au châssis**.
 | Backend CYBEL, navigation, logique visite | **Pi** | déménage depuis Termux |
 | IA : reco faciale, STT, dialogue | **Pi** (si caméra/micro accessibles) | sinon garder sur la tête |
 | **Caméras** | **tête** (physiquement dessus) | soit garder la reco faciale sur la tête, soit ajouter une **caméra USB au Pi** |
-| **TTS** | **tête** (HP + moteur Google TTS) | le Pi déclenche via **endpoint HTTP** sur la tête (plus fiable qu'adb Wi-Fi, fermé à Ghandi) |
+| **TTS** | **tête** (HP + moteur Google TTS) | le Pi déclenche via l'**agent HTTP de la tête** (`head_agent.py`, voir 11.4) ; `adb` Wi-Fi est fermé |
 | **Écran tactile / kiosque** | **tête** (WebView) | pointer la WebView vers `http://<pi>:8000/kiosk/` |
 
 > **Vie privée conservée.** Que la reco faciale tourne sur la tête ou sur le Pi, elle reste
@@ -276,7 +276,7 @@ d'exécution passe de Termux au Pi.
 | Bruit moteurs sur l'alim | Reboots aléatoires | régulateur **dédié** au Pi, découplage, fusible ; en P1 batterie séparée |
 | Gel Wi-Fi AP robot | Perte commande | reconnexion auto rosbridge (reprise de `circulation.py`) ; envisager lien filaire |
 | Throttling thermique | Perte de perf IA | Active Cooler officiel, boîtier ventilé |
-| `adb` Wi-Fi fermé (tête) | TTS Pi→tête KO | endpoint **HTTP** TTS sur la tête, pas d'adb réseau |
+| `adb` Wi-Fi fermé (tête) | TTS Pi→tête KO | agent **HTTP** sur la tête (`head_agent.py`, fait le 2026-11-11), pas d'adb réseau |
 | Messages custom châssis | Pont ROS 2 incomplet | rester en rosbridge JSON ; ne republier que les types maîtrisés |
 | Conso batterie accrue | Autonomie réduite | mesurer ; couper le Pi quand robot en charge si besoin |
 
@@ -429,7 +429,50 @@ tests, sans aucun lien avec le robot.
 | `vcgencmd` : `Can't open device file: /dev/vcio` | Absent du noyau Ubuntu `raspi` | Température via `/sys/class/thermal` (voir 3.3) |
 | Python 3.14 au lieu de 3.13 | Version fournie par Ubuntu 26.04 | Aucun impact sur le backend et les tests |
 
-### 11.4 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
+### 11.4 Décision du 2026-11-11 : `cybel_lite` sur le Pi, agent sur la tête
+
+**Le backend qui tournera sur le Pi est `cybel_lite`**, pas le backend FastAPI du PC. Seul
+`cybel_lite` a le mode événement, la circulation, le panneau staff et la chaîne de navigation
+validée sur le terrain. Le backend PC n'a aucune route `/api/event/*` et fait parler la tête par
+`adb`, fermé par le Wi-Fi.
+
+Ses actions Android passent par **`sdk/android_bridge.py`** :
+
+| Mode | Quand | Exécution |
+|---|---|---|
+| `local` | `cybel_lite` tourne sur la tête (Termux), comme avant | `am` / `dumpsys` lancés directement |
+| `remote` | `CYBEL_HEAD_AGENT_URL` défini (Pi) | requête HTTP vers **`scripts/termux/head_agent.py`**, lancé dans Termux sur la tête |
+
+| Action | Route de l'agent | App Android |
+|---|---|---|
+| Parole | `POST /speak` | CybelTTSBridge |
+| Fin de parole | `GET /tts/running` | `dumpsys activity services` |
+| Enrôlement facial | `POST /face/enroll` | CybelFaceBridge |
+| Écran du dessous | `POST /second-screen` | CybelSecondScreen |
+
+- **Agent** : port 8002, stdlib Python seule (rien à installer dans Termux), jeton obligatoire
+  (`X-Cybel-Token` = `CYBEL_HEAD_TOKEN`, dans le `.env` du PC, jamais commité), textes limités à
+  2 000 caractères, langues `fr`/`en`. `--dry-run` journalise les commandes sans les exécuter.
+- **Panne réseau** : l'action est signalée échouée, sans exception. La fin de parole retombe alors
+  sur l'estimation par la longueur du texte (`sdk/speech_timing.py`).
+- **Faille corrigée au passage** : l'ancien code assemblait les commandes pour `sh -c`, et son
+  repli `su -c '…'` (root) cassait les guillemets à la première apostrophe. Un texte forgé pouvait
+  y glisser une commande. Les commandes sont maintenant des listes d'arguments, sans shell ; le
+  repli root utilise `shlex.join`.
+- **Vérifié** : 14 tests unitaires (dont agent HTTP réel ↔ client distant, et un texte piégé qui
+  reste un seul argument), 199/199 au total. Sur le Pi, en local : `cybel_lite` en mode `remote`
+  (52 Mo) → agent en `--dry-run` → commande `am broadcast` attendue, texte piégé intact ; kiosque
+  servi. Le passage d'une machine à l'autre n'a pas été testé (pare-feu Windows) : à vérifier au
+  labo avec la vraie tête.
+
+**Reste à faire au labo pour basculer** : lancer l'agent sur la tête (Termux), lancer `cybel_lite`
+sur le Pi avec `CYBEL_HEAD_AGENT_URL=http://<tête>:8002`, et pointer vers le Pi les apps de la tête
+qui appellent le backend : le kiosque (`/sdcard/Download/cybel_kiosk_test_url.txt`) et
+CybelFaceBridge (adresse à vérifier dans `BackendClient.java`). L'adresse de la tête vue depuis
+le réseau du robot est à relever : `172.16.x` par le Wi-Fi de l'école routé par le châssis lors
+des essais de septembre, `192.168.20.1` sur le lien interne.
+
+### 11.5 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
 
 1. **Préparé le 2026-11-11** : le Wi-Fi du robot (`TY1251D-03195`) est dans un fichier séparé,
    `/etc/netplan/61-wifi-robot.yaml`, que netplan combine avec `60-reseau.yaml`. Le Pi rejoint
