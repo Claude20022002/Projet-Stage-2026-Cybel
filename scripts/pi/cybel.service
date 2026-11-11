@@ -1,0 +1,32 @@
+# Backend embarqué CYBEL (cybel_lite) sur le Raspberry Pi compagnon.
+#
+# Service utilisateur systemd : installé dans ~/.config/systemd/user/ par
+# scripts/deploy_pi.sh, redémarrable sans sudo (systemctl --user restart cybel).
+# Pour qu'il démarre au boot sans session ouverte, une seule fois sur le Pi :
+#     sudo loginctl enable-linger cybel
+#
+# Configuration : ~/cybel/cybel-pi.env (non secrète, modèle scripts/pi/cybel-pi.env.example)
+#                 ~/cybel/.secrets.env (CYBEL_HEAD_TOKEN, écrit par deploy_pi.sh)
+# Journal :       journalctl --user -u cybel -f
+
+[Unit]
+Description=CYBEL - backend embarque (cybel_lite) sur Raspberry Pi
+# Plafonne les redémarrages en boucle (config invalide, port occupé…) :
+# au-delà de 10 échecs en 5 min, systemd abandonne au lieu de tourner à vide.
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=%h/cybel
+Environment=CYBEL_HOME=%h/cybel
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=%h/cybel/cybel-pi.env
+EnvironmentFile=-%h/cybel/.secrets.env
+ExecStart=%h/cybel/.venv/bin/python scripts/termux/cybel_lite.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
