@@ -340,4 +340,102 @@ Réutiliser l'esprit instrumenté du projet (cf. `paper/icra_2027/tools/stats.py
 - [../ARCHITECTURE_LOGICIELLE.md](../ARCHITECTURE_LOGICIELLE.md) — couches logicielles, ports, débits.
 - `sdk/rosbridge.py`, `sdk/real_robot.py` — client rosbridge réutilisé par le Pi.
 - `scripts/circulation.py` — reconnexion rosbridge automatique à reprendre.
-```
+
+---
+
+## 11. Avancement
+
+### 11.1 P0 — Bench : terminé le 2026-11-11
+
+Le backend CYBEL tourne sur le Pi en simulation (`ROBOT_MOCK=true`) et passe toute la suite de
+tests, sans aucun lien avec le robot.
+
+| Critère | Résultat |
+|---|---|
+| Tests unitaires (`tests/unit`) | 185/185, 14,4 s (15,4 s sur le PC de dev) |
+| Démarrage backend (uvicorn, mock) | 2 s, `/api/robot/status` répond `"mock": true` |
+| Mémoire du backend | 68 Mo (7,7 Go disponibles) |
+| Accès depuis le PC (même réseau) | HTTP 200 en 15 ms |
+| Température (ventilateur externe) | 33–35 °C, y compris pendant les tests |
+
+#### Configuration obtenue
+
+| Élément | Valeur |
+|---|---|
+| Système | Ubuntu Server 26.04.1 LTS (64-bit), noyau `7.0.0-1023-raspi` |
+| Matériel | Pi 5, 8 Go, microSD 64 Go (52 Go libres), EEPROM du 2026-05-26 |
+| Hôte / compte | `cybel-pi` / `cybel` (sudo) |
+| Python | 3.14.4, environnement virtuel `~/cybel/.venv` |
+| Dépendances | fastapi 0.162, starlette 1.10, uvicorn 0.54, pydantic 2.14, websockets 17.4, pytest 9.2 |
+| Code | `~/cybel` : `sdk`, `backend`, `scripts`, `tests`, `data`, `frontend`, `frontend-kiosk` (11 Mo) |
+| Réseau | Ethernet + Wi-Fi en DHCP, via `/etc/netplan/60-reseau.yaml` |
+| Accès SSH | clé dédiée `~/.ssh/cybel_pi` (sans phrase de passe) + clé personnelle |
+
+### 11.2 Procédure d'installation suivie
+
+1. **EEPROM** vérifiée depuis l'ancien système : `sudo rpi-eeprom-update` (minimum requis par
+   Ubuntu 26.04 sur Pi 5 : 2025-02-11).
+2. **Installation réseau depuis le Pi lui-même** (pas de lecteur microSD sur le PC) : écran
+   micro-HDMI, clavier, câble Ethernet, touche **Maj** maintenue au démarrage → Raspberry Pi
+   Imager s'exécute sur le Pi et écrit sur sa carte.
+3. Imager : Raspberry Pi 5 → Other general-purpose OS → Ubuntu → **Ubuntu Server 26.04.1
+   (64-bit)** (le mot « LTS » n'apparaît pas dans le libellé) → carte SD interne.
+4. Personnalisation : nom d'hôte, utilisateur, localisation, **SSH par mot de passe** (la clé
+   publique ne peut pas être collée depuis le PC à ce stade).
+5. Réseau au premier démarrage : **aucune adresse IP**, ni Ethernet ni Wi-Fi (voir 11.3). Fichier
+   `/etc/netplan/60-reseau.yaml` créé à la main (`chmod 600`, puis `sudo netplan apply`) :
+
+   ```yaml
+   network:
+     version: 2
+     ethernets:
+       eth0:
+         dhcp4: true
+         optional: true
+     wifis:
+       wlan0:
+         dhcp4: true
+         optional: true
+         regulatory-domain: MA
+         access-points:
+           "NOM_DU_WIFI":
+             password: "MOT_DE_PASSE"
+   ```
+
+6. `sudo apt update && sudo apt full-upgrade -y`, puis
+   `sudo apt install -y python3-venv python3-pip` et `sudo usermod -aG video cybel`.
+7. Clé SSH dédiée créée sur le PC (`ssh-keygen -t ed25519 -N "" -f ~/.ssh/cybel_pi`) puis ajoutée à
+   `~/.ssh/authorized_keys` du Pi, pour les connexions non interactives.
+8. Déploiement du code depuis le PC, sans dépôt distant :
+
+   ```bash
+   git archive --format=tar HEAD sdk backend scripts tests frontend frontend-kiosk data pytest.ini \
+     | ssh -i ~/.ssh/cybel_pi cybel@<ip-du-pi> 'rm -rf ~/cybel && mkdir -p ~/cybel && tar -x -C ~/cybel'
+   ```
+
+   puis sur le Pi : `python3 -m venv .venv`, `pip install -r backend/requirements.txt -r
+   tests/requirements.txt`, `python -m pytest tests/unit -q`. C'est une copie figée de `HEAD` : la
+   refaire après chaque modification (le `.venv` est alors à recréer).
+
+### 11.3 Écarts et pièges rencontrés
+
+| Constat | Cause | Traitement |
+|---|---|---|
+| Wi-Fi saisi dans Imager mais absent des « personnalisations appliquées » | Écran Wi-Fi non validé (« Saisir un mot de passe ») | Wi-Fi configuré dans netplan |
+| Aucune IPv4 sur `eth0` au premier démarrage (lien `UP`, IPv6 locale seulement) | Pas de DHCP configuré pour `eth0` | `eth0: dhcp4: true` dans netplan |
+| `brcmfmac: Firmware rejected country setting` | La puce Wi-Fi refuse `regulatory-domain: MA` | Sans effet sur la connexion ; retirer la ligne si le Wi-Fi ne monte pas |
+| `apt install` : erreurs 404 sur `resolute-security` | Liste de paquets périmée (premier `apt update` sans réseau) | `sudo apt update` avant toute installation |
+| Clé `id_ed25519` acceptée puis refusée en non interactif | Clé protégée par une phrase de passe | Clé dédiée `cybel_pi` sans phrase de passe |
+| `vcgencmd` : `Can't open device file: /dev/vcio` | Absent du noyau Ubuntu `raspi` | Température via `/sys/class/thermal` (voir 3.3) |
+| Python 3.14 au lieu de 3.13 | Version fournie par Ubuntu 26.04 | Aucun impact sur le backend et les tests |
+
+### 11.4 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
+
+1. Ajouter le Wi-Fi du robot (`TY1251D-03195`) dans `/etc/netplan/60-reseau.yaml`, à côté du
+   réseau existant, puis `sudo netplan apply`. Vérifier une adresse en `10.42.0.x`.
+2. Lancer le backend avec `ROBOT_MOCK=false` et `ROBOT_HOST=10.42.0.1`, **robot sous
+   surveillance** : la télémétrie (batterie, pose, `nav_status`) doit arriver.
+3. Mesurer la latence rosbridge depuis le Pi et la comparer au PC (p50/p95), avec le nombre de
+   reconnexions sur une durée fixe.
+
+Rien ne doit commander le châssis tant que P1 n'a pas validé la seule réception de la télémétrie.

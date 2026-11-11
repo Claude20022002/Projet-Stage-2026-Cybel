@@ -61,7 +61,7 @@ C'est le patron **« calculateur compagnon »** (companion computer), standard e
 robotique (drones PX4, TurtleBot, bras ROS…). Le Pi **n'enlève rien** : il s'ajoute.
 
 - Le Pi 5 (4× Cortex-A76 2,4 GHz, jusqu'à 16 Go RAM) est **nettement plus puissant** que le
-  RK3399 et tourne **Ubuntu 24.04 + ROS 2** nativement.
+  RK3399 et tourne **Ubuntu 26.04 LTS + ROS 2** nativement.
 - Il dialogue avec le châssis **exactement comme le PC CYBEL aujourd'hui** : par rosbridge
   (`10.42.0.1:9090` sur le Wi-Fi du robot, ou mieux par **Ethernet** sur le segment interne
   `192.168.20.x`). Aucune modification interne.
@@ -148,7 +148,9 @@ raisonnables que sur un robot **possédé**, avec sauvegarde firmware et pièce 
 
 ## 4. Plan concret recommandé (si on part sur le Pi 5 compagnon)
 
-1. **Pi 5 (8 ou 16 Go) + SSD NVMe via HAT** ou microSD A2 ; Ubuntu 24.04 + ROS 2 Jazzy.
+1. **Pi 5 (8 ou 16 Go) + SSD NVMe via HAT** ou microSD A2 ; Ubuntu 26.04 LTS + ROS 2 Lyrical
+   (initialement Ubuntu 24.04 + Jazzy ; choix revu le 2026-11-10, voir
+   [08-architecture-pi5-compagnon.md](08-architecture-pi5-compagnon.md) § 5.2 et § 11).
 2. **Alim** : d'abord batterie USB-C PD (isolée, sûr pour prototyper), puis buck 24 V→5 V/5 A
    sur la batterie robot pour l'intégration finale.
 3. **Liaison châssis** : Ethernet sur le segment `192.168.20.x` si accessible, sinon Wi-Fi
