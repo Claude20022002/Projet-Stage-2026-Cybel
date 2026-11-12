@@ -260,7 +260,7 @@ d'exécution passe de Termux au Pi.
 | Phase | Contenu | Critère de sortie |
 |---|---|---|
 | **P0 — Bench** ✅ 2026-11-11 | Pi 5 + Ubuntu 26.04 LTS, alim USB-C PD, SDK CYBEL en mock | backend tourne, tests unitaires OK sur le Pi — **atteint** (section 11) |
-| **P1 — Lien châssis** | Pi sur Wi-Fi AP robot, `ROBOT_MOCK=false`, rosbridge | télémétrie reçue, latence mesurée vs PC |
+| **P1 — Lien châssis** ✅ 2026-11-12 | Pi sur Wi-Fi AP robot, `ROBOT_MOCK=false`, rosbridge | télémétrie reçue, latence mesurée vs PC — **atteint** (section 11.6) |
 | **P2 — Backend à bord** | backend CYBEL en `systemd` sur le Pi ; kiosque pointe sur le Pi | navigation POI + visite guidée depuis le Pi |
 | **P3 — TTS / IA** | endpoint TTS sur la tête ; reco faciale (tête ou caméra Pi) | accueil vocal + reco bout en bout |
 | **P4 — Alim embarquée** | buck 24 V→5,1 V + fusible, montage arrière | autonomie et thermique validées en roulant |
@@ -501,7 +501,55 @@ déploiement.
 `sudo loginctl enable-linger cybel`. Sans elle, le service ne démarre au boot qu'à l'ouverture
 d'une session de `cybel`.
 
-### 11.6 Prochaine étape : P1 — Lien châssis (au labo, robot présent)
+### 11.6 P1 — Lien châssis : atteint le 2026-11-12
+
+Au labo, robot allumé sur sa borne. Le Pi rejoint le Wi-Fi du robot (`wlan0` = `10.42.0.218`)
+dès l'installation de `61-wifi-robot.yaml`, et le service `cybel` reçoit la télémétrie :
+
+```json
+{"connected":true,"battery":89,"charger":true,"nav_status":600,"nav_status_label":"En initialisation",
+ "localization_percent":60.1,"localization_label":"Bonne"}
+```
+
+**Latence et stabilité** (`scripts/measure_rosbridge_latency.py`, lecture seule : 100 appels
+`/rosapi/get_time` puis 60 s d'écoute de `/robot_status` ; PC puis Pi, l'un après l'autre, même
+position, journaux dans `data/logs/latence_{pc,pi}_2026-11-12.json`) :
+
+| Mesure | PC | Pi |
+|---|---|---|
+| Aller-retour, médiane | 40,6 ms | 20,8 ms |
+| Aller-retour, 95ᵉ centile | 150,9 ms | 84,2 ms |
+| Aller-retour, max | 401 ms | 219 ms |
+| Appels aboutis | 100/100 | 100/100 |
+| Flux `/robot_status` | 4,0 msg/s | 4,0 msg/s |
+| Plus long silence | 0,49 s | 0,49 s |
+| Silences > 2 s / reconnexions | 0 / 0 | 0 / 0 |
+
+Une seule série par machine, mesurées successivement : l'écart (médiane divisée par deux) dépend
+aussi de la carte Wi-Fi et de la distance au robot. Le gel de 5 s observé en octobre ne s'est pas
+reproduit sur ces 60 s ; une écoute plus longue reste à faire avant de conclure sur la stabilité.
+
+Constats au démarrage :
+
+- Les messages `brcmfmac … set chanspec … fail, reason -52` s'affichent sur l'écran du Pi
+  par-dessus l'invite de connexion : la puce Wi-Fi refuse certains canaux liés à
+  `regulatory-domain: MA`. Sans effet sur la connexion ; `sudo dmesg -n 1` les masque pour la
+  session.
+- `loginctl … Linger` était encore à `no` : le service tournait grâce à la session ouverte sur
+  l'écran. **`sudo loginctl enable-linger cybel` reste à faire**, sinon le backend ne redémarre
+  pas seul au prochain allumage.
+- Robot en `nav_status 600` (initialisation) : à relocaliser dans Deployment Tool avant tout
+  essai de navigation depuis le Pi.
+
+### 11.7 Prochaine étape : P2 — Backend à bord
+
+1. Lancer l'agent de la tête (`head_agent.py`) dans Termux et renseigner
+   `CYBEL_HEAD_AGENT_URL` dans `~/cybel/cybel-pi.env` ; vérifier qu'une annonce part du Pi.
+2. Pointer le kiosque de la tête vers `http://10.42.0.218:8001/kiosk/` (fichier
+   `/sdcard/Download/cybel_kiosk_test_url.txt`).
+3. Premier trajet POI commandé depuis le Pi, robot localisé et sous surveillance.
+
+### Rappel P1 — étapes prévues (réalisées)
 
 1. **Préparé le 2026-11-11** : le Wi-Fi du robot (`TY1251D-03195`) est dans un fichier séparé,
    `/etc/netplan/61-wifi-robot.yaml`, que netplan combine avec `60-reseau.yaml`. Le Pi rejoint

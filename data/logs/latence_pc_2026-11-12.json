@@ -1,0 +1,26 @@
+{
+  "label": "pc",
+  "host": "Claude",
+  "target": "ws://10.42.0.1:9090",
+  "at": "2026-11-12T13:18:01",
+  "calls": {
+    "service": "/rosapi/get_time",
+    "calls": 100,
+    "ok": 100,
+    "timeouts": 0,
+    "rtt_ms": {
+      "p50": 40.6,
+      "p95": 150.9,
+      "max": 401.0,
+      "mean": 56.9
+    }
+  },
+  "stream": {
+    "duration_s": 60.0,
+    "messages": 240,
+    "rate_hz": 4.0,
+    "max_gap_s": 0.49,
+    "gaps_over_2s": 0,
+    "reconnects": 0
+  }
+}
