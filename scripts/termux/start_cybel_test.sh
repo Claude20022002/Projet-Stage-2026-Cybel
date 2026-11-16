@@ -61,6 +61,14 @@ write_kiosk_url() {
     URL="http://127.0.0.1:${PORT}/kiosk/"
   fi
 
+  # Backend déporté (Raspberry Pi compagnon) : ce fichier impose l'URL du kiosque.
+  # Le supprimer rend la main au backend de la tête au prochain lancement de l'app.
+  OVERRIDE_FILE="$CYBEL_HOME/kiosk_backend_url.txt"
+  if [ -s "$OVERRIDE_FILE" ]; then
+    URL="$(head -n 1 "$OVERRIDE_FILE" | tr -d '\r')"
+    echo "URL kiosk imposée par $OVERRIDE_FILE"
+  fi
+
   if mkdir -p "$(dirname "$KIOSK_URL_FILE")" 2>/dev/null && echo "$URL" >"$KIOSK_URL_FILE" 2>/dev/null; then
     echo "URL kiosk test pour l'app Android : $URL"
     return 0
