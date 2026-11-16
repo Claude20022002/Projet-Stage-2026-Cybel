@@ -567,11 +567,24 @@ Constats au démarrage :
 |---|---|---|
 | Attente de l'adresse `192.168.20.1` bloquée 2 min | `ip -4 addr` ne fonctionne pas dans l'environnement où l'app kiosque lance Termux | l'agent réessaie lui-même d'écouter (2 min) au lieu de vérifier avec `ip` |
 | `pgrep`, `pkill`, `python` introuvables selon le contexte | le PATH de la commande Termux peut ne pas contenir `$PREFIX/bin` | chemins complets `$PREFIX/bin/…` dans les scripts |
+| **Pi éteint brutalement à 13h00** (2026-11-16) | Alimenté par **le port USB à l'intérieur du robot** : 7 alertes `hwmon: Undervoltage detected!` dès 12h14, puis journal coupé en pleine activité (pas de « Journal stopped ») = coupure de courant. Aucune alerte thermique (43–51 °C). Aucune alerte sur les démarrages alimentés par le bloc officiel | **Ne jamais alimenter le Pi 5 par un port USB du robot** (il lui faut 5 V / 5 A). Bloc USB-C officiel 27 W en attendant le convertisseur 24 V → 5,1 V / 5 A de la phase P4 |
 | **Backend de la tête arrêté par erreur** | `ensure_cybel_backend_test.sh` lancé à la main via `su` : il a relancé le backend, le port n'était pas libéré | relancé par la commande Termux normale en 4 s. Ne jamais lancer ce script autrement que par `RUN_COMMAND` |
 
 **Reste à faire pour P2 :**
 
 1. ~~Lancer l'agent de la tête et vérifier qu'une annonce part du Pi.~~ Fait.
+2. ~~Pointer le kiosque de la tête vers le Pi.~~ **Fait le 2026-11-16** : le Pi est câblé au switch
+   interne du robot (`eth0` = `192.168.20.191`, adresse donnée par la tête) et parle au châssis
+   par ce câble (`ROBOT_HOST=192.168.20.22`). La tête atteint le Pi directement sur ce réseau :
+   `~/cybel-test/kiosk_backend_url.txt` = `http://192.168.20.191:8001/kiosk/`, que
+   `start_cybel_test.sh` recopie dans l'adresse du kiosque au lieu de la réécrire. Kiosque relancé :
+   chargé depuis le Pi au premier essai (4 requêtes reçues par le Pi, capture d'écran conforme).
+   - Le kiosque utilise la configuration du Pi (`data/kiosk_config.json` du dépôt, variante
+     `coords` / `/navi_goal`), pas celle de la tête (variante POI) : à aligner si besoin.
+   - **L'adresse `192.168.20.191` est attribuée par la tête (DHCP) et peut changer** : à fixer.
+   - CybelFaceBridge envoie toujours ses identifications au backend de la tête (`127.0.0.1:8001`).
+   - Retour arrière : supprimer `kiosk_backend_url.txt` sur la tête, puis relancer l'app kiosque.
+   - Écarté : `adb reverse` par le câble USB (perdu à chaque redémarrage d'`adb`).
 2. Pointer le kiosque de la tête vers `http://10.42.0.218:8001/kiosk/` (fichier
    `/sdcard/Download/cybel_kiosk_test_url.txt`).
 3. Premier trajet POI commandé depuis le Pi, robot localisé et sous surveillance.
