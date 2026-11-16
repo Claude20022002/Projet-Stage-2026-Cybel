@@ -574,14 +574,19 @@ Constats au démarrage :
 
 1. ~~Lancer l'agent de la tête et vérifier qu'une annonce part du Pi.~~ Fait.
 2. ~~Pointer le kiosque de la tête vers le Pi.~~ **Fait le 2026-11-16** : le Pi est câblé au switch
-   interne du robot (`eth0` = `192.168.20.191`, adresse donnée par la tête) et parle au châssis
-   par ce câble (`ROBOT_HOST=192.168.20.22`). La tête atteint le Pi directement sur ce réseau :
-   `~/cybel-test/kiosk_backend_url.txt` = `http://192.168.20.191:8001/kiosk/`, que
+   interne du robot et parle au châssis par ce câble (`ROBOT_HOST=192.168.20.22`). **Adresse fixe
+   `192.168.20.50`** (`/etc/netplan/62-eth0-fixe.yaml`, hors de la plage DHCP de la tête
+   `192.168.20.150–250` ; route par défaut et DNS via `192.168.20.1` comme en DHCP), validée par
+   `sudo netplan try`. La tête atteint le Pi directement sur ce réseau :
+   `~/cybel-test/kiosk_backend_url.txt` = `http://192.168.20.50:8001/kiosk/`, que
    `start_cybel_test.sh` recopie dans l'adresse du kiosque au lieu de la réécrire. Kiosque relancé :
    chargé depuis le Pi au premier essai (4 requêtes reçues par le Pi, capture d'écran conforme).
    - Le kiosque utilise la configuration du Pi (`data/kiosk_config.json` du dépôt, variante
      `coords` / `/navi_goal`), pas celle de la tête (variante POI) : à aligner si besoin.
-   - **L'adresse `192.168.20.191` est attribuée par la tête (DHCP) et peut changer** : à fixer.
+   - **Android tue les processus Termux en session longue** : backend de la tête et agent
+     trouvés arrêtés le 2026-11-16 (après 13h08, tête non redémarrée), d'où « Connection refused »
+     depuis le Pi. Relancés par `ensure_cybel_backend_test.sh`. Correctif à choisir : Termux:API
+     sur la tête (wake lock), ou surveillance depuis le Pi qui les relance par USB.
    - CybelFaceBridge envoie toujours ses identifications au backend de la tête (`127.0.0.1:8001`).
    - Retour arrière : supprimer `kiosk_backend_url.txt` sur la tête, puis relancer l'app kiosque.
    - Écarté : `adb reverse` par le câble USB (perdu à chaque redémarrage d'`adb`).
