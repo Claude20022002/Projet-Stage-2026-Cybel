@@ -36,6 +36,7 @@ MAX_BODY_BYTES = 8192
 MAX_TEXT_CHARS = 2000
 MAX_NAME_CHARS = 100
 LANGS = ("fr", "en")
+BIND_WAIT_S = 120.0
 
 
 def _load_android_bridge():
@@ -162,7 +163,20 @@ def main() -> None:
     if not token:
         sys.exit(f"{android_bridge.AGENT_TOKEN_ENV} vide : définir le secret partagé avec le backend")
     runner = dry_run_runner if args.dry_run else android_bridge.run_android
-    server = make_server(args.host, args.port, token, android_bridge.LocalBridge(runner), dry_run=args.dry_run)
+    bridge = android_bridge.LocalBridge(runner)
+    # Au démarrage de la tête, l'adresse du lien interne (192.168.20.1) peut ne pas être
+    # encore montée : on réessaie au lieu d'abandonner. Vérifier l'adresse avec `ip` avant
+    # de lancer ne marche pas : la sandbox Android de l'app kiosque bloque cette lecture.
+    deadline = time.monotonic() + BIND_WAIT_S
+    while True:
+        try:
+            server = make_server(args.host, args.port, token, bridge, dry_run=args.dry_run)
+            break
+        except OSError as exc:
+            if time.monotonic() > deadline:
+                sys.exit(f"Impossible d'écouter sur {args.host}:{args.port} : {exc}")
+            print(f"{args.host}:{args.port} indisponible ({exc}), nouvel essai dans 2 s", flush=True)
+            time.sleep(2)
     print(f"Agent tête CYBEL — http://{args.host}:{args.port}{' (dry-run)' if args.dry_run else ''}", flush=True)
     try:
         server.serve_forever()

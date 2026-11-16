@@ -541,10 +541,37 @@ Constats au démarrage :
 - Robot en `nav_status 600` (initialisation) : à relocaliser dans Deployment Tool avant tout
   essai de navigation depuis le Pi.
 
-### 11.7 Prochaine étape : P2 — Backend à bord
+### 11.7 P2 — Backend à bord (en cours)
 
-1. Lancer l'agent de la tête (`head_agent.py`) dans Termux et renseigner
-   `CYBEL_HEAD_AGENT_URL` dans `~/cybel/cybel-pi.env` ; vérifier qu'une annonce part du Pi.
+**Fait le 2026-11-16, robot immobile (aucune commande de navigation)** :
+
+- **La tête est branchée en USB au Pi**, plus au PC : `adb` est installé sur le Pi
+  (`sudo apt install adb`, groupe `plugdev`) et voit la tête (`rk3399_all`, déjà autorisée). Tout
+  se fait en SSH vers le Pi, qui pousse les fichiers sur la tête.
+- **Agent installé sur la tête** (`~/cybel-test/scripts/termux/head_agent.py` + `sdk/android_bridge.py`,
+  jeton dans `~/cybel-test/.head_agent.env`, 600). Il écoute **uniquement sur `192.168.20.1:8002`**,
+  le lien interne tête ↔ châssis : joignable depuis le Pi (routé par le châssis, les requêtes
+  arrivent de `192.168.20.22`), refusé depuis le Wi-Fi de l'école.
+- **Le Pi fait parler le robot** : `CYBEL_HEAD_AGENT_URL=http://192.168.20.1:8002` dans
+  `~/cybel/cybel-pi.env`, service redémarré (`"android_bridge":"remote"`), annonce
+  `POST /api/speech/say` entendue sur le haut-parleur de la tête.
+- **Redémarrage automatique de l'agent** : Termux:Boot n'est pas installé sur la tête, donc
+  `~/.termux/boot/` n'est jamais exécuté. Le backend de la tête est lancé par l'app kiosque
+  (`BootReceiver` → `ensure_cybel_backend_test.sh`) ; ce script relance maintenant aussi l'agent
+  s'il ne tourne pas (`scripts/termux/start_head_agent.sh`). Testé : agent arrêté, relancé en
+  3 s par ce script, backend de la tête intact. **Non testé** : un vrai redémarrage de la tête.
+
+**Pièges rencontrés** :
+
+| Constat | Cause | Traitement |
+|---|---|---|
+| Attente de l'adresse `192.168.20.1` bloquée 2 min | `ip -4 addr` ne fonctionne pas dans l'environnement où l'app kiosque lance Termux | l'agent réessaie lui-même d'écouter (2 min) au lieu de vérifier avec `ip` |
+| `pgrep`, `pkill`, `python` introuvables selon le contexte | le PATH de la commande Termux peut ne pas contenir `$PREFIX/bin` | chemins complets `$PREFIX/bin/…` dans les scripts |
+| **Backend de la tête arrêté par erreur** | `ensure_cybel_backend_test.sh` lancé à la main via `su` : il a relancé le backend, le port n'était pas libéré | relancé par la commande Termux normale en 4 s. Ne jamais lancer ce script autrement que par `RUN_COMMAND` |
+
+**Reste à faire pour P2 :**
+
+1. ~~Lancer l'agent de la tête et vérifier qu'une annonce part du Pi.~~ Fait.
 2. Pointer le kiosque de la tête vers `http://10.42.0.218:8001/kiosk/` (fichier
    `/sdcard/Download/cybel_kiosk_test_url.txt`).
 3. Premier trajet POI commandé depuis le Pi, robot localisé et sous surveillance.

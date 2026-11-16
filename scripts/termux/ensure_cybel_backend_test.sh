@@ -24,4 +24,14 @@ if ! python -c "import uvicorn, starlette, websockets" >/dev/null 2>&1; then
   fi
 fi
 
+# Agent de la tête (head_agent.py) pour le backend du Pi compagnon : relancé ici
+# s'il ne tourne pas et que son jeton est installé. Ce script est appelé par l'app
+# kiosque au démarrage de la tête (BootReceiver) et à chaque ouverture : Termux:Boot
+# n'est pas installé, ~/.termux/boot/ n'est donc jamais exécuté.
+AGENT_START="$CYBEL_HOME/scripts/termux/start_head_agent.sh"
+if [ -f "$CYBEL_HOME/.head_agent.env" ] && [ -f "$AGENT_START" ] \
+    && ! "${PREFIX:-/data/data/com.termux/files/usr}/bin/pgrep" -f "scripts/termux/head_agent.py" >/dev/null 2>&1; then
+  bash "$AGENT_START" || echo "Agent de la tête : démarrage échoué (voir ~/head_agent.log)"
+fi
+
 exec bash "$SCRIPT"

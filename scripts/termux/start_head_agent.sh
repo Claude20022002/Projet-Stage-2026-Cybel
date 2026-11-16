@@ -16,12 +16,15 @@ LOG="$HOME/head_agent.log"
 
 [ -f "$ENV_FILE" ] || { echo "Jeton absent : $ENV_FILE"; exit 1; }
 
-pkill -f "scripts/termux/head_agent.py" 2>/dev/null && sleep 1
+BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
+"$BIN/pkill" -f "scripts/termux/head_agent.py" 2>/dev/null && sleep 1
 
 set -a
 . "$ENV_FILE"
 set +a
 export CYBEL_HOME
 
-nohup python "$CYBEL_HOME/scripts/termux/head_agent.py" --host "$HOST" --port "$PORT" "$@" >> "$LOG" 2>&1 &
+# Chemin complet : lancé par l'app kiosque, le PATH peut ne pas contenir Termux.
+# Si le lien interne n'est pas encore monté au démarrage, l'agent réessaie seul (2 min).
+nohup "$BIN/python" "$CYBEL_HOME/scripts/termux/head_agent.py" --host "$HOST" --port "$PORT" "$@" >> "$LOG" 2>&1 &
 echo "Agent de la tête lancé (pid $!) sur $HOST:$PORT — journal : $LOG"
